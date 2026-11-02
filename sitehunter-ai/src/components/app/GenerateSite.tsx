@@ -8,13 +8,14 @@ export type SegmentOption = { key: string; label: string };
 export function GenerateSiteDialog({ companyId, companyName, segments, defaultSegment, onClose }: { companyId: string; companyName: string; segments: SegmentOption[]; defaultSegment?: string; onClose: () => void }) {
   const [segment, setSegment] = useState(defaultSegment ?? segments[0]?.key ?? "servicos");
   const [instructions, setInstructions] = useState("");
+  const [menuText, setMenuText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function generate() {
     setLoading(true);
     setError(null);
     try {
-      const r = await api<{ project: { id: string } }>("/api/projects", { body: { companyId, segment, instructions: instructions || undefined } });
+      const r = await api<{ project: { id: string } }>("/api/projects", { body: { companyId, segment, instructions: instructions || undefined, menuText: menuText || undefined } });
       location.href = `/app/sites/${r.project.id}`;
     } catch (e) {
       setError((e as Error).message);
@@ -36,6 +37,9 @@ export function GenerateSiteDialog({ companyId, companyName, segments, defaultSe
           </Field>
           <Field label="Preferências (opcional)" hint="Ex.: tom mais descontraído, destacar atendimento infantil. Não informe fatos que não tenham sido confirmados.">
             <textarea className="input min-h-20" maxLength={800} value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+          </Field>
+          <Field label="Cardápio ou tabela de preços (opcional)" hint="Cole o cardápio real (iFood, foto transcrita, site antigo). A IA organiza com os preços exatos.">
+            <textarea className="input min-h-20" maxLength={6000} value={menuText} onChange={(e) => setMenuText(e.target.value)} />
           </Field>
           <p className="text-xs text-slate-500">Usa 1 geração do seu limite mensal. A IA usa somente os dados públicos da empresa e não inventa depoimentos, avaliações ou preços.</p>
         </div>

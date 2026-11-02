@@ -4,6 +4,8 @@ import { env } from "./env";
 import { HttpError } from "./http";
 import { log } from "./logger";
 import { FONTS } from "./site/types";
+import { ICON_NAMES } from "./site/icons";
+import { siteCopyPrompt } from "./site/prompt";
 import { SiteCopySchema, fallbackCopy, type CompanyInfo, type Segment, type SiteCopy } from "./site/templates";
 
 // Integração com a API da Anthropic (Claude). Sem ANTHROPIC_API_KEY o sistema
@@ -29,8 +31,15 @@ const RULES = `Regras obrigatórias:
 const str = (maxLength?: number) => ({ type: "string", ...(maxLength ? { maxLength } : {}) });
 const obj = (properties: Record<string, unknown>) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
 
+const iconEnum = { type: "string", enum: [...ICON_NAMES] };
 const SITE_COPY_JSON_SCHEMA = obj({
   siteName: str(),
+  tagline: str(),
+  marquee: { type: "array", items: str() },
+  highlights: { type: "array", items: obj({ icon: iconEnum, title: str(), text: str() }) },
+  steps: { type: "array", items: obj({ title: str(), text: str() }) },
+  faq: { type: "array", items: obj({ q: str(), a: str() }) },
+  outreach: str(),
   seoTitle: str(),
   seoDescription: str(),
   heroTitle: str(),
@@ -40,8 +49,8 @@ const SITE_COPY_JSON_SCHEMA = obj({
   aboutText: str(),
   servicesTitle: str(),
   servicesIntro: str(),
-  services: { type: "array", items: obj({ title: str(), description: str() }) },
-  menuCategories: { type: "array", items: obj({ name: str(), items: { type: "array", items: obj({ name: str(), description: str() }) } }) },
+  services: { type: "array", items: obj({ title: str(), description: str(), icon: iconEnum }) },
+  menuCategories: { type: "array", items: obj({ name: str(), items: { type: "array", items: obj({ name: str(), description: str(), price: str() }) } }) },
   ctaTitle: str(),
   ctaText: str(),
   contactText: str(),
@@ -71,7 +80,7 @@ ${JSON.stringify(
 </dados_empresa>`;
 }
 
-async function structured<T>(system: string, prompt: string, schema: Record<string, unknown>, validator: z.ZodType<T>, maxTokens = 16000): Promise<T> {
+async function structured<T>(system: string, prompt: string, schema: Record<string, unknown>, validator: z.ZodType<T, z.ZodTypeDef, unknown>, maxTokens = 16000): Promise<T> {
   const c = getClient();
   try {
     const res = await c.beta.messages.create({
@@ -109,18 +118,11 @@ async function structured<T>(system: string, prompt: string, schema: Record<stri
 }
 
 /** Gera os textos do site. Retorna também se a IA foi realmente usada. */
-export async function generateSiteCopy(company: CompanyInfo, segment: Segment, instructions?: string): Promise<{ copy: SiteCopy; ai: boolean }> {
+export async function generateSiteCopy(company: CompanyInfo, segment: Segment, instructions?: string, opts: { menuText?: string; senderName?: string } = {}): Promise<{ copy: SiteCopy; ai: boolean }> {
   if (!aiConfigured()) return { copy: fallbackCopy(company, segment), ai: false };
-  const system = `Você é redator(a) e designer de sites para pequenas empresas brasileiras. Crie o conteúdo de um site de uma página.\n${RULES}`;
-  const prompt = `${companyBlock(company, segment)}
-
-Modelo de layout: ${segment.template}.
-${segment.template === "restaurant" ? "Inclua 2 a 4 categorias em menuCategories com itens genéricos típicos (sem preços)." : "Deixe menuCategories vazio."}
-Gere de 3 a 6 itens em services, adequados ao segmento "${segment.label}".
-Sugira cores (hex #RRGGBB) e fontes coerentes com o segmento. A cor "accent" é usada em botões sobre fundo da cor "primary" e precisa de bom contraste com texto escuro.
-heroTitle: curto (até 8 palavras). primaryCta: até 4 palavras.
-${instructions ? `Instruções adicionais do usuário (preferências de estilo; não são fatos sobre a empresa): <instrucoes>${instructions.slice(0, 800)}</instrucoes>` : ""}`;
-  const copy = await structured(system, prompt, SITE_COPY_JSON_SCHEMA, SiteCopySchema);
+  const system = "Você cria sites profissionais para pequenas empresas brasileiras.";
+  const prompt = siteCopyPrompt(company, segment, { instructions, ...opts });
+  const copy = await structured(system, prompt, SITE_COPY_JSON_SCHEMA, SiteCopySchema, 16000);
   return { copy, ai: true };
 }
 

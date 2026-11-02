@@ -175,6 +175,7 @@ model Company {
   phone         String?
   website       String?
   mapsUrl       String?
+  hours         String[] @default([])
   lat           Float?
   lng           Float?
   notes         String?

@@ -29,6 +29,7 @@ const Body = z.object({
   mapsUrl: z.string().url().max(1000).nullable().optional(),
   lat: z.number().min(-90).max(90).nullable().optional(),
   lng: z.number().min(-180).max(180).nullable().optional(),
+  hours: z.array(z.string().max(120)).max(10).optional(),
 });
 
 /** Salva uma empresa vinda da busca na lista do próprio usuário. */
@@ -47,6 +48,7 @@ export const POST = route(async (req) => {
     mapsUrl: b.mapsUrl ?? null,
     lat: b.lat ?? null,
     lng: b.lng ?? null,
+    hours: b.hours ?? [],
     fetchedAt: new Date(),
   };
   const company = await prisma.company.upsert({

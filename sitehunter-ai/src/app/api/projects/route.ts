@@ -24,6 +24,7 @@ const Body = z.object({
   companyId: z.string().min(1),
   segment: z.string().max(40),
   instructions: z.string().max(800).optional(),
+  menuText: z.string().max(6000).optional(),
 });
 
 /** "Criar site com IA": gera uma versão inicial do site a partir dos dados reais da empresa. */
@@ -38,14 +39,14 @@ export const POST = route(async (req) => {
   await consumeUsage(user.id, "generations");
   try {
     const [{ copy, ai }, images] = await Promise.all([
-      generateSiteCopy(company, segment, b.instructions),
+      generateSiteCopy(company, segment, b.instructions, { menuText: b.menuText, senderName: user.name.split(" ")[0] }),
       searchImages(segment.imageQuery, 5).catch(() => []),
     ]);
     const chosen = images.slice(0, 5);
     chosen.forEach((i) => void trackImageDownload(i.downloadLocation));
     const content = buildSiteContent(company, segment, copy, chosen.map(({ url, alt, credit }) => ({ url, alt, credit })));
     const project = await prisma.project.create({
-      data: { userId: user.id, companyId: company.id, name: company.name, segment: segment.key, content: content as never, aiGenerated: ai },
+      data: { userId: user.id, companyId: company.id, name: company.name, segment: segment.key, content: content as never, aiGenerated: ai, outreachMessage: copy.outreach || null },
     });
     await snapshotVersion(project.id, content, ai ? "Versão gerada pela IA" : "Versão gerada pelo modelo padrão");
     await audit("site_generated", { userId: user.id, meta: { projectId: project.id, ai } });

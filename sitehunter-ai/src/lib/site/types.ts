@@ -50,7 +50,10 @@ const base = { id: z.string().min(1).max(40), visible: z.boolean().default(true)
 export const SectionSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("hero"), title: text(160), subtitle: text(400), image: ImageSchema.optional(), buttons: z.array(ButtonSchema).max(3) }),
   z.object({ ...base, type: z.literal("about"), title: text(120), text: text(2000), image: ImageSchema.optional() }),
-  z.object({ ...base, type: z.literal("services"), title: text(120), intro: text(600), items: z.array(z.object({ title: text(100), description: text(400) })).max(24) }),
+  z.object({ ...base, type: z.literal("services"), title: text(120), intro: text(600), items: z.array(z.object({ title: text(100), description: text(400), icon: text(30).optional(), price: text(30).optional() })).max(24) }),
+  z.object({ ...base, type: z.literal("highlights"), title: text(120), items: z.array(z.object({ icon: text(30), title: text(80), text: text(300) })).max(8) }),
+  z.object({ ...base, type: z.literal("steps"), title: text(120), intro: text(400), items: z.array(z.object({ title: text(80), text: text(300) })).max(6) }),
+  z.object({ ...base, type: z.literal("faq"), title: text(120), items: z.array(z.object({ q: text(200), a: text(800) })).max(10) }),
   z.object({
     ...base,
     type: z.literal("menu"),
@@ -79,9 +82,15 @@ export const BusinessSchema = z.object({
   lng: z.number().nullable().default(null),
 });
 
+export const STYLES = ["elegant", "bold", "clean", "industrial", "editorial", "corporate"] as const;
+
 export const SiteContentSchema = z.object({
   version: z.literal(1),
   siteName: text(120),
+  style: z.enum(STYLES).default("clean"),
+  tagline: text(140).default(""),
+  icon: text(30).default("star"),
+  marquee: z.array(text(60)).max(10).default([]),
   seo: z.object({ title: text(120), description: text(300) }),
   theme: ThemeSchema,
   business: BusinessSchema,

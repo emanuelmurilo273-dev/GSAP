@@ -16,6 +16,7 @@ const FIELDS = [
   "places.googleMapsUri",
   "places.primaryTypeDisplayName",
   "places.businessStatus",
+  "places.regularOpeningHours",
   "nextPageToken",
 ].join(",");
 
@@ -34,6 +35,7 @@ export type PlaceResult = {
   lat: number | null;
   lng: number | null;
   businessStatus: string | null;
+  hours: string[];
 };
 
 const SOCIAL = /(^|\.)(instagram\.com|facebook\.com|fb\.com|linktr\.ee|wa\.me|whatsapp\.com|tiktok\.com|ifood\.com\.br|linkedin\.com|youtube\.com)$/i;
@@ -58,6 +60,7 @@ type GPlace = {
   googleMapsUri?: string;
   primaryTypeDisplayName?: { text?: string };
   businessStatus?: string;
+  regularOpeningHours?: { weekdayDescriptions?: string[] };
 };
 
 export function mapPlace(p: GPlace): PlaceResult {
@@ -80,6 +83,7 @@ export function mapPlace(p: GPlace): PlaceResult {
     lat: p.location?.latitude ?? null,
     lng: p.location?.longitude ?? null,
     businessStatus: p.businessStatus ?? null,
+    hours: p.regularOpeningHours?.weekdayDescriptions ?? [],
   };
 }
 

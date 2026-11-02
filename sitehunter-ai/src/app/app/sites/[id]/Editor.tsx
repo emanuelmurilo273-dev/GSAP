@@ -6,6 +6,7 @@ import { Alert, Spinner, StatusBadge, toast } from "@/components/ui";
 import { renderSite } from "@/lib/site/render";
 import { FONTS, type Section, type SiteButton, type SiteContent, type SiteImage } from "@/lib/site/types";
 import { emptySection } from "@/lib/site/templates";
+import { ICON_NAMES } from "@/lib/site/icons";
 
 type Pub = { status: string; slug: string; url: string; pathUrl: string; customDomain: string | null; customDomainVerified: boolean; lastDeployAt: string | null } | null;
 
@@ -21,6 +22,9 @@ const SECTION_LABELS: Record<Section["type"], string> = {
   quote: "Pedido de orçamento",
   contact: "Contato e localização",
   text: "Texto livre",
+  highlights: "Destaques",
+  steps: "Etapas (como funciona)",
+  faq: "Perguntas frequentes",
 };
 
 const ACTIONS: { v: SiteButton["action"]; l: string }[] = [
@@ -219,6 +223,30 @@ function SectionForm({ s, set, sections, onSearchImage }: { s: Section; set: (s:
           <TA label="Texto" value={s.text} rows={2} max={500} onChange={(text) => set({ ...s, text })} />
           <label className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" className="accent-brand-500" checked={s.showMap} onChange={(e) => set({ ...s, showMap: e.target.checked })} /> Mostrar botão “Abrir no mapa”</label>
           <p className="text-xs text-slate-500">Telefone, endereço e redes sociais são editados na aba “Empresa”.</p>
+        </div>
+      );
+    case "highlights":
+      return (
+        <div className="space-y-3">
+          <T label="Título (opcional)" value={s.title} onChange={(title) => set({ ...s, title })} />
+          <ListEditor items={s.items} max={8} onChange={(items) => set({ ...s, items })} addLabel="Adicionar destaque" make={() => ({ icon: "star", title: "Destaque", text: "" })}
+            render={(it, upd) => (<><select className="input" value={it.icon} onChange={(e) => upd({ ...it, icon: e.target.value })}>{ICON_NAMES.map((n) => <option key={n}>{n}</option>)}</select><input className="input" value={it.title} maxLength={80} onChange={(e) => upd({ ...it, title: e.target.value })} /><textarea className="input" rows={2} value={it.text} maxLength={300} onChange={(e) => upd({ ...it, text: e.target.value })} /></>)} />
+        </div>
+      );
+    case "steps":
+      return (
+        <div className="space-y-3">
+          <T label="Título" value={s.title} onChange={(title) => set({ ...s, title })} />
+          <ListEditor items={s.items} max={6} onChange={(items) => set({ ...s, items })} addLabel="Adicionar etapa" make={() => ({ title: "Etapa", text: "" })}
+            render={(it, upd) => (<><input className="input" value={it.title} maxLength={80} onChange={(e) => upd({ ...it, title: e.target.value })} /><textarea className="input" rows={2} value={it.text} maxLength={300} onChange={(e) => upd({ ...it, text: e.target.value })} /></>)} />
+        </div>
+      );
+    case "faq":
+      return (
+        <div className="space-y-3">
+          <T label="Título" value={s.title} onChange={(title) => set({ ...s, title })} />
+          <ListEditor items={s.items} max={10} onChange={(items) => set({ ...s, items })} addLabel="Adicionar pergunta" make={() => ({ q: "Pergunta", a: "" })}
+            render={(it, upd) => (<><input className="input" value={it.q} maxLength={200} onChange={(e) => upd({ ...it, q: e.target.value })} /><textarea className="input" rows={3} value={it.a} maxLength={800} onChange={(e) => upd({ ...it, a: e.target.value })} /></>)} />
         </div>
       );
     case "text":

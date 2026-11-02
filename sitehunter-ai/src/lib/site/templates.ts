@@ -1,65 +1,77 @@
 import { z } from "zod";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
+import { ICON_NAMES } from "./icons";
 
 export type TemplateKey = "restaurant" | "barber" | "clinic" | "mechanic" | "store" | "services";
+export type Style = SiteContent["style"];
 
 export type Segment = {
   key: string;
   label: string;
+  singular?: string;
   query: string; // termo usado na busca de empresas
   placesType?: string; // tipo da Google Places API (Tabela A)
   template: TemplateKey;
+  style: Style;
+  icon: string;
   imageQuery: string; // busca de imagens no banco autorizado (Unsplash)
   theme: Theme;
 };
 
-const t = (primary: string, accent: string, headingFont: Theme["headingFont"], bodyFont: Theme["bodyFont"], dark = false): Theme =>
-  dark
-    ? { primary, accent, background: "#0b0f17", surface: "#131a26", text: "#f1f5f9", muted: "#94a3b8", headingFont, bodyFont, radius: "md" }
-    : { primary, accent, background: "#ffffff", surface: "#f5f7fa", text: "#0f172a", muted: "#475569", headingFont, bodyFont, radius: "lg" };
+const dark = (primary: string, accent: string, headingFont: Theme["headingFont"], bodyFont: Theme["bodyFont"], bg = "#0c0d10", sf = "#15171c", tx = "#f4f1ea", mu = "#a7a39a"): Theme => ({ primary, accent, background: bg, surface: sf, text: tx, muted: mu, headingFont, bodyFont, radius: "md" });
+const light = (primary: string, accent: string, headingFont: Theme["headingFont"], bodyFont: Theme["bodyFont"], bg = "#ffffff", sf = "#f4f6fa", tx = "#101828", mu = "#526075"): Theme => ({ primary, accent, background: bg, surface: sf, text: tx, muted: mu, headingFont, bodyFont, radius: "lg" });
 
 export const SEGMENTS: Segment[] = [
-  { key: "barbearia", label: "Barbearias", query: "barbearia", placesType: "barber_shop", template: "barber", imageQuery: "barbershop", theme: t("#c8a464", "#e2c48a", "Bebas Neue", "Inter", true) },
-  { key: "salao", label: "Salões de beleza", query: "salão de beleza", placesType: "beauty_salon", template: "barber", imageQuery: "beauty salon", theme: t("#be185d", "#f472b6", "Playfair Display", "Lato") },
-  { key: "restaurante", label: "Restaurantes", query: "restaurante", placesType: "restaurant", template: "restaurant", imageQuery: "restaurant food", theme: t("#b91c1c", "#f59e0b", "Playfair Display", "Open Sans") },
-  { key: "odontologia", label: "Clínicas odontológicas", query: "clínica odontológica", placesType: "dentist", template: "clinic", imageQuery: "dental clinic", theme: t("#0369a1", "#14b8a6", "Poppins", "Inter") },
-  { key: "clinica", label: "Clínicas e consultórios", query: "clínica", placesType: "doctor", template: "clinic", imageQuery: "medical clinic", theme: t("#0e7490", "#22c55e", "Poppins", "Inter") },
-  { key: "academia", label: "Academias", query: "academia", placesType: "gym", template: "services", imageQuery: "gym fitness", theme: t("#ea580c", "#facc15", "Oswald", "Roboto", true) },
-  { key: "oficina", label: "Oficinas mecânicas", query: "oficina mecânica", placesType: "car_repair", template: "mechanic", imageQuery: "car mechanic workshop", theme: t("#2563eb", "#f97316", "Oswald", "Roboto", true) },
-  { key: "roupas", label: "Lojas de roupas", query: "loja de roupas", placesType: "clothing_store", template: "store", imageQuery: "clothing store", theme: t("#111827", "#d946ef", "Montserrat", "DM Sans") },
-  { key: "imobiliaria", label: "Imobiliárias", query: "imobiliária", placesType: "real_estate_agency", template: "services", imageQuery: "house real estate", theme: t("#1e3a8a", "#0ea5e9", "Montserrat", "Open Sans") },
-  { key: "servicos", label: "Prestadores de serviços", query: "prestador de serviços", template: "services", imageQuery: "professional service", theme: t("#1d4ed8", "#06b6d4", "DM Sans", "Inter") },
-  { key: "petshop", label: "Pet shops", query: "pet shop", placesType: "pet_store", template: "store", imageQuery: "pet shop dog", theme: t("#0d9488", "#f59e0b", "Nunito", "Nunito") },
-  { key: "padaria", label: "Padarias", query: "padaria", placesType: "bakery", template: "restaurant", imageQuery: "bakery bread", theme: t("#92400e", "#f59e0b", "Lora", "Lato") },
-  { key: "construcao", label: "Empresas de construção", query: "construtora", placesType: "general_contractor", template: "services", imageQuery: "construction", theme: t("#ca8a04", "#1e293b", "Oswald", "Open Sans") },
+  { key: "barbearia", label: "Barbearias", singular: "Barbearia", query: "barbearia", placesType: "barber_shop", template: "barber", style: "bold", icon: "scissors", imageQuery: "barbershop", theme: dark("#8a6a2f", "#d9b26a", "Bebas Neue", "DM Sans", "#0b0b0c", "#141416") },
+  { key: "salao", label: "Salões de beleza", singular: "Salão de beleza", query: "salão de beleza", placesType: "beauty_salon", template: "barber", style: "editorial", icon: "sparkles", imageQuery: "beauty salon", theme: light("#9d2b5e", "#f2b8cf", "Playfair Display", "Lato", "#fdf8f6", "#f7ece8", "#2a1620", "#7a5f69") },
+  { key: "restaurante", label: "Restaurantes", singular: "Restaurante", query: "restaurante", placesType: "restaurant", template: "restaurant", style: "elegant", icon: "utensils", imageQuery: "restaurant food", theme: dark("#7a2516", "#e2a857", "Playfair Display", "Lato", "#130d0a", "#1c1410", "#f4ebdd", "#bfae95") },
+  { key: "odontologia", label: "Clínicas odontológicas", singular: "Clínica odontológica", query: "clínica odontológica", placesType: "dentist", template: "clinic", style: "clean", icon: "tooth", imageQuery: "dental clinic", theme: light("#0b5cad", "#5ee0c8", "Poppins", "Nunito") },
+  { key: "clinica", label: "Clínicas e consultórios", singular: "Clínica", query: "clínica", placesType: "doctor", template: "clinic", style: "clean", icon: "stethoscope", imageQuery: "medical clinic", theme: light("#0f6b7a", "#7fe3a8", "Poppins", "Nunito") },
+  { key: "academia", label: "Academias", singular: "Academia", query: "academia", placesType: "gym", template: "services", style: "bold", icon: "dumbbell", imageQuery: "gym fitness", theme: dark("#c2410c", "#facc15", "Oswald", "Roboto", "#0a0a0b", "#141416") },
+  { key: "oficina", label: "Oficinas mecânicas", singular: "Oficina mecânica", query: "oficina mecânica", placesType: "car_repair", template: "mechanic", style: "industrial", icon: "wrench", imageQuery: "car mechanic workshop", theme: dark("#1d4ed8", "#f59e0b", "Oswald", "Roboto", "#0d1117", "#151b24", "#eef2f7", "#93a1b5") },
+  { key: "roupas", label: "Lojas de roupas", singular: "Loja de roupas", query: "loja de roupas", placesType: "clothing_store", template: "store", style: "editorial", icon: "shirt", imageQuery: "clothing store", theme: light("#1c1917", "#e9c7a5", "Playfair Display", "DM Sans", "#faf7f2", "#f1ebe2", "#1c1917", "#6b625a") },
+  { key: "imobiliaria", label: "Imobiliárias", singular: "Imobiliária", query: "imobiliária", placesType: "real_estate_agency", template: "services", style: "corporate", icon: "home", imageQuery: "house real estate", theme: light("#13315c", "#f2c14e", "Montserrat", "Open Sans") },
+  { key: "servicos", label: "Prestadores de serviços", singular: "Prestador de serviços", query: "prestador de serviços", template: "services", style: "corporate", icon: "briefcase", imageQuery: "professional service", theme: light("#1d4ed8", "#38d9f5", "DM Sans", "Open Sans") },
+  { key: "petshop", label: "Pet shops", singular: "Pet shop", query: "pet shop", placesType: "pet_store", template: "store", style: "clean", icon: "paw", imageQuery: "pet shop dog", theme: light("#0f766e", "#fbbf24", "Nunito", "Nunito") },
+  { key: "padaria", label: "Padarias", singular: "Padaria", query: "padaria", placesType: "bakery", template: "restaurant", style: "elegant", icon: "bread", imageQuery: "bakery bread", theme: light("#7c3f12", "#f2b25c", "Lora", "Lato", "#fbf6ee", "#f3e9da", "#2b1d12", "#7a6450") },
+  { key: "construcao", label: "Empresas de construção", singular: "Construtora", query: "construtora", placesType: "general_contractor", template: "services", style: "industrial", icon: "hammer", imageQuery: "construction", theme: dark("#a16207", "#facc15", "Oswald", "Open Sans", "#101010", "#191919", "#f2f2ef", "#a3a39a") },
 ];
 
 export function getSegment(key: string | null | undefined): Segment {
   return SEGMENTS.find((s) => s.key === key) ?? SEGMENTS.find((s) => s.key === "servicos")!;
 }
 
-/** Formato do texto gerado pela IA (ou pelo modelo padrão). Somente textos — a estrutura vem do template. */
+const s = (max: number) => z.string().max(max);
+const iconName = z.string().max(30).transform((v) => (ICON_NAMES.includes(v) ? v : "star"));
+
+/** Formato do texto gerado pela IA (ou pelo modelo padrão). Somente conteúdo — a estrutura vem do modelo do segmento. */
 export const SiteCopySchema = z.object({
-  siteName: z.string().max(120),
-  seoTitle: z.string().max(120),
-  seoDescription: z.string().max(300),
-  heroTitle: z.string().max(160),
-  heroSubtitle: z.string().max(400),
-  primaryCta: z.string().max(60),
-  aboutTitle: z.string().max(120),
-  aboutText: z.string().max(2000),
-  servicesTitle: z.string().max(120),
-  servicesIntro: z.string().max(600),
-  services: z.array(z.object({ title: z.string().max(100), description: z.string().max(400) })).max(12),
-  menuCategories: z.array(z.object({ name: z.string().max(80), items: z.array(z.object({ name: z.string().max(100), description: z.string().max(300) })).max(12) })).max(6),
-  ctaTitle: z.string().max(160),
-  ctaText: z.string().max(500),
-  contactText: z.string().max(500),
-  quoteTitle: z.string().max(120),
-  quoteText: z.string().max(500),
+  siteName: s(120),
+  tagline: s(140).default(""),
+  seoTitle: s(120),
+  seoDescription: s(300),
+  heroTitle: s(160),
+  heroSubtitle: s(400),
+  primaryCta: s(60),
+  marquee: z.array(s(60)).max(8).default([]),
+  highlights: z.array(z.object({ icon: iconName, title: s(80), text: s(300) })).max(6).default([]),
+  aboutTitle: s(120),
+  aboutText: s(2000),
+  servicesTitle: s(120),
+  servicesIntro: s(600),
+  services: z.array(z.object({ title: s(100), description: s(400), icon: iconName.optional(), price: s(30).optional() })).max(16),
+  menuCategories: z.array(z.object({ name: s(80), items: z.array(z.object({ name: s(100), description: s(300), price: s(30).optional() })).max(20) })).max(8),
+  steps: z.array(z.object({ title: s(80), text: s(300) })).max(5).default([]),
+  faq: z.array(z.object({ q: s(200), a: s(800) })).max(6).default([]),
+  ctaTitle: s(160),
+  ctaText: s(500),
+  contactText: s(500),
+  quoteTitle: s(120),
+  quoteText: s(500),
   colors: z.object({ primary: z.string(), accent: z.string() }),
   headingFont: z.enum(FONTS),
   bodyFont: z.enum(FONTS),
+  outreach: s(1200).default(""),
 });
 export type SiteCopy = z.infer<typeof SiteCopySchema>;
 
@@ -75,6 +87,9 @@ export type CompanyInfo = {
   mapsUrl?: string | null;
   lat?: number | null;
   lng?: number | null;
+  /** Horários reais informados pela fonte (ex.: "segunda-feira: 11:00–15:00"). */
+  hours?: string[] | null;
+  instagram?: string | null;
 };
 
 const isHex = (c: string) => /^#[0-9a-fA-F]{6}$/.test(c);
@@ -82,9 +97,24 @@ const isHex = (c: string) => /^#[0-9a-fA-F]{6}$/.test(c);
 let idCounter = 0;
 export const sid = (type: string) => `${type}-${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
+/** Converte "segunda-feira: 11:00–15:00" em linhas de horário (apenas dados reais da fonte). */
+export function hoursToLines(hours: string[] | null | undefined) {
+  return (hours ?? [])
+    .map((h) => {
+      const i = h.indexOf(":");
+      if (i < 0) return null;
+      const label = h.slice(0, i).trim();
+      const value = h.slice(i + 1).trim();
+      return label && value ? { label: label.charAt(0).toUpperCase() + label.slice(1), value } : null;
+    })
+    .filter((x): x is { label: string; value: string } => !!x)
+    .slice(0, 10);
+}
+
 export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: SiteCopy, images: SiteImage[] = []): SiteContent {
   const theme: Theme = {
     ...segment.theme,
+    // A IA pode ajustar as cores principais; fundos e textos seguem o estilo do segmento (contraste garantido).
     primary: isHex(copy.colors.primary) ? copy.colors.primary : segment.theme.primary,
     accent: isHex(copy.colors.accent) ? copy.colors.accent : segment.theme.accent,
     headingFont: copy.headingFont,
@@ -93,6 +123,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
   const hasPhone = !!company.phone;
   const mainAction = hasPhone ? ("whatsapp" as const) : ("section" as const);
   const [heroImg, aboutImg, ...galleryImgs] = images;
+  const realHours = hoursToLines(company.hours);
 
   const hero: Section = {
     id: "inicio",
@@ -103,58 +134,60 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     image: heroImg,
     buttons: [
       { label: copy.primaryCta || "Fale conosco", action: mainAction, href: hasPhone ? undefined : "contato" },
-      ...(company.mapsUrl ? [{ label: "Como chegar", action: "maps" as const }] : []),
+      segment.template === "restaurant" ? { label: "Ver cardápio", action: "section" as const, href: "cardapio" } : company.mapsUrl || company.address ? { label: "Como chegar", action: "maps" as const } : { label: "Saiba mais", action: "section" as const, href: "sobre" },
     ],
   };
+  const highlights: Section = { id: "destaques", type: "highlights", visible: copy.highlights.length > 0, title: "", items: copy.highlights };
   const about: Section = { id: "sobre", type: "about", visible: true, title: copy.aboutTitle, text: copy.aboutText, image: aboutImg };
-  const services: Section = { id: "servicos", type: "services", visible: true, title: copy.servicesTitle, intro: copy.servicesIntro, items: copy.services };
+  const services: Section = {
+    id: "servicos",
+    type: "services",
+    visible: true,
+    title: copy.servicesTitle,
+    intro: copy.servicesIntro,
+    items: copy.services.map((x) => ({ title: x.title, description: x.description, icon: x.icon ?? segment.icon, ...(x.price ? { price: x.price } : {}) })),
+  };
   const hours: Section = {
     id: "horarios",
     type: "hours",
     visible: true,
     title: "Horário de funcionamento",
-    // Horários não são inventados: o usuário preenche após confirmar com a empresa.
-    lines: [
-      { label: "Segunda a sexta", value: "" },
-      { label: "Sábado", value: "" },
-      { label: "Domingo", value: "" },
-    ],
-    note: "Confirme os horários com a empresa antes de publicar.",
+    lines: realHours.length ? realHours : [{ label: "Segunda a sexta", value: "" }, { label: "Sábado", value: "" }, { label: "Domingo", value: "" }],
+    note: realHours.length ? "Horários informados pela empresa no Google. Em feriados, confirme pelo WhatsApp." : "",
   };
   const gallery: Section = { id: "galeria", type: "gallery", visible: galleryImgs.length > 0, title: "Galeria", images: galleryImgs };
+  const steps: Section = { id: "como-funciona", type: "steps", visible: copy.steps.length > 0, title: segment.template === "restaurant" ? "Como fazer seu pedido" : segment.template === "clinic" || segment.template === "barber" ? "Como agendar" : "Como funciona", intro: "", items: copy.steps };
+  const faq: Section = { id: "duvidas", type: "faq", visible: copy.faq.length > 0, title: "Perguntas frequentes", items: copy.faq };
   const cta: Section = { id: "chamada", type: "cta", visible: true, title: copy.ctaTitle, text: copy.ctaText, button: { label: copy.primaryCta || "Fale conosco", action: mainAction, href: hasPhone ? undefined : "contato" } };
   const quote: Section = { id: "orcamento", type: "quote", visible: true, title: copy.quoteTitle || "Solicite um orçamento", text: copy.quoteText, buttonLabel: "Enviar pelo WhatsApp" };
-  const contact: Section = { id: "contato", type: "contact", visible: true, title: "Contato e localização", text: copy.contactText, showMap: company.lat != null && company.lng != null };
+  const contact: Section = { id: "contato", type: "contact", visible: true, title: "Contato e localização", text: copy.contactText, showMap: !!(company.mapsUrl || company.address) };
   const menu: Section = {
     id: "cardapio",
     type: "menu",
     visible: true,
     title: segment.key === "padaria" ? "Nossos produtos" : "Cardápio",
-    intro: "Consulte disponibilidade e valores diretamente com a gente.",
-    // Preços ficam em branco: só o assinante/empresa pode informá-los.
-    categories: copy.menuCategories.map((c) => ({ name: c.name, items: c.items.map((i) => ({ ...i, price: "" })) })),
+    intro: copy.servicesIntro || "Conheça nossas opções.",
+    categories: copy.menuCategories.map((cat) => ({ name: cat.name, items: cat.items.map((i) => ({ name: i.name, description: i.description, price: i.price ?? "" })) })),
   };
-  const products: Section = {
-    id: "produtos",
-    type: "products",
-    visible: true,
-    title: copy.servicesTitle,
-    intro: copy.servicesIntro,
-    items: copy.services.map((s) => ({ name: s.title, description: s.description })),
-  };
+  const products: Section = { id: "produtos", type: "products", visible: true, title: copy.servicesTitle, intro: copy.servicesIntro, items: copy.services.map((x) => ({ name: x.title, description: x.description })) };
 
   const byTemplate: Record<TemplateKey, Section[]> = {
-    restaurant: [hero, about, menu, gallery, hours, cta, contact],
-    barber: [hero, services, about, gallery, hours, cta, contact],
-    clinic: [hero, { ...services, title: copy.servicesTitle || "Especialidades" }, about, hours, cta, contact],
-    mechanic: [hero, services, about, hours, quote, contact],
-    store: [hero, products, about, gallery, hours, cta, contact],
-    services: [hero, services, about, gallery, quote, contact],
+    restaurant: [hero, highlights, about, menu, steps, hours, gallery, faq, cta, contact],
+    barber: [hero, services, highlights, about, steps, hours, gallery, faq, cta, contact],
+    clinic: [hero, highlights, { ...services, title: copy.servicesTitle || "Especialidades" }, about, steps, hours, faq, cta, contact],
+    mechanic: [hero, services, highlights, steps, about, quote, hours, faq, contact],
+    store: [hero, products, highlights, about, hours, gallery, faq, cta, contact],
+    services: [hero, services, highlights, steps, about, quote, hours, faq, contact],
   };
 
+  const pricesMissing = segment.template === "restaurant" && copy.menuCategories.some((c) => c.items.some((i) => !i.price));
   return {
     version: 1,
     siteName: copy.siteName || company.name,
+    style: segment.style,
+    tagline: copy.tagline,
+    icon: segment.icon,
+    marquee: copy.marquee,
     seo: { title: copy.seoTitle || company.name, description: copy.seoDescription },
     theme,
     business: {
@@ -163,77 +196,102 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
       whatsapp: company.phone ?? "",
       email: "",
       address: company.address ?? "",
-      instagram: "",
+      instagram: company.instagram ?? "",
       mapsUrl: company.mapsUrl ?? "",
       lat: company.lat ?? null,
       lng: company.lng ?? null,
     },
     sections: byTemplate[segment.template],
     reviewNotes: [
-      "Os serviços/produtos listados são sugestões típicas do segmento — confirme com a empresa.",
-      "Preencha os horários de funcionamento e os preços somente com informações confirmadas.",
-      ...(company.phone ? [] : ["A fonte de dados não informou telefone: adicione um contato em 'Dados da empresa'."]),
+      segment.template === "restaurant" ? "Os pratos do cardápio são sugestões típicas do tipo de cozinha: confirme os itens com a empresa." : "Os serviços listados são sugestões típicas do segmento: confirme com a empresa.",
+      ...(pricesMissing ? ["Preços em branco não aparecem no site. Preencha só com valores confirmados."] : []),
+      ...(realHours.length ? [] : ["A fonte não informou horários: preencha em Horários (linhas vazias ficam ocultas)."]),
+      ...(company.phone ? [] : ["A fonte não informou telefone: adicione um contato em 'Empresa'."]),
     ],
   };
 }
 
-/** Texto padrão usado quando a IA não está configurada. Usa apenas dados reais da empresa. */
+/** Textos padrão usados quando a IA não está disponível. Usa apenas dados reais da empresa. */
 export function fallbackCopy(company: CompanyInfo, segment: Segment): SiteCopy {
   const where = [company.neighborhood, company.city].filter(Boolean).join(", ");
-  const typical: Record<TemplateKey, { title: string; description: string }[]> = {
+  const typical: Record<TemplateKey, { title: string; description: string; icon: string }[]> = {
     restaurant: [
-      { title: "Refeições", description: "Pratos preparados para o seu dia a dia." },
-      { title: "Atendimento no local", description: "Venha nos visitar." },
-      { title: "Pedidos", description: "Fale com a gente para saber como fazer seu pedido." },
+      { title: "Pratos da casa", description: "Receitas preparadas com cuidado para o seu dia a dia.", icon: "chef" },
+      { title: "Atendimento no local", description: "Um ambiente acolhedor para você e sua família.", icon: "users" },
+      { title: "Pedidos", description: "Fale com a gente para saber como fazer seu pedido.", icon: "truck" },
     ],
     barber: [
-      { title: "Corte", description: "Corte de cabelo com atenção aos detalhes." },
-      { title: "Barba", description: "Acabamento e cuidado com a barba." },
-      { title: "Atendimento com horário", description: "Fale com a gente para combinar seu horário." },
+      { title: "Corte", description: "Corte de cabelo com atenção aos detalhes.", icon: "scissors" },
+      { title: "Barba", description: "Acabamento e cuidado com a barba.", icon: "razor" },
+      { title: "Corte + barba", description: "O combo completo para sair renovado.", icon: "sparkles" },
+      { title: "Sobrancelha", description: "Acabamento alinhado ao seu estilo.", icon: "star" },
     ],
     clinic: [
-      { title: "Consultas", description: "Atendimento com profissionais da área." },
-      { title: "Avaliação", description: "Converse com a equipe para entender o melhor caminho." },
-      { title: "Agendamento", description: "Agende seu atendimento pelos nossos canais." },
+      { title: "Consultas", description: "Atendimento com profissionais da área.", icon: segment.icon },
+      { title: "Avaliação", description: "Entenda o melhor caminho para o seu caso.", icon: "check" },
+      { title: "Acompanhamento", description: "Suporte em cada etapa do tratamento.", icon: "heart" },
     ],
     mechanic: [
-      { title: "Manutenção", description: "Cuidados com o seu veículo." },
-      { title: "Diagnóstico", description: "Avaliação do problema antes do serviço." },
-      { title: "Orçamento", description: "Solicite um orçamento sem compromisso." },
+      { title: "Revisão", description: "Manutenção preventiva para rodar com tranquilidade.", icon: "gauge" },
+      { title: "Diagnóstico", description: "Avaliação do problema antes de qualquer serviço.", icon: "wrench" },
+      { title: "Freios e suspensão", description: "Segurança em primeiro lugar.", icon: "shield" },
+      { title: "Orçamento", description: "Peça um orçamento sem compromisso.", icon: "chat" },
     ],
     store: [
-      { title: "Produtos", description: "Conheça nossos produtos na loja." },
-      { title: "Atendimento", description: "Tire suas dúvidas com a nossa equipe." },
-      { title: "Novidades", description: "Fale com a gente para conhecer as novidades." },
+      { title: "Novidades", description: "Peças selecionadas que chegam sempre.", icon: "sparkles" },
+      { title: "Atendimento", description: "Ajuda para encontrar o que combina com você.", icon: "smile" },
+      { title: "Encomendas", description: "Fale com a gente para reservar.", icon: "bag" },
     ],
     services: [
-      { title: "Atendimento personalizado", description: "Entendemos a sua necessidade antes de começar." },
-      { title: "Orçamento", description: "Solicite um orçamento sem compromisso." },
-      { title: "Acompanhamento", description: "Estamos disponíveis para tirar dúvidas." },
+      { title: "Atendimento personalizado", description: "Entendemos a sua necessidade antes de começar.", icon: "users" },
+      { title: "Orçamento", description: "Solicite um orçamento sem compromisso.", icon: "chat" },
+      { title: "Acompanhamento", description: "Estamos disponíveis para tirar dúvidas.", icon: "check" },
     ],
   };
-  const seg = segment.label.replace(/s$/, "").toLowerCase();
+  const one = segment.singular ?? segment.label;
+  const seg = one.toLowerCase();
   return {
     siteName: company.name,
-    seoTitle: `${company.name}${where ? ` — ${where}` : ""}`.slice(0, 120),
-    seoDescription: `${company.name}${company.category ? `, ${company.category.toLowerCase()}` : ""}${where ? ` em ${where}` : ""}. Entre em contato.`.slice(0, 300),
+    tagline: [one, company.city].filter(Boolean).join(" · "),
+    seoTitle: `${company.name}${where ? ` | ${where}` : ""}`.slice(0, 120),
+    seoDescription: `${company.name}${where ? ` em ${where}` : ""}. Fale com a gente pelo WhatsApp.`.slice(0, 300),
     heroTitle: company.name,
-    heroSubtitle: where ? `${segment.label.replace(/s$/, "")} em ${where}. Fale com a gente!` : "Fale com a gente!",
+    heroSubtitle: where ? `${one} em ${where}. Atendimento atencioso do começo ao fim.` : "Atendimento atencioso do começo ao fim.",
     primaryCta: company.phone ? "Chamar no WhatsApp" : "Entrar em contato",
-    aboutTitle: "Sobre nós",
-    aboutText: `A ${company.name} atende${where ? ` em ${where}` : ""}. Entre em contato para saber mais sobre o nosso trabalho.`,
+    marquee: typical[segment.template].map((t) => t.title),
+    highlights: [
+      { icon: "smile", title: "Atendimento próximo", text: "Você fala direto com a nossa equipe." },
+      { icon: "pin", title: where ? `Em ${company.city ?? where}` : "Perto de você", text: "Fácil de encontrar e de chegar." },
+      { icon: "chat", title: "Resposta rápida", text: "Tire dúvidas pelo WhatsApp." },
+    ],
+    aboutTitle: `Conheça a ${company.name}`,
+    aboutText: `A ${company.name} atende${where ? ` em ${where}` : ""} com dedicação a cada cliente.\n\nEntre em contato para saber mais sobre o nosso trabalho.`,
     servicesTitle: segment.template === "store" ? "Nossos produtos" : segment.template === "clinic" ? "Especialidades" : "Serviços",
     servicesIntro: `Conheça o que a ${company.name} oferece.`,
     services: typical[segment.template],
-    menuCategories: segment.template === "restaurant" ? [{ name: "Destaques", items: [{ name: "Item do cardápio", description: "Descreva aqui um item confirmado com a empresa." }] }] : [],
+    menuCategories:
+      segment.template === "restaurant"
+        ? [
+            { name: "Entradas", items: [{ name: "Entrada da casa", description: "Edite com um item confirmado." }] },
+            { name: "Pratos principais", items: [{ name: "Prato da casa", description: "Edite com um item confirmado." }] },
+            { name: "Bebidas", items: [{ name: "Sucos e refrigerantes", description: "Consulte as opções." }] },
+          ]
+        : [],
+    steps: [
+      { title: "Chame no WhatsApp", text: "Conte o que você precisa." },
+      { title: "Combine os detalhes", text: "Tiramos suas dúvidas e combinamos tudo." },
+      { title: "Pronto", text: "É só aproveitar." },
+    ],
+    faq: [{ q: "Como entro em contato?", a: "Pelo WhatsApp ou telefone informados nesta página." }],
     ctaTitle: `Procurando ${seg}${where ? ` em ${where}` : ""}?`,
     ctaText: "Fale com a gente e tire suas dúvidas.",
-    contactText: "Estamos à disposição. Fale com a gente pelos canais abaixo.",
+    contactText: "Estamos à disposição pelos canais abaixo.",
     quoteTitle: "Solicite um orçamento",
     quoteText: "Conte o que você precisa e responderemos pelo WhatsApp.",
     colors: { primary: segment.theme.primary, accent: segment.theme.accent },
     headingFont: segment.theme.headingFont,
     bodyFont: segment.theme.bodyFont,
+    outreach: "",
   };
 }
 
@@ -244,6 +302,9 @@ export function emptySection(type: Section["type"]): Section {
     case "hero": return { id, type, visible: true, title: "Título", subtitle: "Subtítulo", buttons: [] };
     case "about": return { id, type, visible: true, title: "Sobre nós", text: "" };
     case "services": return { id, type, visible: true, title: "Serviços", intro: "", items: [{ title: "Serviço", description: "" }] };
+    case "highlights": return { id, type, visible: true, title: "", items: [{ icon: "star", title: "Destaque", text: "" }] };
+    case "steps": return { id, type, visible: true, title: "Como funciona", intro: "", items: [{ title: "Primeiro passo", text: "" }] };
+    case "faq": return { id, type, visible: true, title: "Perguntas frequentes", items: [{ q: "Pergunta", a: "Resposta" }] };
     case "menu": return { id, type, visible: true, title: "Cardápio", intro: "", categories: [{ name: "Categoria", items: [{ name: "Item", description: "", price: "" }] }] };
     case "products": return { id, type, visible: true, title: "Produtos", intro: "", items: [{ name: "Produto", description: "" }] };
     case "hours": return { id, type, visible: true, title: "Horários", lines: [{ label: "Segunda a sexta", value: "" }], note: "" };
