@@ -1,0 +1,303 @@
+// SiteHunter AI — esquema do banco de dados (PostgreSQL)
+// Toda tabela de dados de usuário carrega `userId` e é sempre consultada
+// filtrando por ele (ver src/lib/authz.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SUBSCRIBER
+}
+
+enum SubscriptionStatus {
+  NONE            // nunca assinou
+  PENDING         // boleto/pix gerado, aguardando pagamento
+  ACTIVE          // pago e dentro do período
+  CANCELED        // renovação cancelada; acesso até currentPeriodEnd
+  PAST_DUE        // renovação recusada/atrasada (subscription_late)
+  EXPIRED         // período vencido sem renovação → recursos suspensos
+  REFUNDED        // reembolsado → acesso revogado
+  CHARGEBACK      // chargeback → acesso revogado
+}
+
+enum PaymentStatus {
+  WAITING_PAYMENT
+  PAID
+  REFUSED
+  REFUNDED
+  CHARGEDBACK
+}
+
+enum PublicationStatus {
+  DRAFT        // nunca publicado
+  PUBLISHED    // no ar
+  UNPUBLISHED  // retirado pelo usuário
+  SUSPENDED    // retirado pelo sistema (assinatura vencida)
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  name               String
+  email              String    @unique
+  passwordHash       String
+  role               Role      @default(SUBSCRIBER)
+  emailVerifiedAt    DateTime?
+  // Suspensão manual pelo administrador (independente da assinatura)
+  adminSuspendedAt   DateTime?
+  adminSuspendReason String?
+  // Referência opaca enviada ao checkout (parâmetro de rastreio) para vincular o pagamento
+  checkoutRef        String    @unique @default(cuid())
+  // Preferências comerciais usadas nas propostas
+  proposalDefaults   Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletionRequestedAt DateTime?
+
+  sessions      Session[]
+  tokens        AuthToken[]
+  subscription  Subscription?
+  payments      Payment[]
+  companies     Company[]
+  projects      Project[]
+  proposals     Proposal[]
+  usage         UsageCounter[]
+  auditLogs     AuditLog[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique // SHA-256 do token do cookie; o token em si nunca é salvo
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  userAgent  String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  provider               String             @default("kiwify")
+  providerSubscriptionId String?            @unique
+  status                 SubscriptionStatus @default(NONE)
+  planName               String?
+  startedAt              DateTime?
+  currentPeriodEnd       DateTime?          // até quando o acesso está pago
+  canceledAt             DateTime?
+  cancelReason           String?
+  suspendedAt            DateTime?          // quando os recursos foram suspensos
+  retentionUntil         DateTime?          // até quando os projetos são preservados
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, currentPeriodEnd])
+}
+
+model Payment {
+  id                     String        @id @default(cuid())
+  userId                 String?       // null = ainda não vinculado a uma conta
+  provider               String        @default("kiwify")
+  providerOrderId        String
+  providerSubscriptionId String?
+  status                 PaymentStatus
+  paymentMethod          String?
+  // Valores em centavos, quando informados pelo provedor
+  grossAmountCents       Int?
+  feeCents               Int?
+  netAmountCents         Int?
+  currency               String?       @default("BRL")
+  customerEmail          String?       // apenas para conciliação
+  approvedAt             DateTime?
+  refundedAt             DateTime?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  user                   User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerOrderId])
+  @@index([userId])
+  @@index([status])
+}
+
+// Registro bruto de cada notificação recebida (idempotência + auditoria)
+model WebhookEvent {
+  id           String    @id @default(cuid())
+  provider     String
+  dedupeKey    String    @unique // ex.: kiwify:<order_id>:<event_type>:<subscription status>
+  eventType    String
+  signatureOk  Boolean
+  payload      Json
+  processedAt  DateTime?
+  error        String?
+  receivedAt   DateTime  @default(now())
+
+  @@index([provider, receivedAt])
+}
+
+model Company {
+  id            String   @id @default(cuid())
+  userId        String
+  source        String   @default("google_places")
+  sourceId      String   // place_id
+  name          String
+  category      String?
+  address       String?
+  neighborhood  String?
+  city          String?
+  state         String?
+  phone         String?
+  website       String?
+  mapsUrl       String?
+  lat           Float?
+  lng           Float?
+  notes         String?
+  fetchedAt     DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects      Project[]
+  proposals     Proposal[]
+
+  @@unique([userId, source, sourceId])
+  @@index([userId, createdAt])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  companyId   String?
+  name        String
+  segment     String   // chave do modelo (restaurant, barber, clinic, ...)
+  content     Json     // SiteContent (ver src/lib/site/types.ts)
+  aiGenerated Boolean  @default(false)
+  outreachMessage String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  versions    ProjectVersion[]
+  publication Publication?
+  proposals   Proposal[]
+
+  @@index([userId, updatedAt])
+}
+
+model ProjectVersion {
+  id        String   @id @default(cuid())
+  projectId String
+  content   Json
+  note      String?
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
+
+model Publication {
+  id            String            @id @default(cuid())
+  projectId     String            @unique
+  userId        String
+  slug          String            @unique // subdomínio: <slug>.<ROOT_DOMAIN>
+  customDomain  String?           @unique
+  customDomainVerifiedAt DateTime?
+  status        PublicationStatus @default(DRAFT)
+  html          String?           // snapshot publicado (servido aos visitantes)
+  publishedAt   DateTime?
+  lastDeployAt  DateTime?
+  suspendedAt   DateTime?
+  visits        Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model Proposal {
+  id          String   @id @default(cuid())
+  userId      String
+  projectId   String?
+  companyId   String?
+  title       String
+  content     Json     // ProposalContent
+  priceCents  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model UsageCounter {
+  id          String   @id @default(cuid())
+  userId      String
+  period      String   // "AAAA-MM" (fuso America/Sao_Paulo)
+  searches    Int      @default(0)
+  generations Int      @default(0)
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+}
+
+// Configuração global editável pelo administrador (linha única id = "global")
+model PlatformSettings {
+  id                     String   @id @default("global")
+  priceCents             Int      @default(7700)
+  checkoutUrl            String?
+  maxSearchesPerMonth    Int      @default(100)
+  maxGenerationsPerMonth Int      @default(100)
+  maxPublishedSites      Int      @default(10)
+  graceDays              Int      @default(0)   // dias extras após o vencimento antes de suspender
+  retentionDays          Int      @default(30)  // preservação dos projetos após o vencimento
+  usageWarnPercent       Int      @default(80)
+  updatedAt              DateTime @updatedAt
+}
+
+model RateLimit {
+  key         String   @id
+  windowStart DateTime
+  count       Int
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  actorId   String?
+  action    String
+  meta      Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([userId, createdAt])
+}

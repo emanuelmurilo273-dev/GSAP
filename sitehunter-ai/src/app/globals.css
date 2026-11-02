@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-950: #04060b;
+  --color-ink-900: #070b14;
+  --color-ink-850: #0a101d;
+  --color-ink-800: #0e1626;
+  --color-ink-700: #162136;
+  --color-ink-600: #22304a;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-cyan-glow: #22d3ee;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --animate-fade-up: fade-up 0.5s ease-out both;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+html { color-scheme: dark; }
+body { background: var(--color-ink-950); color: #e2e8f0; -webkit-font-smoothing: antialiased; }
+
+@utility card { @apply rounded-2xl border border-white/[0.06] bg-ink-850/80 backdrop-blur-sm shadow-[0_0_0_1px_rgba(59,130,246,0.03),0_20px_40px_-24px_rgba(0,0,0,0.8)]; }
+@utility card-hover { @apply transition duration-300 hover:-translate-y-0.5 hover:border-brand-500/30 hover:shadow-[0_0_0_1px_rgba(59,130,246,0.15),0_20px_50px_-20px_rgba(37,99,235,0.35)]; }
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400; }
+@utility btn-primary { @apply btn bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-lg shadow-brand-600/25 hover:from-brand-500 hover:to-brand-400 hover:shadow-brand-500/40; }
+@utility btn-secondary { @apply btn border border-white/10 bg-white/[0.04] text-slate-200 hover:border-brand-500/40 hover:bg-brand-500/10; }
+@utility btn-ghost { @apply btn text-slate-300 hover:bg-white/5 hover:text-white; }
+@utility btn-danger { @apply btn border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20; }
+@utility input { @apply w-full rounded-xl border border-white/10 bg-ink-900 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25; }
+@utility label { @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400; }
+@utility badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium; }
+@utility grid-bg { background-image: linear-gradient(rgba(59,130,246,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.06) 1px, transparent 1px); background-size: 48px 48px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
