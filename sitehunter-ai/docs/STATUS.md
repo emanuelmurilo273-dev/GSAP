@@ -23,7 +23,11 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Resultados reais via Google Places (nome, categoria, endereço, telefone, site, mapa) | 🔑 `GOOGLE_PLACES_API_KEY` |
 | Filtro “Possivelmente sem site”, com aviso de que não é uma afirmação | ✅ |
 | Identifica empresas que só informam rede social | ✅ |
-| Salvar empresas, anotações, atualizar dados pela fonte | ✅ / 🔑 |
+| Salvar empresas, anotações, atualizar dados pela fonte (inclui horários reais) | ✅ / 🔑 |
+| Mapa interativo com marcadores personalizados, seleção e legenda | 🔑 `GOOGLE_MAPS_BROWSER_KEY` (Maps JavaScript API) |
+| Pesquisar endereço e busca num raio ao redor do ponto | 🔑 `GOOGLE_MAPS_SERVER_KEY` (Geocoding API) |
+| Geolocalização com explicação prévia e mensagens de erro claras | ✅ (requer HTTPS) |
+| Rotas (carro, a pé, bicicleta, transporte público) desenhadas no mapa | 🔑 `GOOGLE_MAPS_SERVER_KEY` (Routes API) |
 | Nenhum dado inventado (sem chave → mensagem clara, a pesquisa não é contada) | ✅ testado |
 
 ## Sites
@@ -35,6 +39,11 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Editor: textos, imagens, cores, fontes, seções (adicionar, remover, ocultar, reordenar), botões, links, prévia celular/computador, salvar, visualizar | ✅ |
 | Histórico de versões e restauração | ✅ |
 | Envio de imagens próprias (upload de arquivos) | 🚧 requer armazenamento de objetos (S3/R2) |
+| Mapa do Google dentro do site publicado + "Traçar rota" | ✅ rota sem chave; mapa embutido 🔑 `GOOGLE_MAPS_EMBED_KEY` |
+| Acessibilidade dos sites (pular conteúdo, foco visível, ARIA nas abas e menu, contraste mínimo calculado) | ✅ testado |
+| SEO dos sites (canonical, Open Graph, schema.org por tipo de negócio, favicon) | ✅ testado |
+| Formulário com validação, mensagens de erro e estados de envio | ✅ testado |
+| Barra de ações fixa no celular (Ligar, WhatsApp, Rota) | ✅ |
 
 ## Publicação e hospedagem
 | Item | Status |

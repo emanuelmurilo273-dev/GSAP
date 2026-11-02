@@ -56,14 +56,20 @@ export async function publishProject(project: Project, userId: string, desiredSl
   }
 
   async function doPublish(db: typeof prisma) {
-    const html = renderSite(parsed.data!);
     const now = new Date();
+    const render = (slug: string) =>
+      renderSite(parsed.data!, {
+        mapsEmbedKey: env.googleMapsEmbedKey ?? null,
+        canonicalUrl: publicUrlFor(slug, existing?.customDomain, !!existing?.customDomainVerifiedAt),
+      });
     if (existing) {
       let slug = existing.slug;
       if (desiredSlug && slugify(desiredSlug) !== existing.slug) slug = await uniqueSlug(desiredSlug, project.id);
+      const html = render(slug);
       await db.publication.update({ where: { id: existing.id }, data: { slug, html, status: "PUBLISHED", lastDeployAt: now, publishedAt: existing.publishedAt ?? now, suspendedAt: null } });
     } else {
       const slug = await uniqueSlug(desiredSlug || parsed.data!.siteName || project.name, project.id);
+      const html = render(slug);
       await db.publication.create({ data: { projectId: project.id, userId, slug, html, status: "PUBLISHED", publishedAt: now, lastDeployAt: now } });
     }
   }

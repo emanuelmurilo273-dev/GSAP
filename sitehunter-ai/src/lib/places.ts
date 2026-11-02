@@ -87,12 +87,13 @@ export function mapPlace(p: GPlace): PlaceResult {
   };
 }
 
-export async function searchPlaces(params: { textQuery: string; includedType?: string; pageToken?: string }) {
+export async function searchPlaces(params: { textQuery: string; includedType?: string; pageToken?: string; near?: { lat: number; lng: number; radiusMeters?: number } }) {
   const key = env.googlePlacesKey;
-  if (!key) throw new HttpError(503, "A busca de empresas ainda não foi configurada (GOOGLE_PLACES_API_KEY).", "not_configured");
+  if (!key) throw new HttpError(503, "A busca de empresas ainda não foi configurada (GOOGLE_MAPS_SERVER_KEY).", "not_configured");
   const body: Record<string, unknown> = { textQuery: params.textQuery, languageCode: "pt-BR", regionCode: "BR", pageSize: 20 };
   if (params.includedType) body.includedType = params.includedType;
   if (params.pageToken) body.pageToken = params.pageToken;
+  if (params.near) body.locationBias = { circle: { center: { latitude: params.near.lat, longitude: params.near.lng }, radius: Math.min(50000, params.near.radiusMeters ?? 5000) } };
   const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": FIELDS },
@@ -113,7 +114,7 @@ export async function searchPlaces(params: { textQuery: string; includedType?: s
 
 export async function placeDetails(placeId: string): Promise<PlaceResult> {
   const key = env.googlePlacesKey;
-  if (!key) throw new HttpError(503, "A busca de empresas ainda não foi configurada (GOOGLE_PLACES_API_KEY).", "not_configured");
+  if (!key) throw new HttpError(503, "A busca de empresas ainda não foi configurada (GOOGLE_MAPS_SERVER_KEY).", "not_configured");
   const res = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`, {
     headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": FIELDS.split(",").filter((f) => f !== "nextPageToken").map((f) => f.replace("places.", "")).join(",") },
     cache: "no-store",

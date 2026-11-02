@@ -43,7 +43,7 @@ export default async function Landing() {
   const price = formatBRL(settings.priceCents);
   const demoCompany = { name: "Barbearia Exemplo", city: "Curitiba", neighborhood: "Centro", phone: null, address: "Endereço ilustrativo" };
   const seg = getSegment("barbearia");
-  const demoHtml = renderSite(buildSiteContent(demoCompany, seg, fallbackCopy(demoCompany, seg)));
+  const demoHtml = renderSite(buildSiteContent(demoCompany, seg, fallbackCopy(demoCompany, seg)), { preview: true });
 
   return (
     <div className="relative overflow-hidden">

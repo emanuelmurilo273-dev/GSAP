@@ -53,13 +53,48 @@ Baseado na documentação oficial (`docs.kiwify.com.br/api-reference/webhooks`).
 - Não confirmamos na documentação se o checkout aceita pré-preenchimento de e-mail nem se repassa o `sck` ao webhook. Por isso a tela de assinatura pede para usar o mesmo e-mail da conta.
 - Não há proteção contra *replay* no protocolo da Kiwify (a assinatura não inclui data/hora). A deduplicação por evento reduz o impacto.
 
-## 4. Google Places API (busca de empresas)
+## 4. Google Maps Platform (busca, mapa, endereços, rotas e mapa nos sites)
 
-1. No Google Cloud Console, crie um projeto, ative o **faturamento** e a **Places API (New)**.
-2. Crie uma chave de API e restrinja: *Application restrictions* = endereços IP do servidor; *API restrictions* = Places API (New).
-3. Defina `GOOGLE_PLACES_API_KEY`.
-4. Custos: Text Search com campos de contato (telefone/site) é cobrado na faixa “Enterprise”. Acompanhe o painel de faturamento do Google e ajuste o limite de pesquisas por assinante em **Admin → Configurações**.
-5. **Termos do Google:** o `place_id` pode ser armazenado; outros conteúdos têm restrições de cache, e dados do Places não devem ser exibidos em mapas de outros provedores. A plataforma guarda a data da consulta, oferece “Atualizar dados” (Place Details), exibe a atribuição “Dados de empresas: Google” e usa apenas links do Google Maps. Revise os [termos da Google Maps Platform](https://cloud.google.com/maps-platform/terms) para o seu caso de uso.
+No Google Cloud Console, crie um projeto, ative o **faturamento** e ative estas APIs:
+
+| API | Para quê | Chave |
+|---|---|---|
+| Places API (New) | Busca de empresas, dados e horários | Servidor |
+| Geocoding API | "Pesquisar endereço" no painel | Servidor |
+| Routes API | "Rota até a empresa" (carro, a pé, bicicleta, transporte público) | Servidor |
+| Maps JavaScript API | Mapa interativo com marcadores no painel | Navegador |
+| Maps Embed API | Mapa dentro dos sites publicados (gratuita) | Sites |
+
+Crie **três chaves** em *APIs e serviços → Credenciais*, cada uma com restrições próprias:
+
+1. **`GOOGLE_MAPS_SERVER_KEY`** (servidor)
+   - Restrição de aplicativo: **Endereços IP**, com o IP do seu servidor.
+   - Restrição de API: Places API (New), Geocoding API e Routes API.
+   - Fica só no servidor e nunca é enviada ao navegador. O nome antigo `GOOGLE_PLACES_API_KEY` continua aceito.
+2. **`GOOGLE_MAPS_BROWSER_KEY`** (mapa do painel)
+   - Restrição de aplicativo: **Referenciadores HTTP**, com `https://app.SEUDOMINIO/*` (e `http://localhost:3000/*` para testes).
+   - Restrição de API: Maps JavaScript API.
+   - O painel busca essa chave em `/api/maps/config`, só para usuários logados; ela não fica embutida no código.
+   - Uma chave de mapa no navegador sempre aparece para quem usa a página. Por isso a proteção é a restrição de domínio.
+3. **`GOOGLE_MAPS_EMBED_KEY`** (mapa nos sites)
+   - Restrição de aplicativo: **Referenciadores HTTP**, com `https://*.ROOT_DOMAIN/*` e cada domínio próprio de cliente que você conectar.
+   - Restrição de API: Maps Embed API.
+   - Ela aparece no HTML público dos sites, como em qualquer mapa incorporado; por isso a restrição de domínio é obrigatória.
+   - Os sites exportados (.zip) não levam o mapa embutido, porque ficarão em outro domínio. Eles mantêm os botões de rota.
+
+Opcional: **`GOOGLE_MAPS_MAP_ID`**. Crie um Map ID em *Map Management* para usar os marcadores avançados. Sem ele, o painel usa marcadores clássicos com o mesmo visual.
+
+**O que aparece para o usuário:**
+- **Buscar empresas:** lista e mapa lado a lado no computador, e abas Lista/Mapa no celular.
+- **Marcadores coloridos:** azul = possivelmente sem site; roxo = só rede social; cinza = site informado; ponto verde = empresa já salva.
+- **Pesquisar endereço:** centraliza o mapa e prioriza empresas num raio de 2 a 25 km.
+- **Usar minha localização:** primeiro aparece uma tela explicando o uso, e só depois o navegador pede a permissão. Se a pessoa recusar, aparece uma mensagem explicando como liberar. Só funciona em HTTPS.
+- **Painel da empresa:** dados, horários e rota calculada (tempo e distância), com o trajeto desenhado no mapa.
+- **Erros:** chave ausente, recusada pelo Google, falha de rede ou demora mostram uma mensagem clara. A lista continua funcionando mesmo sem o mapa.
+
+**Custos:** Places, Geocoding, Routes e Maps JavaScript são cobrados por uso (há uma cota mensal gratuita). A Maps Embed API é gratuita. Configure **alertas de orçamento** e **cotas por API** no Google Cloud.
+
+**Termos do Google:** o `place_id` pode ser armazenado; outros dados têm restrições de cache, e dados do Places só podem ser exibidos em mapas do Google. A plataforma guarda a data da consulta, oferece "Atualizar dados", exibe a atribuição do Google e usa somente mapas do Google. Revise os [termos da Google Maps Platform](https://cloud.google.com/maps-platform/terms).
 
 ## 5. IA (Anthropic Claude)
 

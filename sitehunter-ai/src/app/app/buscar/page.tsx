@@ -15,7 +15,7 @@ export default async function SearchPage() {
         <Paywall message={user.access.message} />
       ) : (
         <>
-          {!env.googlePlacesKey && <div className="mb-5"><Alert kind="warn">A busca ainda não está configurada: o administrador precisa definir GOOGLE_PLACES_API_KEY no servidor.</Alert></div>}
+          {!env.googlePlacesKey && <div className="mb-5"><Alert kind="warn">A busca ainda não está configurada: o administrador precisa definir GOOGLE_MAPS_SERVER_KEY no servidor.</Alert></div>}
           <SearchClient segments={SEGMENTS.map((s) => ({ key: s.key, label: s.label }))} ufs={UFS} />
         </>
       )}

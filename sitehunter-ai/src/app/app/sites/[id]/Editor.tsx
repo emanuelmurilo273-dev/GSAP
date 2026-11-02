@@ -320,7 +320,7 @@ export function Editor(props: {
   const [picker, setPicker] = useState<((i: SiteImage) => void) | null>(null);
   const [showNotes, setShowNotes] = useState(true);
   const dirty = JSON.stringify(content) !== saved;
-  const html = useMemo(() => renderSite(content), [content]);
+  const html = useMemo(() => renderSite(content, { preview: true }), [content]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const save = useCallback(async () => {
@@ -384,7 +384,7 @@ export function Editor(props: {
     }
   }
   function previewTab() {
-    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    const url = URL.createObjectURL(new Blob([renderSite(content)], { type: "text/html" }));
     window.open(url, "_blank", "noopener");
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }

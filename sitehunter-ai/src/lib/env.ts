@@ -14,7 +14,14 @@ export const env = {
   get adminEmails() {
     return (opt("ADMIN_EMAILS") ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   },
-  get googlePlacesKey() { return opt("GOOGLE_PLACES_API_KEY"); },
+  get googlePlacesKey() { return opt("GOOGLE_PLACES_API_KEY") ?? opt("GOOGLE_MAPS_SERVER_KEY"); },
+  /** Chave de servidor para Geocoding API e Routes API (nunca enviada ao navegador). */
+  get googleMapsServerKey() { return opt("GOOGLE_MAPS_SERVER_KEY") ?? opt("GOOGLE_PLACES_API_KEY"); },
+  /** Chave de navegador da Maps JavaScript API (restrita por referenciador HTTP). Entregue só a usuários logados. */
+  get googleMapsBrowserKey() { return opt("GOOGLE_MAPS_BROWSER_KEY"); },
+  get googleMapsMapId() { return opt("GOOGLE_MAPS_MAP_ID"); },
+  /** Chave da Maps Embed API usada no mapa dos sites publicados (restrita aos domínios dos sites). */
+  get googleMapsEmbedKey() { return opt("GOOGLE_MAPS_EMBED_KEY"); },
   get anthropicKey() { return opt("ANTHROPIC_API_KEY"); },
   get aiModel() { return opt("AI_MODEL") ?? "claude-opus-5-5"; },
   get unsplashKey() { return opt("UNSPLASH_ACCESS_KEY"); },
