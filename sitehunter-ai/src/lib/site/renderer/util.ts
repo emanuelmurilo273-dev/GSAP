@@ -13,6 +13,8 @@ export function esc(s: unknown): string {
 export function safeUrl(u: string | undefined | null): string {
   const v = (u ?? "").trim();
   if (!v) return "#";
+  // Fotos da biblioteca própria publicadas junto com o site (caminho relativo).
+  if (/^stock\/[a-z]+-\d+-(800|1600)\.webp$/.test(v)) return v;
   if (v.startsWith("#")) return "#" + v.slice(1).replace(/[^a-zA-Z0-9_-]/g, "");
   try {
     const parsed = new URL(v);
@@ -64,6 +66,11 @@ function withParams(url: URL, params: Record<string, string>) {
  * - outras URLs: usadas como estão.
  */
 export function imageSources(url: string, widths: number[], fallbackWidth: number): ImageSources {
+  const stock = /^(.*stock\/[a-z]+-\d+-)(800|1600)\.webp$/.exec(url);
+  if (stock) {
+    const at = (w: number) => `${stock[1]}${w}.webp`;
+    return { src: at(fallbackWidth > 900 ? 1600 : 800), srcset: `${at(800)} 800w, ${at(1600)} 1600w`, avif: "", webp: "" };
+  }
   let u: URL;
   try {
     u = new URL(url);

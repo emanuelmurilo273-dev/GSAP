@@ -3,6 +3,7 @@ import { Logo } from "@/components/Logo";
 import { getSettings, formatBRL } from "@/lib/settings";
 import { buildSiteContent, fallbackCopy, getSegment } from "@/lib/site/templates";
 import { renderSite } from "@/lib/site/render";
+import { stockImages } from "@/lib/site/stock";
 import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +44,7 @@ export default async function Landing() {
   const price = formatBRL(settings.priceCents);
   const demoCompany = { name: "Barbearia Exemplo", city: "Curitiba", neighborhood: "Centro", phone: null, address: "Endereço ilustrativo" };
   const seg = getSegment("barbearia");
-  const demoHtml = renderSite(buildSiteContent(demoCompany, seg, fallbackCopy(demoCompany, seg)), { preview: true });
+  const demoHtml = renderSite(buildSiteContent(demoCompany, seg, fallbackCopy(demoCompany, seg), stockImages("barbearia", "/")), { preview: true });
 
   return (
     <div className="relative overflow-hidden">

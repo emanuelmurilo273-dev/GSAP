@@ -149,3 +149,29 @@ describe("Imagens e galeria", () => {
     expect(html).toContain("@media (prefers-reduced-motion:reduce)");
   });
 });
+
+describe("Biblioteca de fotos e textos-modelo", () => {
+  it("todos os segmentos têm fotos e textos completos, sem marcadores sobrando", async () => {
+    const { stockImages } = await import("@/lib/site/stock");
+    for (const s of SEGMENTS) {
+      const imgs = stockImages(s.key, "");
+      expect(imgs.length).toBeGreaterThanOrEqual(6);
+      const copy = fallbackCopy({ name: "Empresa X", city: "Campinas", neighborhood: "Centro", phone: "(11) 98765-4321" }, s);
+      expect(copy.services.length).toBeGreaterThanOrEqual(3);
+      expect(copy.faq.length).toBeGreaterThanOrEqual(3);
+      const h = renderSite(buildSiteContent({ name: "Empresa X", city: "Campinas", phone: "(11) 98765-4321", address: "Rua A, 1" }, s, copy, imgs));
+      expect(h).not.toMatch(/\{nome\}|\{onde\}|\{cidade\}/);
+      expect(h).toContain(`srcset="stock/${s.key}-1-800.webp 800w, stock/${s.key}-1-1600.webp 1600w"`);
+      expect(h).toContain('id="lb"');
+    }
+  });
+  it("completa campos vazios da IA com o texto-modelo", async () => {
+    const { completeCopy } = await import("@/lib/site/templates");
+    const seg = getSegment("restaurante");
+    const base = fallbackCopy({ name: "X" }, seg);
+    const out = completeCopy({ ...base, faq: [], menuCategories: [], heroTitle: "" }, { name: "X" }, seg);
+    expect(out.faq.length).toBeGreaterThan(0);
+    expect(out.menuCategories.length).toBeGreaterThan(0);
+    expect(out.heroTitle).toBe(base.heroTitle);
+  });
+});

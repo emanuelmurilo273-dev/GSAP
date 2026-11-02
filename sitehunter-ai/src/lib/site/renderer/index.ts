@@ -44,13 +44,18 @@ export function renderSite(c: SiteContent, opts: RenderOptions = {}): string {
   const visible = c.sections.filter((s) => s.visible && hasContent(s));
   const navItems = visible.filter((s) => NAV_LABELS[s.type]);
   const navLinks = navItems
-    .map((s) => `<a href="#${esc(s.id)}">${esc(s.type === "services" || s.type === "products" ? s.title.split(" ").slice(0, 2).join(" ") || NAV_LABELS[s.type]! : NAV_LABELS[s.type]!)}</a>`)
+    .map((s) => {
+      const t = (s.type === "services" || s.type === "products") && s.title && s.title.length <= 14 ? s.title : NAV_LABELS[s.type]!;
+      return `<a href="#${esc(s.id)}">${esc(t)}</a>`;
+    })
     .join("");
   const fonts = Array.from(new Set([c.theme.headingFont, c.theme.bodyFont]))
     .map((f) => `family=${encodeURIComponent(f).replace(/%20/g, "+")}:wght@400;600;700;800`)
     .join("&");
   const wa = whatsappUrl(c);
-  const ctaLabel = c.style === "elegant" ? "Reservar" : "Fale conosco";
+  const hero = c.sections.find((x) => x.type === "hero");
+  const heroCta = hero && hero.type === "hero" ? hero.buttons.find((b) => b.action === "whatsapp")?.label : undefined;
+  const ctaLabel = heroCta && heroCta.length <= 18 ? heroCta : "Fale conosco";
   const startsWithHero = visible[0]?.type === "hero";
   const mbar = mobileBar(c);
   const body = visible.map((s, i) => sectionHtml(s, ctx, visible[i + 1])).join("\n");

@@ -5,8 +5,8 @@ import { HttpError, json, parseJson, route } from "@/lib/http";
 import { rateLimit } from "@/lib/rateLimit";
 import { consumeUsage, refundUsage } from "@/lib/usage";
 import { generateSiteCopy } from "@/lib/ai";
-import { buildSiteContent, getSegment } from "@/lib/site/templates";
-import { searchImages, trackImageDownload } from "@/lib/images";
+import { buildSiteContent, completeCopy, getSegment } from "@/lib/site/templates";
+import { stockImages } from "@/lib/site/stock";
 import { snapshotVersion } from "@/lib/projects";
 import { audit } from "@/lib/logger";
 import { env } from "@/lib/env";
@@ -42,10 +42,10 @@ export const POST = route(async (req) => {
 
   await consumeUsage(user.id, "generations");
   try {
-    const [{ copy, ai }, images] = await Promise.all([
+    const [{ copy: rawCopy, ai }] = await Promise.all([
       generateSiteCopy(company, segment, b.instructions, { menuText: b.menuText, senderName: user.name.split(" ")[0] }),
-      ((company.photos as unknown[] | null)?.length ? Promise.resolve([]) : searchImages(segment.imageQuery, 6).catch(() => [])),
     ]);
+    const copy = completeCopy(rawCopy, company, segment);
     // Fotos reais do estabelecimento (Google) têm prioridade; sem elas, banco de imagens autorizado.
     const placePhotos = (company.photos as PlacePhoto[] | null) ?? [];
     const where = [company.neighborhood, company.city].filter(Boolean).join(", ");
@@ -57,9 +57,8 @@ export const POST = route(async (req) => {
         credit: p.author ? { name: p.author, link: p.authorUri || "https://maps.google.com", source: "google" as const } : undefined,
       }));
     } else {
-      const chosen = images.slice(0, 6);
-      chosen.forEach((i) => void trackImageDownload(i.downloadLocation));
-      siteImages = chosen.map(({ url, alt, credit }) => ({ url, alt: alt || `Imagem ilustrativa de ${segment.label.toLowerCase()}`, credit: credit ? { ...credit, source: "unsplash" as const } : undefined }));
+      // Biblioteca própria de fotos profissionais do segmento (servidas em /stock).
+      siteImages = stockImages(segment.key, `${env.appUrl}/`);
     }
     const content = buildSiteContent(company, segment, copy, siteImages);
     const project = await prisma.project.create({

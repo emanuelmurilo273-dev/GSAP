@@ -58,7 +58,7 @@ function hero(s: Of<"hero">, ctx: RenderCtx, next?: Section): string {
     ${heroCard(c)}
   </div>
   ${next ? `<a class="scroll-cue" href="#${esc(next.id)}"><span class="sr-only">Ir para a próxima seção</span><span aria-hidden="true"></span></a>` : ""}
-  ${hasImg && s.image?.credit ? `<p class="hero-credit">Foto: <a href="${esc(safeUrl(s.image.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(s.image.credit.name)}</a> / ${s.image.credit.source === "google" ? "Google Maps" : "Unsplash"}</p>` : ""}${hasImg && s.image?.alt ? `<p class="sr-only">${esc(s.image.alt)}</p>` : ""}
+  ${hasImg && s.image?.credit ? `<p class="hero-credit">${esc(creditText(s.image))}</p>` : ""}${hasImg && s.image?.alt ? `<p class="sr-only">${esc(s.image.alt)}</p>` : ""}
 </section>${
     c.marquee.length
       ? `<div class="marquee" aria-hidden="true"><div class="mq-track">${[...c.marquee, ...c.marquee, ...c.marquee, ...c.marquee].map((m) => `<span>${esc(m)}</span><i>${icon(c.icon, "mi")}</i>`).join("")}</div></div>`

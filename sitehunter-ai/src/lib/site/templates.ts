@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
 import { ICON_NAMES } from "./icons";
+import { COPY, fill } from "./copyLibrary";
 
 export type TemplateKey = "restaurant" | "barber" | "clinic" | "mechanic" | "store" | "services";
 export type Style = SiteContent["style"];
@@ -178,10 +179,10 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
   const byTemplate: Record<TemplateKey, Section[]> = {
     restaurant: [hero, highlights, about, menu, steps, hours, gallery, faq, cta, contact],
     barber: [hero, services, highlights, about, steps, hours, gallery, faq, cta, contact],
-    clinic: [hero, highlights, { ...services, title: copy.servicesTitle || "Especialidades" }, about, steps, hours, faq, cta, contact],
-    mechanic: [hero, services, highlights, steps, about, quote, hours, faq, contact],
+    clinic: [hero, highlights, { ...services, title: copy.servicesTitle || "Especialidades" }, about, gallery, steps, hours, faq, cta, contact],
+    mechanic: [hero, services, highlights, steps, about, gallery, quote, hours, faq, contact],
     store: [hero, products, highlights, about, hours, gallery, faq, cta, contact],
-    services: [hero, services, highlights, steps, about, quote, hours, faq, contact],
+    services: [hero, services, highlights, steps, about, gallery, quote, hours, faq, contact],
   };
 
   const pricesMissing = segment.template === "restaurant" && copy.menuCategories.some((c) => c.items.some((i) => !i.price));
@@ -216,88 +217,52 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
   };
 }
 
-/** Textos padrão usados quando a IA não está disponível. Usa apenas dados reais da empresa. */
+/** Textos-modelo profissionais por segmento (sem IA). Usa só dados reais da empresa e nada inventado. */
 export function fallbackCopy(company: CompanyInfo, segment: Segment): SiteCopy {
-  const where = [company.neighborhood, company.city].filter(Boolean).join(", ");
-  const typical: Record<TemplateKey, { title: string; description: string; icon: string }[]> = {
-    restaurant: [
-      { title: "Pratos da casa", description: "Receitas preparadas com cuidado para o seu dia a dia.", icon: "chef" },
-      { title: "Atendimento no local", description: "Um ambiente acolhedor para você e sua família.", icon: "users" },
-      { title: "Pedidos", description: "Fale com a gente para saber como fazer seu pedido.", icon: "truck" },
-    ],
-    barber: [
-      { title: "Corte", description: "Corte de cabelo com atenção aos detalhes.", icon: "scissors" },
-      { title: "Barba", description: "Acabamento e cuidado com a barba.", icon: "razor" },
-      { title: "Corte + barba", description: "O combo completo para sair renovado.", icon: "sparkles" },
-      { title: "Sobrancelha", description: "Acabamento alinhado ao seu estilo.", icon: "star" },
-    ],
-    clinic: [
-      { title: "Consultas", description: "Atendimento com profissionais da área.", icon: segment.icon },
-      { title: "Avaliação", description: "Entenda o melhor caminho para o seu caso.", icon: "check" },
-      { title: "Acompanhamento", description: "Suporte em cada etapa do tratamento.", icon: "heart" },
-    ],
-    mechanic: [
-      { title: "Revisão", description: "Manutenção preventiva para rodar com tranquilidade.", icon: "gauge" },
-      { title: "Diagnóstico", description: "Avaliação do problema antes de qualquer serviço.", icon: "wrench" },
-      { title: "Freios e suspensão", description: "Segurança em primeiro lugar.", icon: "shield" },
-      { title: "Orçamento", description: "Peça um orçamento sem compromisso.", icon: "chat" },
-    ],
-    store: [
-      { title: "Novidades", description: "Peças selecionadas que chegam sempre.", icon: "sparkles" },
-      { title: "Atendimento", description: "Ajuda para encontrar o que combina com você.", icon: "smile" },
-      { title: "Encomendas", description: "Fale com a gente para reservar.", icon: "bag" },
-    ],
-    services: [
-      { title: "Atendimento personalizado", description: "Entendemos a sua necessidade antes de começar.", icon: "users" },
-      { title: "Orçamento", description: "Solicite um orçamento sem compromisso.", icon: "chat" },
-      { title: "Acompanhamento", description: "Estamos disponíveis para tirar dúvidas.", icon: "check" },
-    ],
-  };
-  const one = segment.singular ?? segment.label;
-  const seg = one.toLowerCase();
+  const lib = COPY[segment.key] ?? COPY.servicos!;
+  const onde = [company.neighborhood, company.city].filter(Boolean).join(", ");
+  const vars = { nome: company.name, onde, cidade: company.city ?? "" };
+  const f = (t: string) => fill(t, vars);
+  const iconOk = (n: string) => (ICON_NAMES.includes(n) ? n : "star");
   return {
     siteName: company.name,
-    tagline: [one, company.city].filter(Boolean).join(" · "),
-    seoTitle: `${company.name}${where ? ` | ${where}` : ""}`.slice(0, 120),
-    seoDescription: `${company.name}${where ? ` em ${where}` : ""}. Fale com a gente pelo WhatsApp.`.slice(0, 300),
-    heroTitle: company.name,
-    heroSubtitle: where ? `${one} em ${where}. Atendimento atencioso do começo ao fim.` : "Atendimento atencioso do começo ao fim.",
-    primaryCta: company.phone ? "Chamar no WhatsApp" : "Entrar em contato",
-    marquee: typical[segment.template].map((t) => t.title),
-    highlights: [
-      { icon: "smile", title: "Atendimento próximo", text: "Você fala direto com a nossa equipe." },
-      { icon: "pin", title: where ? `Em ${company.city ?? where}` : "Perto de você", text: "Fácil de encontrar e de chegar." },
-      { icon: "chat", title: "Resposta rápida", text: "Tire dúvidas pelo WhatsApp." },
-    ],
-    aboutTitle: `Conheça a ${company.name}`,
-    aboutText: `A ${company.name} atende${where ? ` em ${where}` : ""} com dedicação a cada cliente.\n\nEntre em contato para saber mais sobre o nosso trabalho.`,
-    servicesTitle: segment.template === "store" ? "Nossos produtos" : segment.template === "clinic" ? "Especialidades" : "Serviços",
-    servicesIntro: `Conheça o que a ${company.name} oferece.`,
-    services: typical[segment.template],
-    menuCategories:
-      segment.template === "restaurant"
-        ? [
-            { name: "Entradas", items: [{ name: "Entrada da casa", description: "Edite com um item confirmado." }] },
-            { name: "Pratos principais", items: [{ name: "Prato da casa", description: "Edite com um item confirmado." }] },
-            { name: "Bebidas", items: [{ name: "Sucos e refrigerantes", description: "Consulte as opções." }] },
-          ]
-        : [],
-    steps: [
-      { title: "Chame no WhatsApp", text: "Conte o que você precisa." },
-      { title: "Combine os detalhes", text: "Tiramos suas dúvidas e combinamos tudo." },
-      { title: "Pronto", text: "É só aproveitar." },
-    ],
-    faq: [{ q: "Como entro em contato?", a: "Pelo WhatsApp ou telefone informados nesta página." }],
-    ctaTitle: `Procurando ${seg}${where ? ` em ${where}` : ""}?`,
-    ctaText: "Fale com a gente e tire suas dúvidas.",
-    contactText: "Estamos à disposição pelos canais abaixo.",
-    quoteTitle: "Solicite um orçamento",
-    quoteText: "Conte o que você precisa e responderemos pelo WhatsApp.",
+    tagline: f(lib.tagline),
+    seoTitle: `${company.name}${onde ? ` | ${segment.singular ?? segment.label} em ${onde}` : ""}`.slice(0, 120),
+    seoDescription: `${company.name}${onde ? `, ${(segment.singular ?? segment.label).toLowerCase()} em ${onde}` : ""}. ${f(lib.heroSubtitle)}`.slice(0, 300),
+    heroTitle: f(lib.heroTitle),
+    heroSubtitle: f(lib.heroSubtitle),
+    primaryCta: company.phone ? lib.primaryCta : "Entrar em contato",
+    marquee: lib.marquee,
+    highlights: lib.highlights.map((h) => ({ ...h, icon: iconOk(h.icon), text: f(h.text) })),
+    aboutTitle: f(lib.aboutTitle),
+    aboutText: f(lib.aboutText),
+    servicesTitle: lib.servicesTitle,
+    servicesIntro: f(lib.servicesIntro),
+    services: lib.services.map((x) => ({ ...x, icon: iconOk(x.icon) })),
+    menuCategories: lib.menu ?? [],
+    steps: lib.steps,
+    faq: lib.faq,
+    ctaTitle: f(lib.ctaTitle),
+    ctaText: f(lib.ctaText),
+    contactText: `Fale com a ${company.name} pelos canais abaixo.`,
+    quoteTitle: lib.quoteTitle ?? "Solicite um orçamento",
+    quoteText: lib.quoteText ?? "Conte o que você precisa e responderemos pelo WhatsApp.",
     colors: { primary: segment.theme.primary, accent: segment.theme.accent },
     headingFont: segment.theme.headingFont,
     bodyFont: segment.theme.bodyFont,
     outreach: "",
   };
+}
+
+/** Completa campos que a IA deixou vazios com os textos-modelo do segmento. */
+export function completeCopy(copy: SiteCopy, company: CompanyInfo, segment: Segment): SiteCopy {
+  const base = fallbackCopy(company, segment);
+  const out = { ...copy } as Record<string, unknown>;
+  for (const [k, v] of Object.entries(base)) {
+    const cur = out[k];
+    if (cur === undefined || cur === "" || (Array.isArray(cur) && cur.length === 0 && Array.isArray(v) && v.length > 0)) out[k] = v;
+  }
+  return out as SiteCopy;
 }
 
 /** Seção vazia para o botão "Adicionar seção" do editor. */

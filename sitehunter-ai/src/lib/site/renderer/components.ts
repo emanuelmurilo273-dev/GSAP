@@ -64,10 +64,15 @@ export function sectionHead(title: string, intro?: string, eyebrow?: string, id?
 export function credit(i?: SiteImage): string {
   if (!i?.credit) return "";
   const src = i.credit.source === "google" ? "Google Maps" : "Unsplash";
+  if (!i.credit.name || i.credit.name === src) return `<figcaption>Foto: ${src}</figcaption>`;
   return `<figcaption>Foto: <a href="${esc(safeUrl(i.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a> / ${src}</figcaption>`;
 }
 
-export const creditText = (i?: SiteImage) => (i?.credit ? `Foto: ${i.credit.name} / ${i.credit.source === "google" ? "Google Maps" : "Unsplash"}` : "");
+export const creditText = (i?: SiteImage) => {
+  if (!i?.credit) return "";
+  const src = i.credit.source === "google" ? "Google Maps" : "Unsplash";
+  return !i.credit.name || i.credit.name === src ? `Foto: ${src}` : `Foto: ${i.credit.name} / ${src}`;
+};
 
 /** <picture> com AVIF/WebP quando disponíveis, srcset por largura, dimensões (evita saltos de layout) e carregamento sob demanda. */
 export function pictureTag(i: SiteImage, opts: { sizes: string; width: number; ratio?: [number, number]; eager?: boolean; cls?: string }): string {
