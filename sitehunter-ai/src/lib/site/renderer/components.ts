@@ -61,17 +61,21 @@ export function sectionHead(title: string, intro?: string, eyebrow?: string, id?
   return `<header class="sh rv">${eyebrow ? `<p class="eyebrow">${esc(eyebrow)}</p>` : ""}${title ? `<h2${id ? ` id="${esc(id)}-t"` : ""}>${esc(title)}</h2>` : ""}${intro ? `<p class="lede">${esc(intro)}</p>` : ""}</header>`;
 }
 
+const SOURCE_LABEL = { google: "Google Maps", site: "site oficial", unsplash: "Unsplash" } as const;
+export const isIllustrative = (i?: SiteImage) => i?.credit?.source === "unsplash";
+
 export function credit(i?: SiteImage): string {
   if (!i?.credit) return "";
-  const src = i.credit.source === "google" ? "Google Maps" : "Unsplash";
+  const src = SOURCE_LABEL[i.credit.source ?? "unsplash"];
   if (!i.credit.name || i.credit.name === src) return `<figcaption>Foto: ${src}</figcaption>`;
   return `<figcaption>Foto: <a href="${esc(safeUrl(i.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a> / ${src}</figcaption>`;
 }
 
 export const creditText = (i?: SiteImage) => {
   if (!i?.credit) return "";
-  const src = i.credit.source === "google" ? "Google Maps" : "Unsplash";
-  return !i.credit.name || i.credit.name === src ? `Foto: ${src}` : `Foto: ${i.credit.name} / ${src}`;
+  const src = SOURCE_LABEL[i.credit.source ?? "unsplash"];
+  const base = !i.credit.name || i.credit.name === src ? `Foto: ${src}` : `Foto: ${i.credit.name} / ${src}`;
+  return isIllustrative(i) ? `Imagem ilustrativa · ${base}` : base;
 };
 
 /** <picture> com AVIF/WebP quando disponíveis, srcset por largura, dimensões (evita saltos de layout) e carregamento sob demanda. */
@@ -88,8 +92,11 @@ export function pictureTag(i: SiteImage, opts: { sizes: string; width: number; r
 /** Figura com imagem responsiva e crédito. */
 export function picture(i: SiteImage | undefined, cls: string, opts: { sizes?: string; width?: number; eager?: boolean; style?: string; ratio?: [number, number]; rv?: string } = {}): string {
   if (!i?.url || safeUrl(i.url) === "#") return "";
-  return `<figure class="${cls}"${opts.rv ? ` data-rv="${opts.rv}"` : ""}${opts.style ? ` style="${opts.style}"` : ""}><div class="img-wrap">${pictureTag(i, { sizes: opts.sizes ?? "(max-width: 860px) 100vw, 50vw", width: opts.width ?? 1024, ratio: opts.ratio, eager: opts.eager })}</div>${credit(i)}</figure>`;
+  return `<figure class="${cls}"${opts.rv ? ` data-rv="${opts.rv}"` : ""}${opts.style ? ` style="${opts.style}"` : ""}><div class="img-wrap">${isIllustrative(i) ? ILL_BADGE : ""}${pictureTag(i, { sizes: opts.sizes ?? "(max-width: 860px) 100vw, 50vw", width: opts.width ?? 1024, ratio: opts.ratio, eager: opts.eager })}</div>${credit(i)}</figure>`;
 }
+
+/** Selo visível em imagens de banco: deixa claro que não são fotos da empresa. */
+export const ILL_BADGE = `<span class="ill-badge">Imagem ilustrativa</span>`;
 
 /** Título com animação palavra por palavra (o texto continua legível para leitores de tela). */
 export function animatedWords(t: string): string {

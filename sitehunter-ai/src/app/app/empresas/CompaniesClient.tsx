@@ -5,7 +5,7 @@ import { api } from "@/components/api";
 import { toast } from "@/components/ui";
 import { GenerateSiteDialog, type SegmentOption } from "@/components/app/GenerateSite";
 
-type C = { id: string; name: string; category: string | null; address: string | null; phone: string | null; website: string | null; mapsUrl: string | null; notes: string | null; fetchedAt: string; projectId: string | null };
+type C = { id: string; name: string; category: string | null; address: string | null; phone: string | null; website: string | null; mapsUrl: string | null; notes: string | null; fetchedAt: string; researchedAt?: string | null; projectId: string | null };
 
 export function CompaniesClient({ companies: initial, segments, premium }: { companies: C[]; segments: SegmentOption[]; premium: boolean }) {
   const [companies, setCompanies] = useState(initial);
@@ -74,7 +74,7 @@ export function CompaniesClient({ companies: initial, segments, premium }: { com
           </article>
         ))}
       </div>
-      {gen && <GenerateSiteDialog companyId={gen.id} companyName={gen.name} segments={segments} onClose={() => setGen(null)} />}
+      {gen && <GenerateSiteDialog companyId={gen.id} companyName={gen.name} segments={segments} researchedAt={gen.researchedAt} onClose={() => setGen(null)} />}
     </div>
   );
 }

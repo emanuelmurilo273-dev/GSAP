@@ -48,6 +48,12 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Imagens AVIF/WebP com srcset, dimensões, carregamento sob demanda e capa prioritária | ✅ testado (AVIF/WebP no banco Unsplash; fotos do Google em JPEG nas larguras 480/960/1600) |
 | Animações (entrada ao rolar com deslize/zoom/fade, hover em cards e imagens, ondulação em botões, menu, destaque no título) com movimento reduzido | ✅ |
 | Barra de ações fixa no celular (Ligar, WhatsApp, Rota) | ✅ |
+| **Pesquisa da empresa na web** antes de gerar (site e perfis oficiais): serviços, cardápio com preços publicados, contatos, horários, endereço, cores da marca e fotos próprias, cada item com fonte | 🔑 `ANTHROPIC_API_KEY` com busca/leitura na web habilitadas na organização |
+| Verificação no servidor do que a pesquisa trouxe (fotos precisam ser imagens acessíveis, fontes e links precisam abrir, telefone divergente do Google vira aviso); o que falha é descartado e marcado “a confirmar” | ✅ testado (bloqueia links para rede interna) |
+| Avaliações reais do Google (nota, total, até 3 textos com 4★+, autor, data e link para o Google Maps); sem avaliações reais a seção não aparece | 🔑 `GOOGLE_MAPS_SERVER_KEY` (Place Details com o campo `reviews`, cobrado como SKU Enterprise + Atmosphere) |
+| Imagens de banco sempre marcadas com o selo “Imagem ilustrativa” no site; fotos do site oficial com crédito e aviso para confirmar autorização | ✅ testado |
+| Design próprio por empresa (paleta, par tipográfico, capa, serviços, “sobre”, títulos e textura escolhidos de forma estável pelo id; cores da marca quando encontradas) | ✅ testado |
+| Revisão automática antes de publicar: contatos inválidos, botões sem link, textos de modelo e afirmações que exigem prova (anos, nº de clientes, prêmios, “melhor da cidade”, registros) | ✅ testado (avisos no editor; não altera o texto) |
 
 ## Publicação e hospedagem
 | Item | Status |

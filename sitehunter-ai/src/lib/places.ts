@@ -153,3 +153,45 @@ export async function placePhotoUri(photoName: string, maxWidthPx: number): Prom
   const data = (await res.json().catch(() => ({}))) as { photoUri?: string };
   return data.photoUri?.startsWith("https://") ? data.photoUri : null;
 }
+
+export type PlaceReviews = {
+  rating: number | null;
+  total: number | null;
+  sourceUrl: string;
+  items: { author: string; authorUrl: string; rating: number; text: string; when: string }[];
+};
+
+/**
+ * Avaliações públicas do perfil da empresa no Google (Place Details).
+ * São reais e verificáveis: autor, nota, data relativa e link para o Google Maps.
+ */
+export async function placeReviews(placeId: string): Promise<PlaceReviews | null> {
+  const key = env.googlePlacesKey;
+  if (!key) return null;
+  const res = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=pt-BR&regionCode=BR`, {
+    headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": "rating,userRatingCount,googleMapsUri,reviews" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const p = (await res.json().catch(() => ({}))) as {
+    rating?: number;
+    userRatingCount?: number;
+    googleMapsUri?: string;
+    reviews?: { rating?: number; relativePublishTimeDescription?: string; text?: { text?: string }; originalText?: { text?: string }; authorAttribution?: { displayName?: string; uri?: string } }[];
+  };
+  return {
+    rating: typeof p.rating === "number" ? p.rating : null,
+    total: typeof p.userRatingCount === "number" ? p.userRatingCount : null,
+    sourceUrl: p.googleMapsUri ?? "",
+    items: (p.reviews ?? [])
+      .map((r) => ({
+        author: r.authorAttribution?.displayName ?? "",
+        authorUrl: r.authorAttribution?.uri ?? "",
+        rating: r.rating ?? 0,
+        text: (r.text?.text ?? r.originalText?.text ?? "").trim(),
+        when: r.relativePublishTimeDescription ?? "",
+      }))
+      .filter((r) => r.author && r.text),
+  };
+}

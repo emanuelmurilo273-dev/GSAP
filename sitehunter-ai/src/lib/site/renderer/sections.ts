@@ -2,7 +2,7 @@
 import type { Section, SiteContent } from "../types";
 import { icon } from "../icons";
 import { esc, paras, safeUrl, telHref, waNumber } from "./util";
-import { animatedWords, button, creditText, directionsUrl, mapsUrl, picture, pictureTag, sectionHead, whatsappUrl, type RenderCtx } from "./components";
+import { ILL_BADGE, animatedWords, button, creditText, isIllustrative, directionsUrl, mapsUrl, picture, pictureTag, sectionHead, whatsappUrl, type RenderCtx } from "./components";
 
 type Of<T extends Section["type"]> = Extract<Section, { type: T }>;
 
@@ -45,8 +45,14 @@ function hero(s: Of<"hero">, ctx: RenderCtx, next?: Section): string {
     c.business.phone && `<li class="chip">${icon("phone", "ci")}${esc(c.business.phone)}</li>`,
   ].filter(Boolean);
 
-  return `<section id="${esc(s.id)}" class="hero${hasImg ? " has-img" : ""}" aria-labelledby="${esc(s.id)}-t">
-  <div class="hero-bg" aria-hidden="true">${hasImg ? pictureTag({ ...s.image!, alt: "" }, { sizes: "100vw", width: 1600, ratio: [16, 9], eager: true, cls: "hero-pic" }) : ""}<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="pattern"></div></div>
+  const variant = c.layout?.hero ?? "full";
+  const framed = hasImg && (variant === "split" || variant === "frame");
+  const bgPhoto = hasImg && !framed;
+  const figure = framed
+    ? `<figure class="hero-figure">${isIllustrative(s.image) ? ILL_BADGE : ""}${pictureTag(s.image!, { sizes: "(max-width: 860px) 100vw, 1000px", width: 1200, ratio: [1, 1], eager: true })}${variant === "frame" ? heroCard(c) : ""}</figure>`
+    : "";
+  return `<section id="${esc(s.id)}" class="hero hero-${variant}${bgPhoto ? " has-img" : ""}" aria-labelledby="${esc(s.id)}-t">
+  <div class="hero-bg" aria-hidden="true">${bgPhoto ? pictureTag({ ...s.image!, alt: "" }, { sizes: "100vw", width: 1600, ratio: [16, 9], eager: true, cls: "hero-pic" }) : ""}<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="pattern"></div></div>
   <div class="wrap hero-grid">
     <div class="hero-inner">
       ${c.tagline ? `<p class="eyebrow hero-eyebrow">${icon(c.icon, "ei")}${esc(c.tagline)}</p>` : ""}
@@ -55,10 +61,10 @@ function hero(s: Of<"hero">, ctx: RenderCtx, next?: Section): string {
       ${s.buttons.length ? `<div class="actions">${s.buttons.map((b, i) => button(b, c, i === 0 ? "main" : "ghost", i === 0 ? "btn-lg" : "btn-lg")).join("")}</div>` : ""}
       ${chips.length ? `<ul class="chips" aria-label="Informações rápidas">${chips.join("")}</ul>` : ""}
     </div>
-    ${heroCard(c)}
+    ${framed ? figure : variant === "center" ? "" : heroCard(c)}
   </div>
   ${next ? `<a class="scroll-cue" href="#${esc(next.id)}"><span class="sr-only">Ir para a próxima seção</span><span aria-hidden="true"></span></a>` : ""}
-  ${hasImg && s.image?.credit ? `<p class="hero-credit">${esc(creditText(s.image))}</p>` : ""}${hasImg && s.image?.alt ? `<p class="sr-only">${esc(s.image.alt)}</p>` : ""}
+  ${bgPhoto && s.image?.credit ? `<p class="hero-credit">${esc(creditText(s.image))}</p>` : ""}${hasImg && s.image?.alt ? `<p class="sr-only">${esc(s.image.alt)}</p>` : ""}
 </section>${
     c.marquee.length
       ? `<div class="marquee" aria-hidden="true"><div class="mq-track">${[...c.marquee, ...c.marquee, ...c.marquee, ...c.marquee].map((m) => `<span>${esc(m)}</span><i>${icon(c.icon, "mi")}</i>`).join("")}</div></div>`
@@ -128,12 +134,21 @@ export function sectionHtml(s: Section, ctx: RenderCtx, next?: Section): string 
       const visual = s.image?.url
         ? `<div class="about-visual">${picture(s.image, "about-img rv", { width: 900, ratio: [4, 5], rv: "zoom", sizes: "(max-width: 860px) 100vw, 45vw" })}<span class="about-badge rv" data-rv="up" aria-hidden="true">${icon(c.icon)}</span></div>`
         : `<div class="about-art rv" aria-hidden="true"><div class="aa-ring"></div><div class="aa-mark">${icon(c.icon, "aa-ic")}</div><span class="aa-name">${esc(c.business.name)}</span></div>`;
-      return `<section id="${id}" class="sec about" ${labelled}><div class="wrap split"><div class="about-text rv-group" data-rv="left">${sectionHead(s.title, undefined, "Nossa história", s.id)}<div class="rv prose" data-rv="left">${paras(s.text)}</div></div>${visual}</div></section>`;
+      return `<section id="${id}" class="sec about about-${c.layout?.about ?? "right"}" ${labelled}><div class="wrap split"><div class="about-text rv-group" data-rv="left">${sectionHead(s.title, undefined, "Nossa história", s.id)}<div class="rv prose" data-rv="left">${paras(s.text)}</div></div>${visual}</div></section>`;
     }
     case "services": {
       if (!s.items.length) return "";
       const priced = s.items.some((i) => i.price);
-      if (c.style === "bold" || priced) {
+      const variant = c.layout?.services ?? "cards";
+      const withImgs = s.items.filter((i) => i.image?.url).length >= 2;
+      if (variant === "rows" && withImgs) {
+        return `<section id="${id}" class="sec alt svc-rows" ${labelled}><div class="wrap">${sectionHead(s.title, s.intro, "Serviços", s.id)}<ol class="rows">${s.items
+          .map((it, i) =>
+            `<li class="row-item${i % 2 ? " rev" : ""}">${it.image?.url ? picture(it.image, "row-img", { width: 900, ratio: [4, 3], rv: i % 2 ? "right" : "left", sizes: "(max-width: 860px) 100vw, 50vw" }) : `<div class="row-art" aria-hidden="true">${icon(it.icon ?? c.icon)}</div>`}<div class="row-body rv" data-rv="${i % 2 ? "left" : "right"}"><span class="row-n" aria-hidden="true">${String(i + 1).padStart(2, "0")}</span><h3>${esc(it.title)}</h3><p>${esc(it.description)}</p>${it.price ? `<p class="row-price">${esc(it.price)}</p>` : ""}</div></li>`,
+          )
+          .join("")}</ol></div></section>`;
+      }
+      if (variant === "list" || priced || (c.style === "bold" && !withImgs)) {
         return `<section id="${id}" class="sec alt svc-list" ${labelled}><div class="wrap">${sectionHead(s.title, s.intro, "Serviços", s.id)}<ul class="price-list">${s.items
           .map(
             (it, i) =>
@@ -200,6 +215,21 @@ export function sectionHtml(s: Section, ctx: RenderCtx, next?: Section): string 
             `<li class="g-item rv" data-rv="zoom" style="--d:${k % 6}"><button type="button" class="g-btn" data-lb="${k}" aria-label="Ampliar foto ${k + 1} de ${imgs.length}${im.alt ? `: ${esc(im.alt)}` : ""}">${pictureTag(im, { width: k === 0 && imgs.length >= 5 ? 960 : 640, ratio: [1, 1], sizes: k === 0 && imgs.length >= 5 ? "(max-width: 860px) 100vw, 50vw" : "(max-width: 860px) 50vw, 25vw" })}<span class="g-zoom" aria-hidden="true">${icon("sparkles")}</span></button></li>`,
         )
         .join("")}</ul>${imgs.some((im) => im.credit?.source === "google") ? `<p class="fine">Fotos publicadas no Google Maps pelos autores indicados ao ampliar.</p>` : ""}</div></section>`;
+    }
+    case "reviews": {
+      const items = s.items.filter((r) => r.text.trim());
+      if (!items.length) return "";
+      const stars = (n: number) => `<span class="stars" role="img" aria-label="${n.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} de 5 estrelas">${[1, 2, 3, 4, 5].map((k) => `<i class="${n >= k - 0.25 ? "on" : n >= k - 0.75 ? "half" : ""}"></i>`).join("")}</span>`;
+      return `<section id="${id}" class="sec reviews-sec" ${labelled}><div class="wrap">${sectionHead(s.title, undefined, "Avaliações", s.id)}${
+        s.rating != null
+          ? `<div class="rv-summary rv"><strong class="rv-score">${s.rating.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</strong><div>${stars(s.rating)}<p>${s.total ? `${s.total.toLocaleString("pt-BR")} avaliações no Google` : "Avaliações no Google"}</p></div></div>`
+          : ""
+      }<ul class="rv-grid">${items
+        .map(
+          (r, i) =>
+            `<li class="rv-card rv" style="--d:${i}">${stars(r.rating)}<blockquote><p>“${esc(r.text.length > 320 ? r.text.slice(0, 317).trimEnd() + "…" : r.text)}”</p></blockquote><p class="rv-author">${r.authorUrl ? `<a href="${esc(safeUrl(r.authorUrl))}" target="_blank" rel="noopener noreferrer">${esc(r.author)}</a>` : esc(r.author)}${r.when ? ` · <span>${esc(r.when)}</span>` : ""}</p></li>`,
+        )
+        .join("")}</ul><p class="fine">Avaliações públicas publicadas no Google${s.sourceUrl ? ` · <a href="${esc(safeUrl(s.sourceUrl))}" target="_blank" rel="noopener noreferrer">ver todas no Google Maps</a>` : ""}.</p></div></section>`;
     }
     case "faq":
       if (!s.items.length) return "";

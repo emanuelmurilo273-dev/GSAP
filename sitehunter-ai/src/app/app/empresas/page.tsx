@@ -18,7 +18,7 @@ export default async function CompaniesPage() {
       <CompaniesClient
         premium={user.access.premium}
         segments={SEGMENTS.map((s) => ({ key: s.key, label: s.label }))}
-        companies={companies.map((c) => ({ id: c.id, name: c.name, category: c.category, address: c.address, phone: c.phone, website: c.website, mapsUrl: c.mapsUrl, notes: c.notes, fetchedAt: c.fetchedAt.toISOString(), projectId: c.projects[0]?.id ?? null }))}
+        companies={companies.map((c) => ({ id: c.id, name: c.name, category: c.category, address: c.address, phone: c.phone, website: c.website, mapsUrl: c.mapsUrl, notes: c.notes, fetchedAt: c.fetchedAt.toISOString(), researchedAt: c.researchedAt?.toISOString() ?? null, projectId: c.projects[0]?.id ?? null }))}
       />
     </>
   );

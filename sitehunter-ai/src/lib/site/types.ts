@@ -15,6 +15,22 @@ export const FONTS = [
   "Playfair Display",
   "Lora",
   "Merriweather",
+  "Cormorant Garamond",
+  "Fraunces",
+  "Libre Baskerville",
+  "DM Serif Display",
+  "Abril Fatface",
+  "Josefin Sans",
+  "Outfit",
+  "Sora",
+  "Plus Jakarta Sans",
+  "Manrope",
+  "Work Sans",
+  "Rubik",
+  "Barlow",
+  "Archivo",
+  "Anton",
+  "Quicksand",
 ] as const;
 
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/, "cor em formato #RRGGBB");
@@ -24,7 +40,8 @@ const url = z.string().max(2000);
 export const ImageSchema = z.object({
   url,
   alt: text(200).default(""),
-  credit: z.object({ name: text(120), link: url, source: z.enum(["unsplash", "google"]).optional() }).optional(),
+  // google = foto do perfil da empresa no Google; site = site/canal oficial; unsplash = imagem ilustrativa de banco
+  credit: z.object({ name: text(120), link: url, source: z.enum(["unsplash", "google", "site"]).optional() }).optional(),
 });
 
 export const ButtonSchema = z.object({
@@ -53,6 +70,15 @@ export const SectionSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("services"), title: text(120), intro: text(600), items: z.array(z.object({ title: text(100), description: text(400), icon: text(30).optional(), price: text(30).optional(), image: ImageSchema.optional() })).max(24) }),
   z.object({ ...base, type: z.literal("highlights"), title: text(120), items: z.array(z.object({ icon: text(30), title: text(80), text: text(300) })).max(8) }),
   z.object({ ...base, type: z.literal("steps"), title: text(120), intro: text(400), items: z.array(z.object({ title: text(80), text: text(300) })).max(6) }),
+  z.object({
+    ...base,
+    type: z.literal("reviews"),
+    title: text(120),
+    rating: z.number().min(0).max(5).nullable().default(null),
+    total: z.number().int().min(0).nullable().default(null),
+    sourceUrl: url.default(""),
+    items: z.array(z.object({ author: text(120), authorUrl: url.default(""), rating: z.number().min(0).max(5), text: text(600), when: text(60).default("") })).max(6),
+  }),
   z.object({ ...base, type: z.literal("faq"), title: text(120), items: z.array(z.object({ q: text(200), a: text(800) })).max(10) }),
   z.object({
     ...base,
@@ -84,6 +110,16 @@ export const BusinessSchema = z.object({
 
 export const STYLES = ["elegant", "bold", "clean", "industrial", "editorial", "corporate"] as const;
 
+/** Variações de composição: cada empresa recebe uma combinação própria. */
+export const LayoutSchema = z.object({
+  hero: z.enum(["full", "split", "center", "frame"]).default("full"),
+  services: z.enum(["cards", "list", "rows"]).default("cards"),
+  about: z.enum(["right", "left", "stack"]).default("right"),
+  headings: z.enum(["left", "center"]).default("left"),
+  texture: z.enum(["none", "grain", "lines", "dots"]).default("none"),
+});
+export type Layout = z.infer<typeof LayoutSchema>;
+
 export const SiteContentSchema = z.object({
   version: z.literal(1),
   siteName: text(120),
@@ -91,6 +127,9 @@ export const SiteContentSchema = z.object({
   tagline: text(140).default(""),
   icon: text(30).default("star"),
   marquee: z.array(text(60)).max(10).default([]),
+  layout: LayoutSchema.default({}),
+  /** Fontes consultadas na pesquisa da empresa (para conferência). */
+  sources: z.array(z.object({ title: text(160), url })).max(20).default([]),
   seo: z.object({ title: text(120), description: text(300) }),
   theme: ThemeSchema,
   business: BusinessSchema,

@@ -102,7 +102,9 @@ Opcional: **`GOOGLE_MAPS_MAP_ID`**. Crie um Map ID em *Map Management* para usar
 
 1. Crie uma chave em `console.anthropic.com` e defina `ANTHROPIC_API_KEY`.
 2. Modelo padrão: `claude-opus-5-5` (`AI_MODEL`). As chamadas usam saída estruturada (JSON Schema) e *fallback* automático do servidor em caso de recusa.
-3. Os prompts proíbem inventar depoimentos, avaliações, preços, horários, certificações etc. Os dados da empresa entram como dados (não instruções).
+3. **Pesquisa da empresa na web**: usa as ferramentas de busca (`web_search`) e leitura de páginas (`web_fetch`) executadas pela Anthropic. Um administrador da organização precisa habilitar a busca na web no Console (Privacidade/Configurações). Cada pesquisa consome 1 geração do limite mensal do usuário e custa a busca (por mil buscas) + os tokens das páginas lidas. A rota precisa de até 5 minutos (`maxDuration = 300`): em plataformas serverless, configure esse limite. Sem a chave, a pesquisa responde 503 e o site é gerado só com os dados do Google.
+4. As fotos encontradas no site/perfis oficiais são usadas por link (não são copiadas). O editor avisa para confirmar com a empresa a autorização de uso antes de publicar.
+5. Os prompts proíbem inventar depoimentos, avaliações, preços, horários, certificações etc. Os dados da empresa entram como dados (não instruções).
 
 ## 6. Unsplash (opcional)
 

@@ -177,6 +177,9 @@ model Company {
   mapsUrl       String?
   hours         String[] @default([])
   photos        Json?    // referências de fotos do Google (nome + autoria), nunca o arquivo
+  reviews       Json?    // avaliações públicas do Google (nota, total e até 5 textos com autor)
+  research      Json?    // resultado da pesquisa na web (dados confirmados + fontes)
+  researchedAt  DateTime?
   lat           Float?
   lng           Float?
   notes         String?

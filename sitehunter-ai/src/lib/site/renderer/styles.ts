@@ -388,6 +388,74 @@ footer{padding:56px 0 36px;background:${t.footerBg};color:rgba(255,255,255,.82)}
 .st-editorial h2{font-weight:600;font-style:italic}
 .st-corporate .hero{min-height:min(88vh,820px)}
 
+/* Variações de capa */
+.hero-split{background:linear-gradient(135deg,var(--hero),${mix(t.heroBg, th.primary, 0.35)})}
+.hero-split .hero-grid,.hero-frame .hero-grid{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(32px,5vw,72px)}
+.hero-figure{position:relative;margin:0;justify-self:end;width:100%;max-width:520px;animation:up 1.1s .4s var(--ease) both}
+.hero-figure picture,.hero-figure img{display:block;width:100%;aspect-ratio:1/1;max-height:min(64vh,560px);object-fit:cover;border-radius:calc(var(--r) * 1.6)}
+.hero-figure img{box-shadow:0 50px 100px -40px rgba(0,0,0,.75)}
+.hero-split .hero-figure::before{content:"";position:absolute;inset:-14px 14px 14px -14px;border:2px solid var(--a);border-radius:calc(var(--r) * 1.6);opacity:.6;z-index:-1}
+.hero-frame .hero-figure{transform:rotate(1.2deg)}
+.hero-frame .hero-figure::after{content:"";position:absolute;right:-22px;top:-22px;width:120px;height:120px;border-radius:50%;background:var(--a);opacity:.85;z-index:-1;animation:bob 6s ease-in-out infinite}
+.hero-frame .hero-card{position:absolute;left:-40px;bottom:-30px;max-width:300px;padding:18px;transform:rotate(-1.2deg)}
+.hero-frame .hero-card li:nth-child(n+4){display:none}
+.hero-figure .ill-badge{top:14px;left:14px}
+.hero-center .hero-grid{grid-template-columns:1fr;text-align:center;justify-items:center}
+.hero-center h1{margin-inline:auto}
+.hero-center .lead{margin-inline:auto}
+.hero-center .actions,.hero-center .chips{justify-content:center}
+.hero-center.has-img .hero-bg::after{background:radial-gradient(ellipse at center,rgba(0,0,0,.55),rgba(0,0,0,.82))}
+
+/* Selo de imagem ilustrativa */
+.img-wrap{position:relative}
+.ill-badge{position:absolute;top:10px;left:10px;z-index:2;padding:4px 10px;border-radius:999px;background:rgba(0,0,0,.62);color:#fff;font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+
+/* Variações do "sobre" */
+.about-left .split>.about-visual,.about-left .split>.about-art{order:-1}
+.about-stack .split{grid-template-columns:1fr}
+.about-stack .about-visual{max-width:none;order:-1}
+.about-stack .about-img .img-wrap{aspect-ratio:21/9}
+.about-stack .about-badge{display:none}
+
+/* Serviços em linhas alternadas */
+.rows{display:grid;gap:clamp(40px,6vw,80px)}
+.row-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,64px);align-items:center}
+.row-item.rev .row-img,.row-item.rev .row-art{order:2}
+.row-img .img-wrap{aspect-ratio:4/3;border-radius:calc(var(--r) * 1.3)}
+.row-img:hover img{transform:scale(1.05)}
+.row-art{aspect-ratio:4/3;border-radius:calc(var(--r) * 1.3);display:grid;place-items:center;background:linear-gradient(135deg,rgba(var(--p-rgb),.2),rgba(var(--a-rgb),.2));color:var(--p-tx)}
+.row-art svg{width:64px;height:64px}
+.row-n{font-family:var(--hf);font-size:clamp(2.6rem,5vw,4rem);font-weight:800;line-height:1;color:var(--a-tx);opacity:.35}
+.row-body h3{font-size:clamp(1.4rem,2.6vw,2rem);margin:8px 0 12px}
+.row-body p{color:var(--mu-sf);font-size:1.05rem;max-width:48ch}
+.row-price{font-weight:800;color:var(--a-tx)!important;margin-top:10px}
+
+/* Avaliações reais */
+.reviews-sec{background:linear-gradient(180deg,var(--bg),var(--sf))}
+.rv-summary{display:inline-flex;align-items:center;gap:18px;padding:18px 24px;border-radius:var(--r);background:var(--sf);border:1px solid var(--line);margin-bottom:28px}
+.rv-score{font-family:var(--hf);font-size:3rem;line-height:1}
+.rv-summary p{color:var(--mu-sf);font-size:.9rem;margin-top:4px}
+.stars{display:inline-flex;gap:3px}
+.stars i{width:18px;height:18px;background:rgba(var(--tx-rgb),.18);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.stars i.on{background:#f5b301}
+.stars i.half{background:linear-gradient(90deg,#f5b301 50%,rgba(var(--tx-rgb),.18) 50%)}
+.rv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:18px}
+.rv-card{display:flex;flex-direction:column;gap:14px;padding:26px;border-radius:var(--r);background:var(--bg);border:1px solid var(--line);transition:transform .4s var(--ease),border-color .4s}
+.rv-card:hover{transform:translateY(-5px);border-color:rgba(var(--a-rgb),.5)}
+.rv-card blockquote p{font-size:1.02rem;color:rgba(var(--tx-rgb),.9)}
+.rv-author{margin-top:auto;font-weight:700;font-size:.92rem}
+.rv-author span{font-weight:400;color:var(--mu)}
+.rv-author a{color:inherit}
+
+/* Alinhamento dos títulos e texturas */
+.hd-center .sec .sh{margin-inline:auto;text-align:center}
+.hd-center .sec .sh .lede{margin-inline:auto}
+.hd-center .about .sh,.hd-center .quote-split .sh{margin-inline:0;text-align:left}
+.hd-center .sh h2::after{margin-inline:auto}
+.tx-grain .sec.alt{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.06'/%3E%3C/svg%3E")}
+.tx-lines .sec.alt{background-image:repeating-linear-gradient(90deg,transparent 0 79px,var(--line) 79px 80px)}
+.tx-dots .sec.alt{background-image:radial-gradient(rgba(var(--tx-rgb),.09) 1.2px,transparent 1.2px);background-size:22px 22px}
+
 @media (max-width:980px){
   .contact-grid{grid-template-columns:1fr}
 }
@@ -416,7 +484,12 @@ footer{padding:56px 0 36px;background:${t.footerBg};color:rgba(255,255,255,.82)}
   .about-badge{left:12px;bottom:12px;width:58px;height:58px}
   html:not(.js) .burger{display:none}
   html:not(.js) .nav{flex-wrap:wrap;gap:4px 16px}
-  .split,.hero-grid{grid-template-columns:1fr}
+  .split,.hero-grid,.hero-split .hero-grid,.hero-frame .hero-grid,.row-item{grid-template-columns:1fr}
+  .row-item.rev .row-img,.row-item.rev .row-art{order:0}
+  .hero-figure{justify-self:center;max-width:440px}
+  .hero-figure picture,.hero-figure img{aspect-ratio:4/3}
+  .hero-frame .hero-card{position:relative;left:auto;bottom:auto;margin:-40px 12px 0;max-width:none}
+  .about-left .split>.about-visual{order:0}
   .hero{padding:120px 0 90px;min-height:auto}
   .hero-card{justify-self:start;max-width:100%}
   .scroll-cue{display:none}

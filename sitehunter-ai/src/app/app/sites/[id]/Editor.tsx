@@ -25,6 +25,7 @@ const SECTION_LABELS: Record<Section["type"], string> = {
   highlights: "Destaques",
   steps: "Etapas (como funciona)",
   faq: "Perguntas frequentes",
+  reviews: "Avaliações (Google)",
 };
 
 const ACTIONS: { v: SiteButton["action"]; l: string }[] = [
@@ -241,6 +242,16 @@ function SectionForm({ s, set, sections, onSearchImage }: { s: Section; set: (s:
             render={(it, upd) => (<><input className="input" value={it.title} maxLength={80} onChange={(e) => upd({ ...it, title: e.target.value })} /><textarea className="input" rows={2} value={it.text} maxLength={300} onChange={(e) => upd({ ...it, text: e.target.value })} /></>)} />
         </div>
       );
+    case "reviews":
+      return (
+        <div className="space-y-3">
+          <T label="Título" value={s.title} onChange={(title) => set({ ...s, title })} />
+          <p className="text-xs text-slate-400">As avaliações vêm do perfil público da empresa no Google, com autor e link. Para manter a veracidade, o texto não pode ser editado; você pode ocultar a seção ou remover avaliações.</p>
+          <ul className="space-y-2">{s.items.map((r, i) => (
+            <li key={i} className="flex items-start justify-between gap-2 rounded-lg bg-white/[0.03] p-2 text-xs text-slate-300"><span>★ {r.rating} · {r.author}: “{r.text.slice(0, 90)}{r.text.length > 90 ? "…" : ""}”</span><button className="text-red-300" onClick={() => set({ ...s, items: s.items.filter((_, j) => j !== i) })}>Remover</button></li>
+          ))}</ul>
+        </div>
+      );
     case "faq":
       return (
         <div className="space-y-3">
@@ -426,6 +437,12 @@ export function Editor(props: {
               <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-100/90">
                 <div className="mb-1 flex justify-between"><strong>Revise antes de publicar</strong><button onClick={() => setShowNotes(false)}>✕</button></div>
                 <ul className="list-disc space-y-1 pl-4">{content.reviewNotes.map((n) => <li key={n}>{n}</li>)}</ul>
+                {content.sources.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer font-semibold">Fontes da pesquisa ({content.sources.length})</summary>
+                    <ul className="mt-1 space-y-1 pl-1">{content.sources.map((s) => <li key={s.url}><a className="underline break-all" href={s.url} target="_blank" rel="noopener noreferrer">{s.title || s.url}</a></li>)}</ul>
+                  </details>
+                )}
                 {!props.aiGenerated && <p className="mt-2 text-amber-200/70">Este site foi gerado pelo modelo padrão (IA não configurada).</p>}
               </div>
             )}

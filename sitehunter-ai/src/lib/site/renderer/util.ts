@@ -14,7 +14,7 @@ export function safeUrl(u: string | undefined | null): string {
   const v = (u ?? "").trim();
   if (!v) return "#";
   // Fotos da biblioteca própria publicadas junto com o site (caminho relativo).
-  if (/^stock\/[a-z]+-\d+-(800|1600)\.webp$/.test(v)) return v;
+  if (/^\/?stock\/[a-z]+-\d+-(800|1600)\.webp$/.test(v)) return v;
   if (v.startsWith("#")) return "#" + v.slice(1).replace(/[^a-zA-Z0-9_-]/g, "");
   try {
     const parsed = new URL(v);

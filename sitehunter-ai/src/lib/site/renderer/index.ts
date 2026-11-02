@@ -25,7 +25,7 @@ export type RenderOptions = {
 };
 
 const NAV_LABELS: Partial<Record<Section["type"], string>> = {
-  about: "Sobre", services: "Serviços", products: "Produtos", menu: "Cardápio", hours: "Horários", gallery: "Galeria", faq: "Dúvidas", quote: "Orçamento", contact: "Contato",
+  about: "Sobre", reviews: "Avaliações", services: "Serviços", products: "Produtos", menu: "Cardápio", hours: "Horários", gallery: "Galeria", faq: "Dúvidas", quote: "Orçamento", contact: "Contato",
 };
 
 function hasContent(s: Section): boolean {
@@ -33,7 +33,7 @@ function hasContent(s: Section): boolean {
     case "gallery": return s.images.length > 0;
     case "hours": return s.lines.some((l) => l.value.trim());
     case "menu": return s.categories.some((c) => c.items.length);
-    case "services": case "highlights": case "steps": case "faq": case "products": return s.items.length > 0;
+    case "services": case "highlights": case "steps": case "faq": case "products": case "reviews": return s.items.length > 0;
     default: return true;
   }
 }
@@ -72,7 +72,7 @@ ${headMeta(c, opts.canonicalUrl ?? null)}
 <style>${css(c)}</style>
 <script>document.documentElement.classList.add('js')</script>
 </head>
-<body class="st-${esc(c.style)}${mbar ? " has-mbar" : ""}">
+<body class="st-${esc(c.style)} hero-v-${esc(c.layout?.hero ?? "full")} hd-${esc(c.layout?.headings ?? "left")} tx-${esc(c.layout?.texture ?? "none")}${mbar ? " has-mbar" : ""}">
 <a class="skip" href="#conteudo">Pular para o conteúdo</a>
 <div class="progress" id="pg" aria-hidden="true"></div>
 <header class="topbar${startsWithHero ? "" : " solid"}" id="top"${startsWithHero ? "" : " data-solid"}><div class="wrap">

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
 import { ICON_NAMES } from "./icons";
 import { COPY, fill } from "./copyLibrary";
+import { designFor } from "./design";
 
 export type TemplateKey = "restaurant" | "barber" | "clinic" | "mechanic" | "store" | "services";
 export type Style = SiteContent["style"];
@@ -112,15 +113,59 @@ export function hoursToLines(hours: string[] | null | undefined) {
     .slice(0, 10);
 }
 
-export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: SiteCopy, images: SiteImage[] = []): SiteContent {
-  const theme: Theme = {
-    ...segment.theme,
-    // A IA pode ajustar as cores principais; fundos e textos seguem o estilo do segmento (contraste garantido).
-    primary: isHex(copy.colors.primary) ? copy.colors.primary : segment.theme.primary,
-    accent: isHex(copy.colors.accent) ? copy.colors.accent : segment.theme.accent,
-    headingFont: copy.headingFont,
-    bodyFont: copy.bodyFont,
-  };
+/** Fatos confirmados pela pesquisa na web (cada item tem fonte). */
+export type ConfirmedFacts = {
+  summary: string;
+  services: { name: string; description: string; price: string; sourceUrl: string }[];
+  menu: { category: string; name: string; description: string; price: string; sourceUrl: string }[];
+  differentiators: { text: string; sourceUrl: string }[];
+};
+
+/**
+ * Aplica os fatos confirmados ao texto: serviços e cardápio confirmados substituem as sugestões
+ * da IA (com os preços publicados pela empresa). Retorna também o que continua sendo sugestão.
+ */
+export function applyConfirmed(copy: SiteCopy, conf: ConfirmedFacts | null | undefined, segment: Segment): { copy: SiteCopy; suggested: string[] } {
+  const suggested: string[] = [];
+  const out = { ...copy };
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+  if (conf && conf.services.length >= 2) {
+    out.services = conf.services.slice(0, 12).map((sv, i) => {
+      const ai = copy.services.find((x) => norm(x.title) === norm(sv.name));
+      return { title: sv.name.slice(0, 100), description: (sv.description || ai?.description || "").slice(0, 400), icon: ai?.icon ?? copy.services[i]?.icon, ...(sv.price ? { price: sv.price.slice(0, 30) } : {}) };
+    });
+  } else if (out.services.length) suggested.push(segment.template === "restaurant" ? "experiências" : "serviços/produtos");
+  if (conf && conf.menu.length >= 3) {
+    const cats = new Map<string, SiteCopy["menuCategories"][number]["items"]>();
+    for (const m of conf.menu) {
+      const k = (m.category || "Cardápio").slice(0, 80);
+      if (!cats.has(k)) cats.set(k, []);
+      const list = cats.get(k)!;
+      if (list.length < 20) list.push({ name: m.name.slice(0, 100), description: m.description.slice(0, 300), price: m.price.slice(0, 30) });
+    }
+    out.menuCategories = [...cats].slice(0, 8).map(([name, items]) => ({ name, items }));
+  } else if (out.menuCategories.length) suggested.push("cardápio (pratos e descrições)");
+  return { copy: out, suggested };
+}
+
+/** Dados extras vindos da pesquisa da empresa (todos verificados, com fonte). */
+export type BuildExtras = {
+  /** Chave estável da empresa para o design único (id; senão nome + cidade). */
+  designKey?: string;
+  brandColors?: string[];
+  email?: string | null;
+  reviews?: { rating: number | null; total: number | null; sourceUrl: string; items: { author: string; authorUrl: string; rating: number; text: string; when: string }[] } | null;
+  sources?: { title: string; url: string }[];
+  needsConfirmation?: string[];
+  /** O que continua sendo sugestão (sem confirmação). undefined = nada foi pesquisado. */
+  suggested?: string[];
+  whatsapp?: string | null;
+};
+
+export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: SiteCopy, images: SiteImage[] = [], extras: BuildExtras = {}): SiteContent {
+  // Design próprio da empresa: paleta curada (ou cores da marca), par tipográfico e composição.
+  const design = designFor(segment, { key: extras.designKey ?? `${company.name}|${company.city ?? ""}`, brandColors: extras.brandColors });
+  const theme: Theme = design.theme;
   const hasPhone = !!company.phone;
   const mainAction = hasPhone ? ("whatsapp" as const) : ("section" as const);
   // Fotos: 1ª na capa, 2ª no "sobre"; as seguintes ilustram serviços/produtos; a galeria reúne todas (menos a capa).
@@ -195,23 +240,31 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     marquee: copy.marquee,
     seo: { title: copy.seoTitle || company.name, description: copy.seoDescription },
     theme,
+    layout: design.layout,
+    sources: (extras.sources ?? []).slice(0, 20),
     business: {
       name: company.name,
       phone: company.phone ?? "",
-      whatsapp: company.phone ?? "",
-      email: "",
+      whatsapp: extras.whatsapp || company.phone || "",
+      email: extras.email ?? "",
       address: company.address ?? "",
       instagram: company.instagram ?? "",
       mapsUrl: company.mapsUrl ?? "",
       lat: company.lat ?? null,
       lng: company.lng ?? null,
     },
-    sections: byTemplate[segment.template],
+    sections: withReviews(byTemplate[segment.template], extras.reviews),
     reviewNotes: [
-      segment.template === "restaurant" ? "Os pratos do cardápio são sugestões típicas do tipo de cozinha: confirme os itens com a empresa." : "Os serviços listados são sugestões típicas do segmento: confirme com a empresa.",
+      ...(extras.suggested === undefined
+        ? [segment.template === "restaurant" ? "Os pratos do cardápio são sugestões típicas do tipo de cozinha: confirme os itens com a empresa." : "Os serviços listados são sugestões típicas do segmento: confirme com a empresa."]
+        : extras.suggested.length
+          ? [`Não confirmados na pesquisa (sugestões típicas do segmento): ${extras.suggested.join(", ")}. Confirme com a empresa.`]
+          : ["Serviços e cardápio vêm de páginas da própria empresa (veja as fontes). Confira se continuam atualizados."]),
       ...(pricesMissing ? ["Preços em branco não aparecem no site. Preencha só com valores confirmados."] : []),
       ...(realHours.length ? [] : ["A fonte não informou horários: preencha em Horários (linhas vazias ficam ocultas)."]),
       ...(company.phone ? [] : ["A fonte não informou telefone: adicione um contato em 'Empresa'."]),
+      ...(extras.needsConfirmation ?? []).slice(0, 10).map((n) => `Confirmar: ${n}`),
+      ...(images.length && images.every((i) => i.credit?.source === "unsplash") ? ["As fotos são imagens ilustrativas de banco (sinalizadas no site). Troque por fotos reais da empresa antes de publicar."] : []),
       ...(images.some((i) => i.credit?.source === "google") ? ["As fotos vêm do Google Maps com o crédito do autor. Para uso comercial, prefira fotos enviadas ou autorizadas pela empresa."] : []),
     ],
   };
@@ -254,6 +307,14 @@ export function fallbackCopy(company: CompanyInfo, segment: Segment): SiteCopy {
   };
 }
 
+function withReviews(sections: Section[], reviews: BuildExtras["reviews"]): Section[] {
+  const items = (reviews?.items ?? []).filter((r) => r.text.trim() && r.rating >= 4).slice(0, 3);
+  if (!items.length) return sections;
+  const sec: Section = { id: "avaliacoes", type: "reviews", visible: true, title: "O que dizem os clientes", rating: reviews!.rating, total: reviews!.total, sourceUrl: reviews!.sourceUrl, items };
+  const i = sections.findIndex((x) => x.type === "about");
+  return i >= 0 ? [...sections.slice(0, i + 1), sec, ...sections.slice(i + 1)] : [...sections, sec];
+}
+
 /** Completa campos que a IA deixou vazios com os textos-modelo do segmento. */
 export function completeCopy(copy: SiteCopy, company: CompanyInfo, segment: Segment): SiteCopy {
   const base = fallbackCopy(company, segment);
@@ -275,6 +336,7 @@ export function emptySection(type: Section["type"]): Section {
     case "highlights": return { id, type, visible: true, title: "", items: [{ icon: "star", title: "Destaque", text: "" }] };
     case "steps": return { id, type, visible: true, title: "Como funciona", intro: "", items: [{ title: "Primeiro passo", text: "" }] };
     case "faq": return { id, type, visible: true, title: "Perguntas frequentes", items: [{ q: "Pergunta", a: "Resposta" }] };
+    case "reviews": return { id, type, visible: true, title: "O que dizem os clientes", rating: null, total: null, sourceUrl: "", items: [] };
     case "menu": return { id, type, visible: true, title: "Cardápio", intro: "", categories: [{ name: "Categoria", items: [{ name: "Item", description: "", price: "" }] }] };
     case "products": return { id, type, visible: true, title: "Produtos", intro: "", items: [{ name: "Produto", description: "" }] };
     case "hours": return { id, type, visible: true, title: "Horários", lines: [{ label: "Segunda a sexta", value: "" }], note: "" };

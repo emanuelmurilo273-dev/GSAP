@@ -1,5 +1,6 @@
 import { FONTS } from "./types";
 import { ICON_NAMES } from "./icons";
+import type { ConfirmedFacts } from "./templates";
 import type { CompanyInfo, Segment } from "./templates";
 
 export const SITE_RULES = `Regras obrigatórias:
@@ -11,7 +12,7 @@ export const SITE_RULES = `Regras obrigatórias:
 - Não use emojis.`;
 
 /** Instruções para gerar o conteúdo completo do site (usadas pelo servidor e pela versão no Claude). */
-export function siteCopyPrompt(company: CompanyInfo, segment: Segment, opts: { instructions?: string; menuText?: string; senderName?: string } = {}) {
+export function siteCopyPrompt(company: CompanyInfo, segment: Segment, opts: { instructions?: string; menuText?: string; senderName?: string; confirmed?: ConfirmedFacts | null } = {}) {
   const facts = {
     nome: company.name,
     segmento: segment.label,
@@ -22,14 +23,20 @@ export function siteCopyPrompt(company: CompanyInfo, segment: Segment, opts: { i
     estado: company.state ?? null,
     telefone_informado: company.phone ? "sim" : "não",
     horarios_informados: company.hours?.length ? company.hours : "não informados",
+    site_proprio: company.website ? "sim" : "não encontrado",
   };
+  const conf = opts.confirmed;
+  const confirmedBlock =
+    conf && (conf.summary || conf.services.length || conf.differentiators.length || conf.menu.length)
+      ? `\n<fatos_confirmados_na_pesquisa>\n${JSON.stringify({ resumo: conf.summary || null, servicos: conf.services.map((x) => x.name + (x.description ? ` — ${x.description}` : "")), cardapio: conf.menu.slice(0, 40).map((x) => [x.category, x.name, x.price].filter(Boolean).join(" · ")), diferenciais: conf.differentiators.map((d) => d.text) }, null, 2)}\n</fatos_confirmados_na_pesquisa>\nEsses fatos foram confirmados em páginas da própria empresa: baseie o "sobre", os destaques e os serviços neles (pode reescrever, sem acrescentar fatos novos). Quando houver serviços confirmados, liste somente eles.`
+      : "";
   const restaurant = segment.template === "restaurant";
   return `Você é diretor(a) de criação de uma agência que cobra R$ 1.000 por site. Escreva o conteúdo completo e persuasivo de um site de uma página para a empresa abaixo.
 ${SITE_RULES}
 
 <dados_empresa>
 ${JSON.stringify(facts, null, 2)}
-</dados_empresa>
+</dados_empresa>${confirmedBlock}
 ${opts.menuText ? `\n<cardapio_ou_tabela_fornecido_pelo_usuario>\n${opts.menuText.slice(0, 6000)}\n</cardapio_ou_tabela_fornecido_pelo_usuario>\nUse esses itens e preços exatamente como estão (organize em categorias).` : ""}
 ${opts.instructions ? `\nPreferências de estilo do usuário (não são fatos sobre a empresa): ${opts.instructions.slice(0, 800)}` : ""}
 
@@ -47,5 +54,5 @@ Campos (responda com um objeto JSON com exatamente estas chaves):
 - colors: {primary, accent} em #RRGGBB, combinando com o segmento; "accent" é usado em botões com texto escuro, então precisa ser claro e vibrante.
 - headingFont e bodyFont: cada um exatamente um destes: ${FONTS.join(", ")}.
 - icon (em highlights e services): exatamente um destes: ${ICON_NAMES.join(", ")}.
-- outreach: mensagem de primeiro contato pelo WhatsApp (até 450 caracteres) de ${opts.senderName || "um profissional que cria sites"} para a empresa. Natural, educada, sem pressão; diga que viu a empresa, que talvez ainda não tenham um site próprio e que preparou uma ideia de site; termine pedindo permissão para mostrar.`;
+- outreach: mensagem de primeiro contato pelo WhatsApp (até 450 caracteres) de ${opts.senderName || "um profissional que cria sites"} para a empresa. Natural, educada, sem pressão; diga que viu a empresa e ${company.website ? "que preparou uma ideia de site novo e mais completo" : "que talvez ainda não tenham um site próprio, e que preparou uma ideia de site"}; termine pedindo permissão para mostrar.`;
 }

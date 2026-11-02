@@ -562,11 +562,27 @@ export const STOCK: Record<string, Entry[]> = {
  ]
 };
 
-/** Fotos do segmento. `base` é o prefixo público ("" no app do Claude, APP_URL + "/" no servidor). */
-export function stockImages(segment: string, base = ""): SiteImage[] {
-  const list = STOCK[segment] ?? STOCK.servicos!;
+/**
+ * Fotos ilustrativas do segmento, em ordem própria para cada empresa (`seedKey`):
+ * a capa é sempre uma foto horizontal e o "sobre" prefere uma vertical.
+ * `base` é o prefixo público ("" no app do Claude, APP_URL + "/" no servidor).
+ */
+export function stockImages(segment: string, base = "", seedKey = ""): SiteImage[] {
   const key = STOCK[segment] ? segment : "servicos";
-  return list.map(([alt, author], n) => ({
+  const list = STOCK[key]!.map((e, n) => ({ e, n }));
+  let h = 2166136261;
+  for (let i = 0; i < seedKey.length; i++) h = Math.imul(h ^ seedKey.charCodeAt(i), 16777619);
+  const seed = h >>> 0;
+  const landscape = list.filter((x) => x.e[2] >= x.e[3]);
+  const portrait = list.filter((x) => x.e[2] < x.e[3]);
+  const hero = (landscape.length ? landscape : list)[seed % (landscape.length || list.length)]!;
+  const rest = list.filter((x) => x !== hero);
+  const aboutPool = portrait.filter((x) => x !== hero);
+  const about = aboutPool.length ? aboutPool[(seed >>> 8) % aboutPool.length]! : rest[0]!;
+  const others = rest.filter((x) => x !== about);
+  const shift = others.length ? (seed >>> 16) % others.length : 0;
+  const ordered = [hero, about, ...others.slice(shift), ...others.slice(0, shift)];
+  return ordered.map(({ e: [alt, author], n }) => ({
     url: `${base}stock/${key}-${n}-1600.webp`,
     alt,
     credit: { name: author, link: "https://unsplash.com", source: "unsplash" as const },

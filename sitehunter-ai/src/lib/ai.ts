@@ -6,7 +6,7 @@ import { log } from "./logger";
 import { FONTS } from "./site/types";
 import { ICON_NAMES } from "./site/icons";
 import { siteCopyPrompt } from "./site/prompt";
-import { SiteCopySchema, fallbackCopy, type CompanyInfo, type Segment, type SiteCopy } from "./site/templates";
+import { SiteCopySchema, fallbackCopy, type CompanyInfo, type ConfirmedFacts, type Segment, type SiteCopy } from "./site/templates";
 
 // Integração com a API da Anthropic (Claude). Sem ANTHROPIC_API_KEY o sistema
 // usa textos-modelo determinísticos (claramente sinalizados na interface).
@@ -118,7 +118,7 @@ async function structured<T>(system: string, prompt: string, schema: Record<stri
 }
 
 /** Gera os textos do site. Retorna também se a IA foi realmente usada. */
-export async function generateSiteCopy(company: CompanyInfo, segment: Segment, instructions?: string, opts: { menuText?: string; senderName?: string } = {}): Promise<{ copy: SiteCopy; ai: boolean }> {
+export async function generateSiteCopy(company: CompanyInfo, segment: Segment, instructions?: string, opts: { menuText?: string; senderName?: string; confirmed?: ConfirmedFacts | null } = {}): Promise<{ copy: SiteCopy; ai: boolean }> {
   if (!aiConfigured()) return { copy: fallbackCopy(company, segment), ai: false };
   const system = "Você cria sites profissionais para pequenas empresas brasileiras.";
   const prompt = siteCopyPrompt(company, segment, { instructions, ...opts });
