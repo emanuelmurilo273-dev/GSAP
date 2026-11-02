@@ -176,6 +176,7 @@ model Company {
   website       String?
   mapsUrl       String?
   hours         String[] @default([])
+  photos        Json?    // referências de fotos do Google (nome + autoria), nunca o arquivo
   lat           Float?
   lng           Float?
   notes         String?

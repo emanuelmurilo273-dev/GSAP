@@ -10,6 +10,8 @@ import { serveSite } from "@/lib/serveSite";
 import { ownProject } from "@/lib/projects";
 import { buildSiteContent, fallbackCopy, getSegment } from "@/lib/site/templates";
 import { HttpError } from "@/lib/http";
+import { resolvePlacePhoto } from "@/lib/placePhotos";
+import { vi } from "vitest";
 
 const TOKEN = "kiwify-token-de-teste";
 const day = 86400_000;
@@ -183,5 +185,28 @@ describe("Servidor de sites publicados", () => {
     expect(res.status).toBe(503);
     expect(await res.text()).toContain("temporariamente indisponível");
     expect((await serveSite({ slug: "nao-existe" })).status).toBe(404);
+  });
+});
+
+describe("Fotos do estabelecimento (Google)", () => {
+  it("resolve a foto pela chave do servidor, só para empresas com site, e renova referências expiradas", async () => {
+    process.env.GOOGLE_MAPS_SERVER_KEY = "k";
+    const u = await makeUser("foto@x.com", { premiumUntil: new Date(Date.now() + 30 * day) });
+    const co = await prisma.company.create({ data: { userId: u.id, sourceId: "place1", name: "Cia", photos: [{ name: "places/place1/photos/OLD", widthPx: 800, heightPx: 600, author: "Ana", authorUri: "" }] as never } });
+    expect(await resolvePlacePhoto(co.id, 0, 900)).toBeNull(); // sem site gerado: bloqueado
+    await prisma.project.create({ data: { userId: u.id, companyId: co.id, name: "Cia", segment: "servicos", content: {} as never } });
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/photos/OLD/media")) return new Response("{}", { status: 400 });
+      if (url.includes("/places/place1?")) return new Response(JSON.stringify({ id: "place1", displayName: { text: "Cia" }, photos: [{ name: "places/place1/photos/NEW", widthPx: 800, heightPx: 600 }] }));
+      if (url.includes("/photos/NEW/media?maxWidthPx=960")) return new Response(JSON.stringify({ photoUri: "https://lh3.googleusercontent.com/p/abc=w960" }));
+      return new Response("{}", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await resolvePlacePhoto(co.id, 0, 900)).toBe("https://lh3.googleusercontent.com/p/abc=w960");
+    const updated = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect((updated.photos as { name: string }[])[0]!.name).toBe("places/place1/photos/NEW");
+    expect(fetchMock.mock.calls.every((c) => !String(c[0]).includes("key="))).toBe(true); // chave só em cabeçalho
+    vi.unstubAllGlobals();
+    delete process.env.GOOGLE_MAPS_SERVER_KEY;
   });
 });

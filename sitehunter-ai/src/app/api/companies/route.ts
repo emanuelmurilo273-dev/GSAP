@@ -30,6 +30,7 @@ const Body = z.object({
   lat: z.number().min(-90).max(90).nullable().optional(),
   lng: z.number().min(-180).max(180).nullable().optional(),
   hours: z.array(z.string().max(120)).max(10).optional(),
+  photos: z.array(z.object({ name: z.string().regex(/^places\/[^/]+\/photos\/[^/]+$/).max(500), widthPx: z.number().int().min(0), heightPx: z.number().int().min(0), author: z.string().max(200), authorUri: z.string().max(500) })).max(10).optional(),
 });
 
 /** Salva uma empresa vinda da busca na lista do próprio usuário. */
@@ -49,6 +50,7 @@ export const POST = route(async (req) => {
     lat: b.lat ?? null,
     lng: b.lng ?? null,
     hours: b.hours ?? [],
+    photos: b.photos ?? undefined,
     fetchedAt: new Date(),
   };
   const company = await prisma.company.upsert({

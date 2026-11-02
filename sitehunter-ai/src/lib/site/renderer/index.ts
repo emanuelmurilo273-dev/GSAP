@@ -84,10 +84,17 @@ ${body}
 </div></footer>
 ${wa ? `<a class="wa-float" href="${esc(wa)}" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp (abre em nova aba)">${WA_SVG}</a>` : ""}
 ${mbar}
+${visible.some((s) => s.type === "gallery") ? LIGHTBOX : ""}
 <script>${SITE_SCRIPT}</script>
 </body>
 </html>`;
 }
+
+const LIGHTBOX = `<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Foto ampliada" hidden>
+  <div class="lb-top"><span class="lb-count" aria-live="polite"></span><button type="button" class="lb-btn lb-close" aria-label="Fechar foto ampliada">&times;</button></div>
+  <div class="lb-stage"><span class="lb-spin" aria-hidden="true"></span><img class="lb-img" alt="" decoding="async"><button type="button" class="lb-btn lb-prev" aria-label="Foto anterior">&#8249;</button><button type="button" class="lb-btn lb-next" aria-label="Próxima foto">&#8250;</button></div>
+  <p class="lb-cap" aria-live="polite"></p>
+</div>`;
 
 /** Política de segurança de conteúdo aplicada aos sites publicados. */
 export const PUBLISHED_SITE_CSP = [

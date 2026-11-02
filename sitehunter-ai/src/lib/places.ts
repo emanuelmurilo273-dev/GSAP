@@ -17,6 +17,7 @@ const FIELDS = [
   "places.primaryTypeDisplayName",
   "places.businessStatus",
   "places.regularOpeningHours",
+  "places.photos",
   "nextPageToken",
 ].join(",");
 
@@ -36,7 +37,11 @@ export type PlaceResult = {
   lng: number | null;
   businessStatus: string | null;
   hours: string[];
+  photos: PlacePhoto[];
 };
+
+/** Referência a uma foto do Google (o arquivo não é baixado nem armazenado). */
+export type PlacePhoto = { name: string; widthPx: number; heightPx: number; author: string; authorUri: string };
 
 const SOCIAL = /(^|\.)(instagram\.com|facebook\.com|fb\.com|linktr\.ee|wa\.me|whatsapp\.com|tiktok\.com|ifood\.com\.br|linkedin\.com|youtube\.com)$/i;
 
@@ -61,6 +66,7 @@ type GPlace = {
   primaryTypeDisplayName?: { text?: string };
   businessStatus?: string;
   regularOpeningHours?: { weekdayDescriptions?: string[] };
+  photos?: { name: string; widthPx?: number; heightPx?: number; authorAttributions?: { displayName?: string; uri?: string }[] }[];
 };
 
 export function mapPlace(p: GPlace): PlaceResult {
@@ -84,6 +90,13 @@ export function mapPlace(p: GPlace): PlaceResult {
     lng: p.location?.longitude ?? null,
     businessStatus: p.businessStatus ?? null,
     hours: p.regularOpeningHours?.weekdayDescriptions ?? [],
+    photos: (p.photos ?? []).slice(0, 10).map((ph) => ({
+      name: ph.name,
+      widthPx: ph.widthPx ?? 0,
+      heightPx: ph.heightPx ?? 0,
+      author: ph.authorAttributions?.[0]?.displayName ?? "",
+      authorUri: ph.authorAttributions?.[0]?.uri ?? "",
+    })),
   };
 }
 
@@ -121,4 +134,22 @@ export async function placeDetails(placeId: string): Promise<PlaceResult> {
   });
   if (!res.ok) throw new HttpError(502, "Não foi possível atualizar os dados da empresa.", "upstream");
   return mapPlace((await res.json()) as GPlace);
+}
+
+/**
+ * URL temporária de uma foto do Google (Place Photos, Places API New).
+ * skipHttpRedirect=true devolve só o endereço da imagem na CDN do Google;
+ * a imagem não passa pelo nosso servidor e não é armazenada.
+ */
+export async function placePhotoUri(photoName: string, maxWidthPx: number): Promise<string | null> {
+  const key = env.googlePlacesKey;
+  if (!key || !/^places\/[^/]+\/photos\/[^/]+$/.test(photoName)) return null;
+  const res = await fetch(`https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=${maxWidthPx}&skipHttpRedirect=true`, {
+    headers: { "X-Goog-Api-Key": key },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  const data = (await res.json().catch(() => ({}))) as { photoUri?: string };
+  return data.photoUri?.startsWith("https://") ? data.photoUri : null;
 }

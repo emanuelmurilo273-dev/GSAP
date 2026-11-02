@@ -24,7 +24,7 @@ const url = z.string().max(2000);
 export const ImageSchema = z.object({
   url,
   alt: text(200).default(""),
-  credit: z.object({ name: text(120), link: url }).optional(),
+  credit: z.object({ name: text(120), link: url, source: z.enum(["unsplash", "google"]).optional() }).optional(),
 });
 
 export const ButtonSchema = z.object({
@@ -50,7 +50,7 @@ const base = { id: z.string().min(1).max(40), visible: z.boolean().default(true)
 export const SectionSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("hero"), title: text(160), subtitle: text(400), image: ImageSchema.optional(), buttons: z.array(ButtonSchema).max(3) }),
   z.object({ ...base, type: z.literal("about"), title: text(120), text: text(2000), image: ImageSchema.optional() }),
-  z.object({ ...base, type: z.literal("services"), title: text(120), intro: text(600), items: z.array(z.object({ title: text(100), description: text(400), icon: text(30).optional(), price: text(30).optional() })).max(24) }),
+  z.object({ ...base, type: z.literal("services"), title: text(120), intro: text(600), items: z.array(z.object({ title: text(100), description: text(400), icon: text(30).optional(), price: text(30).optional(), image: ImageSchema.optional() })).max(24) }),
   z.object({ ...base, type: z.literal("highlights"), title: text(120), items: z.array(z.object({ icon: text(30), title: text(80), text: text(300) })).max(8) }),
   z.object({ ...base, type: z.literal("steps"), title: text(120), intro: text(400), items: z.array(z.object({ title: text(80), text: text(300) })).max(6) }),
   z.object({ ...base, type: z.literal("faq"), title: text(120), items: z.array(z.object({ q: text(200), a: text(800) })).max(10) }),

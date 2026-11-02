@@ -9,6 +9,10 @@ import { buildSiteContent, getSegment } from "@/lib/site/templates";
 import { searchImages, trackImageDownload } from "@/lib/images";
 import { snapshotVersion } from "@/lib/projects";
 import { audit } from "@/lib/logger";
+import { env } from "@/lib/env";
+import { photoUrl } from "@/lib/placePhotos";
+import type { PlacePhoto } from "@/lib/places";
+import type { SiteImage } from "@/lib/site/types";
 
 export const GET = route(async () => {
   const user = await requireUser();
@@ -40,11 +44,24 @@ export const POST = route(async (req) => {
   try {
     const [{ copy, ai }, images] = await Promise.all([
       generateSiteCopy(company, segment, b.instructions, { menuText: b.menuText, senderName: user.name.split(" ")[0] }),
-      searchImages(segment.imageQuery, 5).catch(() => []),
+      ((company.photos as unknown[] | null)?.length ? Promise.resolve([]) : searchImages(segment.imageQuery, 6).catch(() => [])),
     ]);
-    const chosen = images.slice(0, 5);
-    chosen.forEach((i) => void trackImageDownload(i.downloadLocation));
-    const content = buildSiteContent(company, segment, copy, chosen.map(({ url, alt, credit }) => ({ url, alt, credit })));
+    // Fotos reais do estabelecimento (Google) têm prioridade; sem elas, banco de imagens autorizado.
+    const placePhotos = (company.photos as PlacePhoto[] | null) ?? [];
+    const where = [company.neighborhood, company.city].filter(Boolean).join(", ");
+    let siteImages: SiteImage[];
+    if (placePhotos.length) {
+      siteImages = placePhotos.slice(0, 10).map((p, i) => ({
+        url: photoUrl(env.appUrl, company.id, i),
+        alt: `Foto ${i + 1} de ${company.name}${company.category ? `, ${company.category.toLowerCase()}` : ""}${where ? ` em ${where}` : ""}`,
+        credit: p.author ? { name: p.author, link: p.authorUri || "https://maps.google.com", source: "google" as const } : undefined,
+      }));
+    } else {
+      const chosen = images.slice(0, 6);
+      chosen.forEach((i) => void trackImageDownload(i.downloadLocation));
+      siteImages = chosen.map(({ url, alt, credit }) => ({ url, alt: alt || `Imagem ilustrativa de ${segment.label.toLowerCase()}`, credit: credit ? { ...credit, source: "unsplash" as const } : undefined }));
+    }
+    const content = buildSiteContent(company, segment, copy, siteImages);
     const project = await prisma.project.create({
       data: { userId: user.id, companyId: company.id, name: company.name, segment: segment.key, content: content as never, aiGenerated: ai, outreachMessage: copy.outreach || null },
     });

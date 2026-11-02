@@ -14,7 +14,7 @@ export const POST = route<{ params: Promise<{ id: string }> }>(async (_req, { pa
   const p = await placeDetails(c.sourceId);
   const company = await prisma.company.update({
     where: { id },
-    data: { name: p.name, category: p.category, address: p.address, neighborhood: p.neighborhood, city: p.city, state: p.state, phone: p.phone, website: p.website, mapsUrl: p.mapsUrl, lat: p.lat, lng: p.lng, hours: p.hours, fetchedAt: new Date() },
+    data: { name: p.name, category: p.category, address: p.address, neighborhood: p.neighborhood, city: p.city, state: p.state, phone: p.phone, website: p.website, mapsUrl: p.mapsUrl, lat: p.lat, lng: p.lng, hours: p.hours, photos: p.photos, fetchedAt: new Date() },
   });
   return json({ company });
 });

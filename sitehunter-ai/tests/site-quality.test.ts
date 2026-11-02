@@ -113,3 +113,39 @@ describe("Serviços do Google Maps no servidor", () => {
     expect(JSON.parse(String(init.body)).routingPreference).toBe("TRAFFIC_AWARE");
   });
 });
+
+describe("Script dos sites", () => {
+  it("é JavaScript válido (o site funciona com interações)", async () => {
+    const { SITE_SCRIPT } = await import("@/lib/site/renderer/script");
+    expect(() => new Function(SITE_SCRIPT)).not.toThrow();
+  });
+});
+
+describe("Imagens e galeria", () => {
+  const imgs = [1, 2, 3, 4, 5, 6].map((i) => ({ url: `https://images.unsplash.com/photo-${i}?fm=jpg`, alt: `Ambiente ${i}`, credit: { name: `Autor ${i}`, link: "https://unsplash.com", source: "unsplash" as const } }));
+  const seg = getSegment("restaurante");
+  const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), imgs));
+  it("serve AVIF/WebP com srcset, dimensões e carregamento sob demanda", () => {
+    expect(html).toContain('<source type="image/avif" srcset="https://images.unsplash.com/photo-2?');
+    expect(html).toContain('<source type="image/webp"');
+    expect(html).toMatch(/<img [^>]*width="\d+" height="\d+" alt="Ambiente 2" loading="lazy" decoding="async">/);
+    expect(html).toMatch(/fetchpriority="high"/); // foto da capa prioritária
+  });
+  it("galeria com lightbox acessível e alt em todas as imagens", () => {
+    expect(html).toContain('id="lb" role="dialog" aria-modal="true"');
+    expect(html).toMatch(/data-lb="0" aria-label="Ampliar foto 1 de \d+: Ambiente 2"/);
+    expect(html).not.toMatch(/<img(?![^>]*\balt=)[^>]*>/);
+  });
+  it("fotos do Google passam pela rota interna, com larguras por tela e crédito", () => {
+    const g = [{ url: "https://app.test/api/place-photo/ckabc1234567890/0", alt: "Fachada", credit: { name: "Maria", link: "https://maps.google.com", source: "google" as const } }, { url: "https://app.test/api/place-photo/ckabc1234567890/1", alt: "Salão", credit: { name: "João", link: "https://maps.google.com", source: "google" as const } }];
+    const h = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), g));
+    expect(h).toContain("/api/place-photo/ckabc1234567890/1?w=480 480w");
+    expect(h).toContain("/ Google Maps");
+    expect(h).not.toMatch(/[?&]key=/);
+  });
+  it("animações de entrada com variações e respeito ao movimento reduzido", () => {
+    expect(html).toContain('data-rv="zoom"');
+    expect(html).toContain('data-rv="left"');
+    expect(html).toContain("@media (prefers-reduced-motion:reduce)");
+  });
+});

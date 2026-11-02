@@ -42,7 +42,11 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Mapa do Google dentro do site publicado + "Traçar rota" | ✅ rota sem chave; mapa embutido 🔑 `GOOGLE_MAPS_EMBED_KEY` |
 | Acessibilidade dos sites (pular conteúdo, foco visível, ARIA nas abas e menu, contraste mínimo calculado) | ✅ testado |
 | SEO dos sites (canonical, Open Graph, schema.org por tipo de negócio, favicon) | ✅ testado |
-| Formulário com validação, mensagens de erro e estados de envio | ✅ testado |
+| Formulário com validação, mensagens de erro e estados de envio (erro com tremida, sucesso com check animado) | ✅ testado |
+| Fotos reais do estabelecimento (Google) na capa, “sobre”, serviços/produtos e galeria, sem expor a chave | 🔑 `GOOGLE_MAPS_SERVER_KEY` (Places API New) |
+| Galeria com lightbox (teclado, toque, foco preso, contador, legenda e crédito) | ✅ testado |
+| Imagens AVIF/WebP com srcset, dimensões, carregamento sob demanda e capa prioritária | ✅ testado (AVIF/WebP no banco Unsplash; fotos do Google em JPEG nas larguras 480/960/1600) |
+| Animações (entrada ao rolar com deslize/zoom/fade, hover em cards e imagens, ondulação em botões, menu, destaque no título) com movimento reduzido | ✅ |
 | Barra de ações fixa no celular (Ligar, WhatsApp, Rota) | ✅ |
 
 ## Publicação e hospedagem

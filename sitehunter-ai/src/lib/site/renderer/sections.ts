@@ -1,8 +1,8 @@
 // Seções dos sites gerados. Cada seção vazia é omitida (nada de blocos sem conteúdo).
 import type { Section, SiteContent } from "../types";
 import { icon } from "../icons";
-import { esc, paras, safeUrl, srcset, optimizedImage, telHref, waNumber } from "./util";
-import { animatedWords, button, directionsUrl, mapsUrl, picture, sectionHead, whatsappUrl, type RenderCtx } from "./components";
+import { esc, paras, safeUrl, telHref, waNumber } from "./util";
+import { animatedWords, button, creditText, directionsUrl, mapsUrl, picture, pictureTag, sectionHead, whatsappUrl, type RenderCtx } from "./components";
 
 type Of<T extends Section["type"]> = Extract<Section, { type: T }>;
 
@@ -44,9 +44,9 @@ function hero(s: Of<"hero">, ctx: RenderCtx, next?: Section): string {
     addr && `<li class="chip">${icon("pin", "ci")}${esc(addr)}</li>`,
     c.business.phone && `<li class="chip">${icon("phone", "ci")}${esc(c.business.phone)}</li>`,
   ].filter(Boolean);
-  const set = hasImg ? srcset(src, [640, 1024, 1600, 2000]) : "";
+
   return `<section id="${esc(s.id)}" class="hero${hasImg ? " has-img" : ""}" aria-labelledby="${esc(s.id)}-t">
-  <div class="hero-bg" aria-hidden="true">${hasImg ? `<img class="hero-photo" src="${esc(optimizedImage(src, 1600))}"${set ? ` srcset="${esc(set)}" sizes="100vw"` : ""} alt="" fetchpriority="high" decoding="async">` : ""}<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="pattern"></div></div>
+  <div class="hero-bg" aria-hidden="true">${hasImg ? pictureTag({ ...s.image!, alt: "" }, { sizes: "100vw", width: 1600, ratio: [16, 9], eager: true, cls: "hero-pic" }) : ""}<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="pattern"></div></div>
   <div class="wrap hero-grid">
     <div class="hero-inner">
       ${c.tagline ? `<p class="eyebrow hero-eyebrow">${icon(c.icon, "ei")}${esc(c.tagline)}</p>` : ""}
@@ -58,7 +58,7 @@ function hero(s: Of<"hero">, ctx: RenderCtx, next?: Section): string {
     ${heroCard(c)}
   </div>
   ${next ? `<a class="scroll-cue" href="#${esc(next.id)}"><span class="sr-only">Ir para a próxima seção</span><span aria-hidden="true"></span></a>` : ""}
-  ${hasImg && s.image?.credit ? `<p class="hero-credit">Foto: <a href="${esc(safeUrl(s.image.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(s.image.credit.name)}</a> / Unsplash</p>` : ""}
+  ${hasImg && s.image?.credit ? `<p class="hero-credit">Foto: <a href="${esc(safeUrl(s.image.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(s.image.credit.name)}</a> / ${s.image.credit.source === "google" ? "Google Maps" : "Unsplash"}</p>` : ""}${hasImg && s.image?.alt ? `<p class="sr-only">${esc(s.image.alt)}</p>` : ""}
 </section>${
     c.marquee.length
       ? `<div class="marquee" aria-hidden="true"><div class="mq-track">${[...c.marquee, ...c.marquee, ...c.marquee, ...c.marquee].map((m) => `<span>${esc(m)}</span><i>${icon(c.icon, "mi")}</i>`).join("")}</div></div>`
@@ -126,9 +126,9 @@ export function sectionHtml(s: Section, ctx: RenderCtx, next?: Section): string 
         .join("")}</ul></div></section>`;
     case "about": {
       const visual = s.image?.url
-        ? picture(s.image, "about-img rv", { width: 900 })
+        ? `<div class="about-visual">${picture(s.image, "about-img rv", { width: 900, ratio: [4, 5], rv: "zoom", sizes: "(max-width: 860px) 100vw, 45vw" })}<span class="about-badge rv" data-rv="up" aria-hidden="true">${icon(c.icon)}</span></div>`
         : `<div class="about-art rv" aria-hidden="true"><div class="aa-ring"></div><div class="aa-mark">${icon(c.icon, "aa-ic")}</div><span class="aa-name">${esc(c.business.name)}</span></div>`;
-      return `<section id="${id}" class="sec about" ${labelled}><div class="wrap split"><div class="about-text">${sectionHead(s.title, undefined, "Nossa história", s.id)}<div class="rv prose">${paras(s.text)}</div></div>${visual}</div></section>`;
+      return `<section id="${id}" class="sec about" ${labelled}><div class="wrap split"><div class="about-text rv-group" data-rv="left">${sectionHead(s.title, undefined, "Nossa história", s.id)}<div class="rv prose" data-rv="left">${paras(s.text)}</div></div>${visual}</div></section>`;
     }
     case "services": {
       if (!s.items.length) return "";
@@ -142,7 +142,11 @@ export function sectionHtml(s: Section, ctx: RenderCtx, next?: Section): string 
           .join("")}</ul></div></section>`;
       }
       return `<section id="${id}" class="sec alt" ${labelled}><div class="wrap">${sectionHead(s.title, s.intro, "O que fazemos", s.id)}<ul class="cards">${s.items
-        .map((it, i) => `<li class="card rv" style="--d:${i}"><div class="card-ic" aria-hidden="true">${icon(it.icon ?? c.icon)}</div><h3>${esc(it.title)}</h3><p>${esc(it.description)}</p></li>`)
+        .map((it, i) =>
+          it.image?.url
+            ? `<li class="card has-img rv" style="--d:${i}">${picture(it.image, "card-img", { width: 640, sizes: "(max-width: 860px) 100vw, 33vw" })}<div class="card-body"><div class="card-ic sm" aria-hidden="true">${icon(it.icon ?? c.icon)}</div><h3>${esc(it.title)}</h3><p>${esc(it.description)}</p></div></li>`
+            : `<li class="card rv" style="--d:${i}"><div class="card-ic" aria-hidden="true">${icon(it.icon ?? c.icon)}</div><h3>${esc(it.title)}</h3><p>${esc(it.description)}</p></li>`,
+        )
         .join("")}</ul></div></section>`;
     }
     case "products":
@@ -150,7 +154,9 @@ export function sectionHtml(s: Section, ctx: RenderCtx, next?: Section): string 
       return `<section id="${id}" class="sec alt" ${labelled}><div class="wrap">${sectionHead(s.title, s.intro, "Destaques", s.id)}<ul class="cards prod">${s.items
         .map(
           (it, i) =>
-            `<li class="card rv" style="--d:${i}">${it.image?.url ? picture(it.image, "card-img", { width: 640, sizes: "(max-width: 860px) 100vw, 33vw" }) : `<div class="prod-art" aria-hidden="true">${icon(c.icon)}</div>`}<h3>${esc(it.name)}</h3><p>${esc(it.description)}</p></li>`,
+            it.image?.url
+              ? `<li class="card has-img rv" style="--d:${i}">${picture(it.image, "card-img", { width: 640, sizes: "(max-width: 860px) 100vw, 33vw" })}<div class="card-body"><h3>${esc(it.name)}</h3><p>${esc(it.description)}</p></div></li>`
+              : `<li class="card rv" style="--d:${i}"><div class="prod-art" aria-hidden="true">${icon(c.icon)}</div><h3>${esc(it.name)}</h3><p>${esc(it.description)}</p></li>`,
         )
         .join("")}</ul></div></section>`;
     case "menu": {
@@ -184,11 +190,17 @@ export function sectionHtml(s: Section, ctx: RenderCtx, next?: Section): string 
         .map((l) => `<div data-day="${esc(l.label.toLowerCase())}"><dt>${esc(l.label)}</dt><dd>${esc(l.value)}</dd></div>`)
         .join("")}</dl>${s.note ? `<p class="fine">${esc(s.note)}</p>` : ""}</div></div></section>`;
     }
-    case "gallery":
-      if (!s.images.length) return "";
-      return `<section id="${id}" class="sec" ${labelled}><div class="wrap">${sectionHead(s.title, undefined, undefined, s.id)}<div class="gallery">${s.images
-        .map((im, k) => picture(im, "g-item rv", { width: 800, sizes: "(max-width: 860px) 50vw, 25vw", style: `--d:${k}` }))
-        .join("")}</div></div></section>`;
+    case "gallery": {
+      const imgs = s.images.filter((im) => im.url && safeUrl(im.url) !== "#");
+      if (!imgs.length) return "";
+      const data = imgs.map((im) => ({ src: im.url, alt: im.alt, credit: creditText(im) }));
+      return `<section id="${id}" class="sec gallery-sec" ${labelled}><div class="wrap">${sectionHead(s.title, imgs.length > 1 ? "Toque em uma foto para ampliar." : undefined, "Fotos", s.id)}<ul class="gallery${imgs.length >= 5 ? " mosaic" : ""}" data-lightbox='${esc(JSON.stringify(data))}'>${imgs
+        .map(
+          (im, k) =>
+            `<li class="g-item rv" data-rv="zoom" style="--d:${k % 6}"><button type="button" class="g-btn" data-lb="${k}" aria-label="Ampliar foto ${k + 1} de ${imgs.length}${im.alt ? `: ${esc(im.alt)}` : ""}">${pictureTag(im, { width: k === 0 && imgs.length >= 5 ? 960 : 640, ratio: [1, 1], sizes: k === 0 && imgs.length >= 5 ? "(max-width: 860px) 100vw, 50vw" : "(max-width: 860px) 50vw, 25vw" })}<span class="g-zoom" aria-hidden="true">${icon("sparkles")}</span></button></li>`,
+        )
+        .join("")}</ul>${imgs.some((im) => im.credit?.source === "google") ? `<p class="fine">Fotos publicadas no Google Maps pelos autores indicados ao ampliar.</p>` : ""}</div></section>`;
+    }
     case "faq":
       if (!s.items.length) return "";
       return `<section id="${id}" class="sec alt" ${labelled}><div class="wrap narrow">${sectionHead(s.title, undefined, "Dúvidas", s.id)}<div class="faq">${s.items

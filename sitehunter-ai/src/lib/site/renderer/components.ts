@@ -1,7 +1,7 @@
 // Componentes reutilizáveis do HTML dos sites gerados.
 import type { SiteButton, SiteContent, SiteImage } from "../types";
 import { icon } from "../icons";
-import { esc, optimizedImage, safeUrl, srcset, telHref, waNumber } from "./util";
+import { esc, imageSources, safeUrl, telHref, waNumber } from "./util";
 
 export type RenderCtx = {
   c: SiteContent;
@@ -62,17 +62,28 @@ export function sectionHead(title: string, intro?: string, eyebrow?: string, id?
 }
 
 export function credit(i?: SiteImage): string {
-  return i?.credit ? `<figcaption>Foto: <a href="${esc(safeUrl(i.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a> / Unsplash</figcaption>` : "";
+  if (!i?.credit) return "";
+  const src = i.credit.source === "google" ? "Google Maps" : "Unsplash";
+  return `<figcaption>Foto: <a href="${esc(safeUrl(i.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a> / ${src}</figcaption>`;
 }
 
-/** Imagem responsiva, com carregamento preguiçoso e decodificação assíncrona. */
-export function picture(i: SiteImage | undefined, cls: string, opts: { sizes?: string; width?: number; eager?: boolean; style?: string } = {}): string {
-  if (!i?.url) return "";
-  const src = safeUrl(i.url);
-  if (src === "#") return "";
-  const w = opts.width ?? 1024;
-  const set = srcset(src, [480, 768, 1024, 1600]);
-  return `<figure class="${cls}"${opts.style ? ` style="${opts.style}"` : ""}><img src="${esc(optimizedImage(src, w))}"${set ? ` srcset="${esc(set)}" sizes="${esc(opts.sizes ?? "(max-width: 860px) 100vw, 50vw")}"` : ""} alt="${esc(i.alt)}" ${opts.eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">${credit(i)}</figure>`;
+export const creditText = (i?: SiteImage) => (i?.credit ? `Foto: ${i.credit.name} / ${i.credit.source === "google" ? "Google Maps" : "Unsplash"}` : "");
+
+/** <picture> com AVIF/WebP quando disponíveis, srcset por largura, dimensões (evita saltos de layout) e carregamento sob demanda. */
+export function pictureTag(i: SiteImage, opts: { sizes: string; width: number; ratio?: [number, number]; eager?: boolean; cls?: string }): string {
+  const url = safeUrl(i.url);
+  if (url === "#") return "";
+  const src = imageSources(url, [480, 768, 1024, 1600, 2000].filter((w) => w <= Math.max(opts.width * 2, 960)), opts.width);
+  const [rw, rh] = opts.ratio ?? [4, 3];
+  const h = Math.round((opts.width * rh) / rw);
+  const sizes = esc(opts.sizes);
+  return `<picture${opts.cls ? ` class="${opts.cls}"` : ""}>${src.avif ? `<source type="image/avif" srcset="${esc(src.avif)}" sizes="${sizes}">` : ""}${src.webp ? `<source type="image/webp" srcset="${esc(src.webp)}" sizes="${sizes}">` : ""}<img src="${esc(src.src)}"${src.srcset ? ` srcset="${esc(src.srcset)}" sizes="${sizes}"` : ""} width="${opts.width}" height="${h}" alt="${esc(i.alt)}" ${opts.eager ? 'fetchpriority="high" loading="eager"' : 'loading="lazy"'} decoding="async"></picture>`;
+}
+
+/** Figura com imagem responsiva e crédito. */
+export function picture(i: SiteImage | undefined, cls: string, opts: { sizes?: string; width?: number; eager?: boolean; style?: string; ratio?: [number, number]; rv?: string } = {}): string {
+  if (!i?.url || safeUrl(i.url) === "#") return "";
+  return `<figure class="${cls}"${opts.rv ? ` data-rv="${opts.rv}"` : ""}${opts.style ? ` style="${opts.style}"` : ""}><div class="img-wrap">${pictureTag(i, { sizes: opts.sizes ?? "(max-width: 860px) 100vw, 50vw", width: opts.width ?? 1024, ratio: opts.ratio, eager: opts.eager })}</div>${credit(i)}</figure>`;
 }
 
 /** Título com animação palavra por palavra (o texto continua legível para leitores de tela). */

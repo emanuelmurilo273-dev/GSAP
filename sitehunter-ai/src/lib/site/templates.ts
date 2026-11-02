@@ -122,7 +122,11 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
   };
   const hasPhone = !!company.phone;
   const mainAction = hasPhone ? ("whatsapp" as const) : ("section" as const);
-  const [heroImg, aboutImg, ...galleryImgs] = images;
+  // Fotos: 1ª na capa, 2ª no "sobre"; as seguintes ilustram serviços/produtos; a galeria reúne todas (menos a capa).
+  const [heroImg, aboutImg] = images;
+  const extra = images.slice(2);
+  const galleryImgs = images.slice(1, 10);
+  const imgFor = (i: number) => (extra.length ? extra[i % extra.length] : undefined);
   const realHours = hoursToLines(company.hours);
 
   const hero: Section = {
@@ -145,7 +149,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     visible: true,
     title: copy.servicesTitle,
     intro: copy.servicesIntro,
-    items: copy.services.map((x) => ({ title: x.title, description: x.description, icon: x.icon ?? segment.icon, ...(x.price ? { price: x.price } : {}) })),
+    items: copy.services.map((x, i) => ({ title: x.title, description: x.description, icon: x.icon ?? segment.icon, ...(x.price ? { price: x.price } : {}), ...(extra.length >= 2 && i < extra.length ? { image: imgFor(i) } : {}) })),
   };
   const hours: Section = {
     id: "horarios",
@@ -155,7 +159,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     lines: realHours.length ? realHours : [{ label: "Segunda a sexta", value: "" }, { label: "Sábado", value: "" }, { label: "Domingo", value: "" }],
     note: realHours.length ? "Horários informados pela empresa no Google. Em feriados, confirme pelo WhatsApp." : "",
   };
-  const gallery: Section = { id: "galeria", type: "gallery", visible: galleryImgs.length > 0, title: "Galeria", images: galleryImgs };
+  const gallery: Section = { id: "galeria", type: "gallery", visible: galleryImgs.length > 0, title: segment.template === "restaurant" ? "Nosso ambiente" : "Galeria de fotos", images: galleryImgs };
   const steps: Section = { id: "como-funciona", type: "steps", visible: copy.steps.length > 0, title: segment.template === "restaurant" ? "Como fazer seu pedido" : segment.template === "clinic" || segment.template === "barber" ? "Como agendar" : "Como funciona", intro: "", items: copy.steps };
   const faq: Section = { id: "duvidas", type: "faq", visible: copy.faq.length > 0, title: "Perguntas frequentes", items: copy.faq };
   const cta: Section = { id: "chamada", type: "cta", visible: true, title: copy.ctaTitle, text: copy.ctaText, button: { label: copy.primaryCta || "Fale conosco", action: mainAction, href: hasPhone ? undefined : "contato" } };
@@ -169,7 +173,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     intro: copy.servicesIntro || "Conheça nossas opções.",
     categories: copy.menuCategories.map((cat) => ({ name: cat.name, items: cat.items.map((i) => ({ name: i.name, description: i.description, price: i.price ?? "" })) })),
   };
-  const products: Section = { id: "produtos", type: "products", visible: true, title: copy.servicesTitle, intro: copy.servicesIntro, items: copy.services.map((x) => ({ name: x.title, description: x.description })) };
+  const products: Section = { id: "produtos", type: "products", visible: true, title: copy.servicesTitle, intro: copy.servicesIntro, items: copy.services.map((x, i) => ({ name: x.title, description: x.description, ...(extra.length ? { image: imgFor(i) } : {}) })) };
 
   const byTemplate: Record<TemplateKey, Section[]> = {
     restaurant: [hero, highlights, about, menu, steps, hours, gallery, faq, cta, contact],
@@ -207,6 +211,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
       ...(pricesMissing ? ["Preços em branco não aparecem no site. Preencha só com valores confirmados."] : []),
       ...(realHours.length ? [] : ["A fonte não informou horários: preencha em Horários (linhas vazias ficam ocultas)."]),
       ...(company.phone ? [] : ["A fonte não informou telefone: adicione um contato em 'Empresa'."]),
+      ...(images.some((i) => i.credit?.source === "google") ? ["As fotos vêm do Google Maps com o crédito do autor. Para uso comercial, prefira fotos enviadas ou autorizadas pela empresa."] : []),
     ],
   };
 }

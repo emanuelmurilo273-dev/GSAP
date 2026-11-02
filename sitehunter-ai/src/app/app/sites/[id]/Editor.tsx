@@ -152,8 +152,8 @@ function SectionForm({ s, set, sections, onSearchImage }: { s: Section; set: (s:
         <div className="space-y-3">
           <T label="Título" value={s.title} onChange={(title) => set({ ...s, title })} />
           <TA label="Introdução" value={s.intro} rows={2} max={600} onChange={(intro) => set({ ...s, intro })} />
-          <ListEditor items={s.items} onChange={(items) => set({ ...s, items })} addLabel="Adicionar serviço" make={() => ({ title: "Novo serviço", description: "" })}
-            render={(it, upd) => (<><input className="input" value={it.title} maxLength={100} onChange={(e) => upd({ ...it, title: e.target.value })} /><textarea className="input" rows={2} value={it.description} maxLength={400} onChange={(e) => upd({ ...it, description: e.target.value })} /></>)} />
+          <ListEditor<(typeof s.items)[number]> items={s.items} onChange={(items) => set({ ...s, items })} addLabel="Adicionar serviço" make={() => ({ title: "Novo serviço", description: "" })}
+            render={(it, upd) => (<><input className="input" value={it.title} maxLength={100} onChange={(e) => upd({ ...it, title: e.target.value })} /><textarea className="input" rows={2} value={it.description} maxLength={400} onChange={(e) => upd({ ...it, description: e.target.value })} /><input className="input" placeholder="Preço (opcional, só se confirmado)" value={it.price ?? ""} maxLength={30} onChange={(e) => upd({ ...it, price: e.target.value || undefined })} /><ImageEditor label="Imagem do serviço (opcional)" value={it.image} onChange={(image) => upd({ ...it, image })} onSearch={onSearchImage} /></>)} />
         </div>
       );
     case "products":

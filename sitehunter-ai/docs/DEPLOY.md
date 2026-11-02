@@ -84,6 +84,8 @@ Crie **três chaves** em *APIs e serviços → Credenciais*, cada uma com restri
 
 Opcional: **`GOOGLE_MAPS_MAP_ID`**. Crie um Map ID em *Map Management* para usar os marcadores avançados. Sem ele, o painel usa marcadores clássicos com o mesmo visual.
 
+**Fotos do estabelecimento:** a busca já traz as referências de foto do Google (Places API New, mesma chave de servidor). Ao gerar o site, as fotos viram capa, “sobre”, imagens dos serviços/produtos e galeria com ampliação. O site pede `/api/place-photo/<empresa>/<n>?w=<largura>` e o servidor responde com um redirecionamento para a imagem na CDN do Google. A chave não aparece no HTML e nenhuma imagem é baixada ou armazenada; só a URL temporária fica em memória por 30 minutos. O autor de cada foto é creditado, como o Google exige. As fotos do Google são de quem as publicou (dono ou clientes). Para uso comercial, prefira fotos enviadas ou autorizadas pela empresa e troque-as no editor.
+
 **O que aparece para o usuário:**
 - **Buscar empresas:** lista e mapa lado a lado no computador, e abas Lista/Mapa no celular.
 - **Marcadores coloridos:** azul = possivelmente sem site; roxo = só rede social; cinza = site informado; ponto verde = empresa já salva.

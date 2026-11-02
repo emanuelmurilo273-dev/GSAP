@@ -46,28 +46,45 @@ export function paras(text: string): string {
     .join("");
 }
 
-/** URLs de imagem otimizadas (tamanho, qualidade e formato) quando o banco de imagens permite. */
-export function optimizedImage(url: string, width: number): string {
-  try {
-    const u = new URL(url);
-    if (u.hostname === "images.unsplash.com") {
-      u.searchParams.set("w", String(width));
-      u.searchParams.set("q", "75");
-      u.searchParams.set("auto", "format");
-      u.searchParams.set("fit", "crop");
-      return u.toString();
-    }
-  } catch {
-    /* mantém */
-  }
-  return url;
+export type ImageSources = { src: string; srcset: string; avif: string; webp: string };
+
+const isUnsplash = (u: URL) => u.hostname === "images.unsplash.com";
+const isPlacePhoto = (u: URL) => /\/api\/place-photo\/[^/]+\/\d+$/.test(u.pathname);
+
+function withParams(url: URL, params: Record<string, string>) {
+  const u = new URL(url.toString());
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  return u.toString();
 }
 
-export function srcset(url: string, widths: number[]): string {
+/**
+ * Fontes responsivas de uma imagem:
+ * - Unsplash: AVIF e WebP explícitos + JPEG, em várias larguras;
+ * - fotos do Google (via /api/place-photo): larguras de 480, 960 e 1600 px;
+ * - outras URLs: usadas como estão.
+ */
+export function imageSources(url: string, widths: number[], fallbackWidth: number): ImageSources {
+  let u: URL;
   try {
-    if (new URL(url).hostname !== "images.unsplash.com") return "";
+    u = new URL(url);
   } catch {
-    return "";
+    return { src: url, srcset: "", avif: "", webp: "" };
   }
-  return widths.map((w) => `${optimizedImage(url, w)} ${w}w`).join(", ");
+  if (isUnsplash(u)) {
+    const base = new URL(u.toString());
+    base.searchParams.delete("fm");
+    base.searchParams.delete("auto");
+    const set = (extra: Record<string, string>) => widths.map((w) => `${withParams(base, { w: String(w), q: "72", fit: "crop", ...extra })} ${w}w`).join(", ");
+    return { src: withParams(base, { w: String(fallbackWidth), q: "72", fit: "crop", auto: "format" }), srcset: set({ auto: "format" }), avif: set({ fm: "avif" }), webp: set({ fm: "webp" }) };
+  }
+  if (isPlacePhoto(u)) {
+    const ws = [480, 960, 1600];
+    return { src: withParams(u, { w: String(ws.find((w) => w >= fallbackWidth) ?? 1600) }), srcset: ws.map((w) => `${withParams(u, { w: String(w) })} ${w}w`).join(", "), avif: "", webp: "" };
+  }
+  return { src: url, srcset: "", avif: "", webp: "" };
+}
+
+/** Compatibilidade: URL única otimizada. */
+export function optimizedImage(url: string, width: number): string {
+  return imageSources(url, [width], width).src;
 }
