@@ -408,6 +408,30 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .stat-v b{font-size:clamp(3.2rem,8vw,5.6rem);font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
 .stat-v span{font-size:1.4rem;font-weight:700;color:var(--mu)}
 .stat-l{margin-top:10px;font-weight:700;font-size:1.1rem;max-width:22ch;line-height:1.3}
+/* Imagens animadas: zoom lento nas fotos de capa, cortina + zoom ao entrar, parallax ao rolar e zoom no hover. */
+.media,.gallery figure,.card-img{overflow:hidden;border-radius:var(--r)}
+.media img,.gallery img,.card-img img{--zs:1.06;transform:translateY(var(--par,0px)) scale(var(--zs));transition:transform .9s cubic-bezier(.2,.7,.1,1),clip-path 1.2s cubic-bezier(.2,.7,.1,1),opacity .8s ease;will-change:transform}
+.gallery figure:hover img,.card:hover .card-img img,.media:hover img{--zs:1.12}
+.img-rv{clip-path:inset(14% 8% 14% 8% round var(--r));opacity:.001;--zs:1.22}
+.img-rv.in{clip-path:inset(0 0 0 0 round var(--r));opacity:1;--zs:1.06}
+@keyframes kb{0%{transform:scale(1.02) translate3d(0,0,0)}100%{transform:scale(1.12) translate3d(-1.6%,-1.2%,0)}}
+.hero-bg,.arch img,.soft img,.plate img,.stack .photo img{animation:kb 22s ease-in-out infinite alternate}
+.arch,.soft,.plate,.stack .photo{overflow:hidden}
+.arch{border-radius:999px 999px 0 0}.soft{border-radius:40px}.plate{border-radius:50%}
+@keyframes img-float{50%{translate:0 -12px;rotate:-.6deg}}
+.cine-photo{animation:img-float 7s ease-in-out infinite}
+@keyframes orn-float{50%{translate:0 -14px}}
+@keyframes orn-breathe{50%{scale:1.045}}
+@keyframes orn-drift{to{translate:-3% 2%}}
+.orn circle{animation:orn-float 9s ease-in-out infinite}
+.orn circle+circle{animation-duration:11s;animation-delay:-3s}
+.s-hearth .orn path,.s-clinic .orn rect{transform-box:fill-box;transform-origin:center;animation:orn-breathe 11s ease-in-out infinite}
+.s-hearth .orn path+path,.s-clinic .orn rect:nth-child(even){animation-delay:-4s;animation-duration:13s}
+.s-forge .hero-orn{animation:orn-drift 18s ease-in-out infinite alternate}
+.s-atelier .orn path[stroke]{stroke-dasharray:6 8;animation:orn-line 14s linear infinite}
+@keyframes orn-line{to{stroke-dashoffset:-140}}
+.stack .t1{animation:tile-float 8s ease-in-out infinite}.stack .t2{animation:tile-float 9s ease-in-out infinite -3s}
+@keyframes tile-float{50%{translate:0 -10px}}
 /* Entradas ao rolar: só depois que o script marca o elemento (sem script, tudo visível). */
 .rv{opacity:0;transform:translateY(var(--rv-y,22px));filter:blur(var(--rv-blur,0px));transition:opacity .9s cubic-bezier(.2,.7,.1,1),transform .9s cubic-bezier(.2,.7,.1,1),filter .9s cubic-bezier(.2,.7,.1,1)}
 .rv.in{opacity:1;transform:none;filter:none}
@@ -679,10 +703,12 @@ d.querySelectorAll('[data-picker]').forEach(function(sec){var bs=sec.querySelect
 function fmt(n,dec,src){var s=src.indexOf('.')>-1||src.indexOf(',')>-1?n.toFixed(src.split(/[.,]/)[1].length):String(Math.round(n));return dec===','?s.replace('.',','):s;}
 var counts=d.querySelectorAll('[data-count]');
 if(rm||!('IntersectionObserver' in window))return;
-var io=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;var t=e.target;io.unobserve(t);if(t.dataset.count){var to=parseFloat(t.dataset.count),src=t.textContent,t0=performance.now();(function f(now){var k=Math.min(1,(now-t0)/1400),v=to*(1-Math.pow(1-k,3));t.textContent=fmt(v,t.dataset.dec,src);if(k<1)requestAnimationFrame(f);else t.textContent=src;})(t0);}else{t.classList.add('in');setTimeout(function(){t.classList.remove('rv','in');t.style.transitionDelay='';},1300);}});},{rootMargin:'0px 0px -8% 0px'});
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;var t=e.target;io.unobserve(t);if(t.dataset.count){var to=parseFloat(t.dataset.count),src=t.textContent,t0=performance.now();(function f(now){var k=Math.min(1,(now-t0)/1400),v=to*(1-Math.pow(1-k,3));t.textContent=fmt(v,t.dataset.dec,src);if(k<1)requestAnimationFrame(f);else t.textContent=src;})(t0);}else{t.classList.add('in');setTimeout(function(){t.classList.remove('rv','in','img-rv');t.style.transitionDelay='';},1300);}});},{rootMargin:'0px 0px -8% 0px'});
 var groups=d.querySelectorAll('.sec-head,.card:not(.pick-panel),.prose,.gallery figure,.contact li,.stat,.menu-cat,.hours,.cta-inner,.pick-swatches,.facts li');
 groups.forEach(function(el,i){if(el.getBoundingClientRect().top>innerHeight*.92){el.classList.add('rv');var sib=el.parentElement?[].indexOf.call(el.parentElement.children,el):0;el.style.transitionDelay=Math.min(sib,5)*70+'ms';io.observe(el);}});
 counts.forEach(function(el){io.observe(el);});
+var imgs=[].slice.call(d.querySelectorAll('.media img,.gallery img,.card-img img'));imgs.forEach(function(im){if(im.getBoundingClientRect().top>innerHeight*.9){im.classList.add('img-rv');io.observe(im);}});
+if(imgs.length){var pq=0;var upd=function(){imgs.forEach(function(im){var r=im.parentElement.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)return;im.style.setProperty('--par',(((r.top+r.height/2)-innerHeight/2)/innerHeight*-26).toFixed(1)+'px');});};addEventListener('scroll',function(){cancelAnimationFrame(pq);pq=requestAnimationFrame(upd);},{passive:true});upd();}
 var hero=d.querySelector('.cine-hero');if(hero){var raf=0;addEventListener('scroll',function(){cancelAnimationFrame(raf);raf=requestAnimationFrame(function(){var r=hero.getBoundingClientRect(),p=Math.min(1,Math.max(0,-r.top/r.height));hero.style.setProperty('--sp',p.toFixed(3));});},{passive:true});}
 ${uses3d ? `if(matchMedia('(pointer: fine)').matches)d.querySelectorAll('[data-tilt]').forEach(function(el){var max=el.classList.contains('stack')?10:el.classList.contains('cine-tilt')?12:6;el.style.transition='transform .5s cubic-bezier(.2,.7,.1,1)';el.addEventListener('pointermove',function(e){var r=el.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;el.style.transform='perspective(900px) rotateY('+(x*max)+'deg) rotateX('+(-y*max)+'deg)';});el.addEventListener('pointerleave',function(){el.style.transform='';});});` : ""}
 })();`;

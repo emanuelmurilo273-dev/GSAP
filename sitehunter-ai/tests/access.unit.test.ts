@@ -100,6 +100,14 @@ describe("Direções visuais", () => {
     expect(html).toContain("prefers-reduced-motion: reduce");
     expect(html).not.toMatch(/class="[^"]*\brv\b/); // nada nasce oculto no HTML
   });
+  it("imagens animadas (zoom na capa, entrada, parallax) e paradas com movimento reduzido", () => {
+    const seg = getSegment("salao");
+    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), [{ url: "https://img.test/a.jpg", alt: "a" }, { url: "https://img.test/b.jpg", alt: "b" }, { url: "https://img.test/c.jpg", alt: "c" }]));
+    expect(html).toContain("@keyframes kb");
+    expect(html).toContain("img-rv");
+    expect(html).toContain("--par");
+    expect(html).toMatch(/prefers-reduced-motion:reduce\)\{\*,\*::before,\*::after\{transition:none!important;animation:none!important/);
+  });
   it("galeria com imagens inválidas não aparece vazia", () => {
     const seg = getSegment("barbearia");
     const c = buildSiteContent(company, seg, fallbackCopy(company, seg), [{ url: "x", alt: "" }, { url: "y", alt: "" }, { url: "javascript:alert(1)", alt: "" }]);
