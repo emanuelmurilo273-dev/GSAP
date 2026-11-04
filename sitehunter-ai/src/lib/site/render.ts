@@ -202,7 +202,7 @@ function heroHtml(s: Extract<Section, { type: "hero" }>, c: SiteContent, style: 
     case "hearth":
       return `<section ${id} class="hero"><div class="wrap hero-center"><div class="hero-art">${ornament(style, c)}${src ? `<figure class="plate"><img src="${esc(src)}" alt="${alt}" decoding="async"></figure>` : ""}</div>${eyebrow}${title}${lead}${heroActions(s, c)}${cap}</div></section>`;
     case "cinema":
-      return `<section ${id} class="hero cine-hero"><div class="cine-word" aria-hidden="true">${bigWord(c)}</div><div class="cine-stage"><div class="cine-glow" aria-hidden="true"></div><div class="cine-object"><div class="cine-tilt" data-tilt>${
+      return `<section ${id} class="hero cine-hero"><div class="cine-word" aria-hidden="true" style="--len:${Math.max(4, bigWord(c).length)}">${bigWord(c)}</div><div class="cine-stage"><div class="cine-glow" aria-hidden="true"></div><div class="cine-object"><div class="cine-tilt" data-tilt>${
         src
           ? `<img class="cine-photo" src="${esc(src)}" alt="${alt}" decoding="async">`
           : `<div class="cine-mono" aria-hidden="true"><i class="ring r1"></i><i class="ring r2"></i><span>${initials(c.business.name)}</span></div>`
@@ -474,7 +474,7 @@ body{--glow:var(--p);--rv-blur:12px;--rv-y:30px;background:#000}
 .brand{font-weight:800;letter-spacing:-.02em;font-size:1.05rem}
 .nav a{font-size:.82rem}
 .hero.cine-hero{--sp:0;min-height:min(92vh,820px);display:grid;align-items:end;padding:96px 0 64px;background:#000;isolation:isolate}
-.cine-word{position:absolute;left:50%;top:9%;transform:translate(-50%,calc(var(--sp) * -70px)) scale(calc(1 + var(--sp) * .12));font:800 clamp(5rem,19vw,17rem)/.85 var(--hf);letter-spacing:-.05em;white-space:nowrap;color:transparent;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.02));-webkit-background-clip:text;background-clip:text;z-index:-1;pointer-events:none;max-width:100vw;overflow:hidden;text-align:center}
+.cine-word{position:absolute;left:50%;top:9%;transform:translate(-50%,calc(var(--sp) * -70px)) scale(calc(1 + var(--sp) * .12));font:800 clamp(3.5rem,calc(132vw / var(--len,6)),17rem)/.85 var(--hf);letter-spacing:-.05em;white-space:nowrap;color:transparent;background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.02));-webkit-background-clip:text;background-clip:text;z-index:-1;pointer-events:none;max-width:100vw;overflow:hidden;text-align:center}
 .cine-stage{position:absolute;inset:0;display:grid;place-items:center;z-index:-1;pointer-events:none}
 .cine-glow{position:absolute;left:71%;top:64%;width:min(60vw,700px);aspect-ratio:2/1;transform:translate(-50%,-50%);background:radial-gradient(closest-side,color-mix(in srgb,var(--glow) 75%,transparent),transparent 72%);filter:blur(30px);opacity:.85;transition:background 1.2s ease}
 .cine-object{position:absolute;left:71%;top:50%;transform:translate(-50%,calc(-50% + var(--sp) * 50px)) scale(calc(1 - var(--sp) * .08));width:min(32vw,400px);pointer-events:auto}
