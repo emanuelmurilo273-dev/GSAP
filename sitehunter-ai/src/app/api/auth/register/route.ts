@@ -7,6 +7,7 @@ import { env } from "@/lib/env";
 import { audit } from "@/lib/logger";
 import { sendVerificationEmail } from "@/lib/authEmails";
 import { linkPendingPayments } from "@/lib/kiwify";
+import { isPrivateMode } from "@/lib/owner";
 
 const Body = z.object({
   name: z.string().trim().min(2, "informe seu nome").max(80),
@@ -16,6 +17,8 @@ const Body = z.object({
 });
 
 export const POST = route(async (req) => {
+  // Produto privado: não existe cadastro público. A conta proprietária é criada pela linha de comando (npm run owner:create).
+  if (isPrivateMode()) throw new HttpError(403, "O cadastro está desativado. Este painel é de uso privado.", "signup_disabled");
   await rateLimit(`register:${clientIp(req)}`, 5, 3600);
   const body = await parseJson(req, Body);
   const exists = await prisma.user.findUnique({ where: { email: body.email } });

@@ -44,6 +44,39 @@ Plataforma SaaS para encontrar empresas brasileiras que possivelmente ainda não
 
 A regra está em um único lugar (`src/lib/access.ts`) e é usada pelas APIs, pelas páginas, pelo servidor de sites e pela rotina periódica.
 
+## Acesso privado (conta proprietária)
+
+Por padrão (`ACCESS_MODE=private`) o produto é de uso exclusivo do proprietário:
+
+- **Sem cadastro público.** `POST /api/auth/register` responde 403 e a página de cadastro mostra que está desativado.
+- **Conta proprietária pela linha de comando:** `npm run owner:create -- voce@dominio.com "Seu nome"` (senha pedida sem eco ou via `OWNER_PASSWORD`, mínimo 12 caracteres; trocar a senha encerra todas as sessões).
+- **Controle no servidor:** `getCurrentUser()` só devolve a conta proprietária (`role=ADMIN` e, se definido, `OWNER_EMAIL`). Toda página e API passa por ele, então outra conta com sessão válida é tratada como não autenticada. O login dá a mesma resposta genérica para senha errada e para conta não autorizada, e a recuperação de senha só envia e-mail ao proprietário.
+- **Camada extra no middleware:** sem cookie de sessão, só passam as rotas públicas de `src/lib/publicPaths.ts` (login, recuperação de senha, webhooks, health e os sites publicados em `/s/…`). APIs respondem 401 e páginas redirecionam para `/login`. A página inicial redireciona para o painel ou para o login.
+- `ACCESS_MODE=saas` restaura o modo multiusuário com assinatura.
+
+## Prévias privadas e links públicos
+
+Cada prévia nasce **privada**: existe só dentro do painel, com a faixa "Prévia não publicada". Na aba **Publicar** do editor, o cartão **Visibilidade** mostra o estado (🔒 Prévia privada / ● Site público):
+
+- **Liberar link público…** abre uma confirmação que lista o que fica público (somente aquela página) e o que continua privado. A API exige `confirmPublic: true`.
+- O site público é um **snapshot HTML** servido em `<slug>.ROOT_DOMAIN` ou `/s/<slug>`. Ele recebe `Content-Security-Policy: sandbox allow-scripts…` (sem `allow-same-origin`), então roda em origem opaca e não lê cookies nem chama APIs do painel, mesmo no caminho `/s/`. Também recebe `X-Robots-Tag: noindex, nofollow`.
+- **Retirar acesso público** pede confirmação e o link passa a responder 404 na hora. A prévia continua salva e privada.
+- Nada é publicado automaticamente: gerar uma prévia nunca cria um link público.
+
+## Direções visuais dos sites
+
+Os sites gerados não usam um template único. `src/lib/site/styles.ts` define 5 direções; cada uma muda a estrutura da capa, a composição das seções, a tipografia, a base de cores, os botões e os ornamentos:
+
+| Direção | Para | Capa e composição | 3D |
+|---|---|---|---|
+| Ateliê editorial | salões, moda, estética | serifa grande, imagem em moldura de arco, serviços como índice com linhas finas | não |
+| Oficina em alto contraste | barbearias, oficinas, academias, obras | capa escura cheia, tipografia condensada enorme, faixa diagonal com os serviços | cartões com profundidade |
+| Clínica serena | odontologia, clínicas | clara, cantos suaves, contatos confirmados em destaque logo abaixo da capa | não |
+| Casa artesanal | restaurantes, padarias | capa centralizada com formas orgânicas, cardápio com linhas pontilhadas | não |
+| Estúdio contemporâneo | serviços, imobiliárias, pet shops | grade em blocos, pilha de cartões em perspectiva na capa | pilha que segue o ponteiro |
+
+O setor sugere a direção, e o editor permite trocar (aba Design). Sem foto, cada direção usa uma composição gráfica própria em vez de deixar espaços vazios. O texto dos botões é escolhido pelo contraste com a cor, cores de destaque usadas como texto são escurecidas ou clareadas até ficarem legíveis, e o editor avisa quando o contraste fica baixo. O 3D e o movimento respeitam `prefers-reduced-motion` e são desligados em telas de toque.
+
 ## Estúdio de leads
 
 Fluxo em `/app/leads`: o usuário informa **nicho, cidade/região, idioma e quantidade** (até 30). O sistema descobre empresas, normaliza e deduplica, verifica a presença digital pública, registra a fonte e a confiança de cada dado e aponta oportunidades. No perfil do lead (`/app/leads/[id]`) o usuário revisa e corrige os dados, gera a **prévia do site** (sempre marcada como não publicada) e prepara a **abordagem comercial** (assunto + mensagem, em português e no idioma do lead) para copiar ou exportar. **Nada é enviado, publicado ou contatado automaticamente.**

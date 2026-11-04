@@ -4,6 +4,8 @@ import { getSettings, formatBRL } from "@/lib/settings";
 import { buildSiteContent, fallbackCopy, getSegment } from "@/lib/site/templates";
 import { renderSite } from "@/lib/site/render";
 import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { isPrivateMode } from "@/lib/owner";
 import { Scene3D } from "@/components/studio/Scene3D";
 import { PreviewFrame } from "@/components/studio/PreviewFrame";
 
@@ -41,6 +43,8 @@ const faq = [
 ];
 
 export default async function Landing() {
+  // Produto privado: não existe página pública de vendas; quem chega aqui vai para o painel (ou para o login).
+  if (isPrivateMode()) redirect((await getCurrentUser()) ? "/app" : "/login");
   const [settings, user] = await Promise.all([getSettings(), getCurrentUser()]);
   const price = formatBRL(settings.priceCents);
   const demoCompany = { name: "Barbearia Exemplo", city: "Curitiba", neighborhood: "Centro", phone: null, address: "Endereço ilustrativo" };

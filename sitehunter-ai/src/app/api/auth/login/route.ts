@@ -4,6 +4,7 @@ import { createSession, hashPassword, verifyPassword } from "@/lib/auth";
 import { HttpError, clientIp, json, parseJson, route } from "@/lib/http";
 import { rateLimit } from "@/lib/rateLimit";
 import { audit } from "@/lib/logger";
+import { mayAuthenticate } from "@/lib/owner";
 
 const Body = z.object({ email: z.string().trim().toLowerCase().email().max(160), password: z.string().min(1).max(200) });
 // Hash fixo para manter o tempo de resposta igual quando o e-mail não existe.
@@ -18,7 +19,8 @@ export const POST = route(async (req) => {
   await rateLimit(`login:${body.email}`, 10, 900);
   const user = await prisma.user.findUnique({ where: { email: body.email } });
   const ok = await verifyPassword(body.password, user?.passwordHash ?? (await dummyHash()));
-  if (!user || !ok) {
+  // Modo privado: senha correta de uma conta que não é a proprietária recebe a mesma resposta genérica.
+  if (!user || !ok || !mayAuthenticate(user)) {
     await audit("login_failed", { userId: user?.id, meta: { ip: clientIp(req) } });
     throw new HttpError(401, "E-mail ou senha incorretos.");
   }

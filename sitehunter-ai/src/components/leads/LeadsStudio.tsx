@@ -46,6 +46,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
   const [dataset, setDataset] = useState<"all" | "real" | "demo">("all");
   const [view, setView] = useState<"active" | "excluded">("active");
   const [searchFilter, setSearchFilter] = useState<string>("");
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
@@ -82,6 +83,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
       });
       await reload();
       setSearchFilter(r.search.id);
+      setFresh(new Set(r.createdIds));
       setView("active");
       setDataset("all");
       toast(`${r.createdIds.length} novos leads · ${r.search.duplicates} duplicados ignorados`);
@@ -180,8 +182,9 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
             )}
 
             {error && <Alert>{error}</Alert>}
+            {running && <div className="progress-line" role="progressbar" aria-label="Buscando leads" />}
             <div className="flex flex-wrap items-center gap-3">
-              <button className="btn-primary" disabled={running || !canRun || (provider === "google_places" && realBlocked)}>
+              <button className={`btn-primary ${running ? "btn-busy" : ""}`} disabled={running || !canRun || (provider === "google_places" && realBlocked)}>
                 {running ? <><Spinner /> Processando…</> : provider === "import" ? "Importar e analisar" : "Iniciar busca de leads"}
               </button>
               <p className="text-xs text-slate-500">{provider === "google_places" ? "Usa 1 pesquisa da cota mensal." : "Não consome a cota."} Nenhuma empresa é contatada.</p>
@@ -260,7 +263,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
         <ul className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {shown.map((l, i) => (
             <li key={l.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
-              <TiltCard as="article" className={`card flex h-full flex-col p-5 ${l.isDemo ? "ring-1 ring-amber-400/20" : ""}`}>
+              <TiltCard as="article" className={`card flex h-full flex-col p-5 ${l.isDemo ? "ring-1 ring-amber-400/20" : ""} ${fresh.has(l.id) ? "lead-new" : ""}`}>
                 <div className="lift flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate font-semibold text-white">{l.name}</h3>

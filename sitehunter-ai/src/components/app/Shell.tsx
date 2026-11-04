@@ -5,6 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { Toaster } from "@/components/ui";
 import { env } from "@/lib/env";
 import { getUsage } from "@/lib/usage";
+import { isPrivateMode } from "@/lib/owner";
 
 export async function Shell({ children, admin = false }: { children: React.ReactNode; admin?: boolean }) {
   const user = await getCurrentUser();
@@ -20,7 +21,7 @@ export async function Shell({ children, admin = false }: { children: React.React
 
   return (
     <div className="min-h-screen">
-      <Sidebar name={user.name} email={user.email} isAdmin={user.role === "ADMIN"} />
+      <Sidebar name={user.name} email={user.email} isAdmin={user.role === "ADMIN"} privateMode={isPrivateMode()} />
       <div className="lg:pl-64">
         <div className="space-y-2 px-4 pt-4 sm:px-8">
           {!a.premium && (

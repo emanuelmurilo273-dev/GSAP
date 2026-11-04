@@ -46,10 +46,10 @@ export function Toaster() {
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, [string, string]> = {
-    PUBLISHED: ["No ar", "bg-emerald-500/15 text-emerald-300"],
-    UNPUBLISHED: ["Despublicado", "bg-slate-500/15 text-slate-300"],
+    PUBLISHED: ["Site público", "bg-emerald-500/15 text-emerald-300"],
+    UNPUBLISHED: ["Prévia privada · acesso retirado", "bg-slate-500/15 text-slate-300"],
     SUSPENDED: ["Suspenso", "bg-amber-500/15 text-amber-300"],
-    DRAFT: ["Rascunho", "bg-brand-500/15 text-brand-300"],
+    DRAFT: ["Prévia privada", "bg-brand-500/15 text-brand-300"],
   };
   const [label, cls] = map[status] ?? [status, "bg-slate-500/15 text-slate-300"];
   return <span className={`badge ${cls}`}>{label}</span>;

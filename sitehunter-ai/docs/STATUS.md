@@ -5,6 +5,10 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 ## Contas e segurança
 | Item | Status |
 |---|---|
+| Modo privado (padrão): sem cadastro público, só a conta proprietária autentica (verificado no servidor e no middleware) | ✅ testado |
+| Conta proprietária via `npm run owner:create` (senha ≥ 12, encerra sessões) | ✅ |
+| Prévias privadas por padrão; link público por site com confirmação; retirar acesso | ✅ testado |
+| Sites públicos em origem isolada (CSP sandbox) e `noindex` | ✅ testado |
 | Cadastro, login, logout, sessões (cookie HttpOnly, hash do token) | ✅ |
 | Recuperação de senha (token de uso único, 1 h; encerra sessões) | ✅ (envio real 🔑 SMTP) |
 | Verificação de e-mail (opcionalmente obrigatória) | ✅ (envio real 🔑 SMTP) |
@@ -47,6 +51,8 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 ## Sites
 | Item | Status |
 |---|---|
+| 5 direções visuais por setor (estrutura, tipografia, paleta, composição, CTA), escolha no editor | ✅ revisado em desktop e celular |
+| Contraste automático de botões e textos de destaque; aviso no editor | ✅ testado |
 | “Criar site com IA” com 6 modelos (restaurante, barbearia/salão, clínica, oficina, loja, serviços) e 13 segmentos | ✅ (IA real 🔑 `ANTHROPIC_API_KEY`; sem chave usa textos-modelo sinalizados) |
 | Proibição de depoimentos, avaliações, preços e horários inventados (prompt + modelo deixa preços e horários em branco) | ✅ |
 | Imagens de banco autorizado com crédito | 🔑 `UNSPLASH_ACCESS_KEY` (ou URL própria) |

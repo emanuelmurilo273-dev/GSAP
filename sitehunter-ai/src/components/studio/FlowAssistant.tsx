@@ -22,7 +22,7 @@ export function FlowAssistant({ segmentLabel, niche, palette, onInsert, onClose 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="flow-title" className="card relative max-h-[92vh] w-full max-w-2xl overflow-y-auto p-6 animate-fade-up">
+      <div role="dialog" aria-modal="true" aria-labelledby="flow-title" className="card relative max-h-[92vh] w-full max-w-2xl overflow-y-auto p-6 dialog-in">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 id="flow-title" className="text-lg font-semibold text-white">Assistente Google Flow</h2>

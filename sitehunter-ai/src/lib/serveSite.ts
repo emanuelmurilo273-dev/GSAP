@@ -41,6 +41,8 @@ export async function serveSite(lookup: { slug?: string; domain?: string }, meth
       "Cache-Control": "public, max-age=0, must-revalidate",
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "strict-origin-when-cross-origin",
+      // Sites de demonstração para prospecção não devem aparecer em buscadores.
+      "X-Robots-Tag": "noindex, nofollow",
     },
   });
 }

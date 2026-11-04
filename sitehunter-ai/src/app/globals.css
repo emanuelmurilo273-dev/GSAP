@@ -55,6 +55,27 @@ body { background: var(--color-ink-950); color: #e2e8f0; -webkit-font-smoothing:
 /* ---------- Estúdio: tokens de ritmo ---------- */
 :root { --studio-ease: cubic-bezier(.2,.7,.1,1); --studio-dur: 900ms; --studio-float: 7s; }
 
+/* ---------- Movimento do painel ---------- */
+.route-enter { animation: route-in .42s var(--studio-ease) both; }
+@keyframes route-in { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+.skeleton { position: relative; overflow: hidden; border-radius: .75rem; background: rgba(255,255,255,.045); }
+.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(148,163,184,.10), transparent); animation: shimmer 1.6s ease-in-out infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+.progress-line { position: relative; height: 3px; border-radius: 99px; overflow: hidden; background: rgba(255,255,255,.06); }
+.progress-line::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit; background: linear-gradient(90deg, var(--color-brand-500), var(--color-signal)); animation: progress-slide 1.3s var(--studio-ease) infinite; }
+@keyframes progress-slide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+.btn-busy { position: relative; }
+.btn-busy::after { content: ""; position: absolute; inset: -3px; border-radius: inherit; box-shadow: 0 0 0 2px rgba(196,240,74,.55); animation: busy-ring 1.2s ease-out infinite; }
+@keyframes busy-ring { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(1.08); } }
+.lead-new { animation: lead-new 2.4s var(--studio-ease) both; }
+@keyframes lead-new { 0% { box-shadow: 0 0 0 0 rgba(196,240,74,.0); } 20% { box-shadow: 0 0 0 2px rgba(196,240,74,.7), 0 20px 50px -20px rgba(196,240,74,.45); } 100% { box-shadow: 0 0 0 0 rgba(196,240,74,0); } }
+.pipe-step.is-done .pipe-dot { animation: pop .4s var(--studio-ease); }
+@keyframes pop { 50% { transform: scale(1.5); } }
+.vis-pulse { animation: vis-pulse 2.4s ease-in-out infinite; }
+@keyframes vis-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,.35); } 50% { box-shadow: 0 0 0 8px rgba(52,211,153,0); } }
+.dialog-in { animation: dialog-in .32s var(--studio-ease) both; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.97); } }
+
 /* ---------- Cena 3D (CSS) ---------- */
 .scene3d { position: relative; height: 420px; perspective: 1400px; perspective-origin: 50% 40%; user-select: none; }
 .scene3d.is-compact { height: 260px; }
@@ -101,8 +122,10 @@ body { background: var(--color-ink-950); color: #e2e8f0; -webkit-font-smoothing:
 /* ---------- Moldura da prévia ---------- */
 .pframe-wrap { perspective: 1800px; }
 .pframe { margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,.1); background: #0e1626; box-shadow: 0 30px 80px -40px rgba(0,0,0,.9); transition: transform 1s var(--studio-ease), box-shadow 1s; }
-.pframe-wrap.is-3d .pframe { transform: rotateX(8deg) rotateY(-12deg) rotateZ(.5deg); box-shadow: 40px 50px 90px -40px rgba(37,99,235,.45); }
-.pframe-wrap.is-3d .pframe:hover, .pframe-wrap.is-3d .pframe:focus-within { transform: none; }
+.pframe-wrap { --px: 0; --py: 0; }
+.pframe-wrap.is-3d .pframe { transform: rotateX(calc(7deg - var(--py) * 5deg)) rotateY(calc(-11deg + var(--px) * 9deg)) rotateZ(.4deg); box-shadow: calc(40px - var(--px) * 30px) 50px 90px -40px rgba(37,99,235,.45); }
+.pframe-wrap.is-3d.is-live .pframe { transition: transform .25s ease-out, box-shadow .25s ease-out, width .5s var(--studio-ease); }
+.pframe-wrap.is-3d .pframe:focus-within { transform: none; }
 .pframe-chrome { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: #162136; font-size: 12px; color: #94a3b8; }
 .pframe-chrome .dots { display: flex; gap: 5px; } .pframe-chrome .dots b { width: 9px; height: 9px; border-radius: 50%; background: #334155; }
 .pframe-url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: rgba(255,255,255,.04); padding: 4px 10px; border-radius: 8px; }
@@ -123,5 +146,6 @@ body { background: var(--color-ink-950); color: #e2e8f0; -webkit-font-smoothing:
 
 @media (prefers-reduced-motion: reduce) {
   .tilt { transform: none !important; }
+  .route-enter { animation: none !important; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

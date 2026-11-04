@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicPath } from "./lib/publicPaths";
 
 // Roteamento por domínio:
 //  - domínio do painel (APP_URL)        → aplicação normal
@@ -16,7 +17,7 @@ export function middleware(req: NextRequest) {
   if (isApp) {
     // O destino interno não é acessível diretamente pelo domínio do painel.
     if (req.nextUrl.pathname.startsWith("/site-render")) return new NextResponse("Not found", { status: 404 });
-    return NextResponse.next();
+    return privateGate(req);
   }
   // Sites publicados: a página única é servida em "/"; os demais caminhos não existem.
   if (req.nextUrl.pathname !== "/") return new NextResponse("Not found", { status: 404 });
@@ -28,6 +29,22 @@ export function middleware(req: NextRequest) {
     url.pathname = `/site-render/d/${encodeURIComponent(hostNoPort)}`;
   }
   return NextResponse.rewrite(url);
+}
+
+// ---------- Modo privado ----------
+// Camada extra (barata) antes do servidor: sem cookie de sessão, nada além das
+// rotas públicas chega a ser renderizado. A verificação definitiva continua no
+// servidor (getCurrentUser → mayAuthenticate) em cada página e API.
+const SESSION_COOKIE = "sh_session";
+function privateGate(req: NextRequest) {
+  if (process.env.ACCESS_MODE?.trim() === "saas") return NextResponse.next();
+  const path = req.nextUrl.pathname;
+  if (isPublicPath(path) || req.cookies.has(SESSION_COOKIE)) return NextResponse.next();
+  if (path.startsWith("/api/")) return NextResponse.json({ error: "Faça login para continuar.", code: "unauthenticated" }, { status: 401 });
+  const url = req.nextUrl.clone();
+  url.pathname = "/login";
+  url.search = "";
+  return NextResponse.redirect(url);
 }
 
 export const config = {

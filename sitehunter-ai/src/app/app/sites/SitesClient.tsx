@@ -57,9 +57,9 @@ export function SitesClient({ projects: initial, premium }: { projects: P[]; pre
         <label className="block sm:w-48"><span className="label">Status</span>
           <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">Todos</option>
-            <option value="PUBLISHED">No ar</option>
-            <option value="DRAFT">Rascunho</option>
-            <option value="UNPUBLISHED">Despublicado</option>
+            <option value="PUBLISHED">Site público</option>
+            <option value="DRAFT">Prévia privada</option>
+            <option value="UNPUBLISHED">Acesso retirado</option>
             <option value="SUSPENDED">Suspenso</option>
           </select>
         </label>

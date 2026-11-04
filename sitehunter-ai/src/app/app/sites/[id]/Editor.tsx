@@ -2,11 +2,13 @@
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FlowAssistant } from "@/components/studio/FlowAssistant";
+import { useTiltVars } from "@/components/studio/useTiltVars";
 import { api } from "@/components/api";
 import { Alert, Spinner, StatusBadge, toast } from "@/components/ui";
 import { renderSite } from "@/lib/site/render";
 import { FONTS, IMAGE_ORIGINS, type ImageOrigin, type Section, type SiteButton, type SiteContent, type SiteImage } from "@/lib/site/types";
-import { emptySection } from "@/lib/site/templates";
+import { emptySection, themeForStyle } from "@/lib/site/templates";
+import { SITE_STYLES, STYLE_INFO, contrast, type SiteStyle } from "@/lib/site/styles";
 
 type Pub = { status: string; slug: string; url: string; pathUrl: string; customDomain: string | null; customDomainVerified: boolean; lastDeployAt: string | null } | null;
 
@@ -346,6 +348,7 @@ export function Editor(props: {
   const [flowCb, setFlowCb] = useState<((i: SiteImage) => void) | null>(null);
   const [view3d, setView3d] = useState(false);
   const unpublished = pub?.status !== "PUBLISHED";
+  const tiltRef = useTiltVars<HTMLDivElement>(view3d);
   const ribbon = unpublished ? `Prévia não publicada · demonstração${props.isDemo ? " com dados fictícios" : ""}` : null;
   const html = useMemo(() => renderSite(content, { footerCredit: true, previewRibbon: ribbon, lang: props.lang }), [content, ribbon, props.lang]);
   const assets = useMemo<Assets>(() => ({ openFlow: (cb) => setFlowCb(() => cb), companyImages: props.companyImages ?? [] }), [props.companyImages]);
@@ -389,9 +392,9 @@ export function Editor(props: {
     setBusy(true);
     setError(null);
     try {
-      const r = await api<{ publication: NonNullable<Pub> & { customDomainVerifiedAt?: string } }>(`/api/projects/${props.projectId}/publish`, { body: { slug } });
+      const r = await api<{ publication: NonNullable<Pub> & { customDomainVerifiedAt?: string } }>(`/api/projects/${props.projectId}/publish`, { body: { slug, confirmPublic: true } });
       setPub({ ...r.publication, customDomainVerified: !!r.publication.customDomainVerifiedAt });
-      toast(pub?.status === "PUBLISHED" ? "Site atualizado na internet" : "Site publicado!");
+      toast(pub?.status === "PUBLISHED" ? "Link público atualizado com as alterações" : "Link público liberado");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -399,12 +402,11 @@ export function Editor(props: {
     }
   }
   async function unpublish() {
-    if (!confirm("Retirar o site do ar? O endereço ficará indisponível até você publicar novamente.")) return;
     setBusy(true);
     try {
       await api(`/api/projects/${props.projectId}/publish`, { method: "DELETE" });
       setPub((p) => (p ? { ...p, status: "UNPUBLISHED" } : p));
-      toast("Site despublicado");
+      toast("Acesso retirado: o link público não funciona mais");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -441,11 +443,9 @@ export function Editor(props: {
         </div>
         <button className="btn-secondary py-2" onClick={previewTab}>Visualizar</button>
         <button className="btn-secondary py-2" onClick={save} disabled={!dirty || saving || !props.premium}>{saving && <Spinner />}Salvar</button>
-        {pub?.status === "PUBLISHED" ? (
-          <button className="btn-primary py-2" onClick={() => publish()} disabled={busy || !props.premium}>{busy && <Spinner />}Atualizar site</button>
-        ) : (
-          <button className="btn-primary py-2" onClick={() => publish()} disabled={busy || !props.premium}>{busy && <Spinner />}Publicar site</button>
-        )}
+        <button className={`btn py-2 ${pub?.status === "PUBLISHED" ? "border border-emerald-400/40 bg-emerald-500/10 text-emerald-200" : "border border-white/10 bg-white/[0.04] text-slate-200"}`} onClick={() => setTab("publish")} title="Visibilidade da prévia">
+          {pub?.status === "PUBLISHED" ? "● Site público" : "🔒 Prévia privada"}
+        </button>
       </div>
 
       <div className="grid lg:grid-cols-[400px_1fr]">
@@ -499,6 +499,23 @@ export function Editor(props: {
 
             {tab === "design" && (
               <div className="space-y-2">
+                <div className="space-y-2">
+                  <span className="label">Direção visual</span>
+                  <div className="grid gap-2">
+                    {SITE_STYLES.map((st) => {
+                      const on = (content.theme.style ?? "studio") === st;
+                      return (
+                        <button key={st} type="button" aria-pressed={on} onClick={() => setContent({ ...content, theme: themeForStyle(st as SiteStyle, content.theme.primary, content.theme.accent) })}
+                          className={`rounded-xl border p-3 text-left transition duration-300 ${on ? "border-brand-500/60 bg-brand-500/10" : "border-white/10 hover:border-white/25"}`}>
+                          <span className="flex items-center justify-between text-sm font-semibold text-white">{STYLE_INFO[st].label}{STYLE_INFO[st].uses3d && <span className="badge bg-white/5 text-[10px] text-slate-400">3D discreto</span>}</span>
+                          <span className="mt-1 block text-xs text-slate-400">{STYLE_INFO[st].description}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-slate-500">Trocar a direção redefine fundo, tipografia e cantos; as cores da marca e os textos são mantidos.</p>
+                </div>
+                <ContrastNote theme={content.theme} />
                 <Color label="Cor principal" value={content.theme.primary} onChange={(primary) => setContent({ ...content, theme: { ...content.theme, primary } })} />
                 <Color label="Cor dos botões" value={content.theme.accent} onChange={(accent) => setContent({ ...content, theme: { ...content.theme, accent } })} />
                 <Color label="Fundo" value={content.theme.background} onChange={(background) => setContent({ ...content, theme: { ...content.theme, background } })} />
@@ -540,7 +557,7 @@ export function Editor(props: {
 
         {/* Pré-visualização */}
         <div className="grid-bg flex justify-center bg-ink-900/50 p-4 sm:p-6 lg:h-[calc(100vh-65px)]">
-          <div className={`pframe-wrap flex h-[70vh] w-full justify-center lg:h-full ${view3d ? "is-3d" : ""}`}>
+          <div ref={tiltRef} className={`pframe-wrap flex h-[70vh] w-full justify-center lg:h-full ${view3d ? "is-3d" : ""}`}>
             <div className={`pframe flex h-full flex-col transition-all duration-500 ${device === "mobile" ? "w-[390px] max-w-full" : "w-full"}`}>
               <div className="pframe-chrome">
                 <span className="dots"><b /><b /><b /></span>
@@ -597,31 +614,7 @@ function PublishPanel({ projectId, pub, setPub, publish, unpublish, busy, premiu
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
-        <span className="label">Endereço público</span>
-        <div className="flex items-center gap-1 text-sm">
-          <input className="input" value={slug} maxLength={48} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
-          <span className="shrink-0 text-slate-500">.{rootDomain}</span>
-        </div>
-        {pub && (
-          <div className="mt-3 space-y-1 text-sm">
-            <p className="flex items-center gap-2">Status: <StatusBadge status={pub.status} /></p>
-            {pub.status === "PUBLISHED" && (
-              <>
-                <a href={pub.url} target="_blank" rel="noopener noreferrer" className="block truncate text-brand-300 hover:underline">{pub.url}</a>
-                <button className="text-xs text-slate-400 hover:text-white" onClick={() => { navigator.clipboard.writeText(pub.url); toast("Endereço copiado"); }}>Copiar endereço</button>
-                <p className="text-xs text-slate-500">Endereço alternativo: <a className="underline" href={pub.pathUrl} target="_blank" rel="noopener noreferrer">{pub.pathUrl}</a></p>
-              </>
-            )}
-            {pub.status === "SUSPENDED" && <p className="text-xs text-amber-300">Suspenso porque a assinatura não está ativa. Volta ao ar automaticamente após a renovação.</p>}
-          </div>
-        )}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button className="btn-primary py-2 text-xs" disabled={busy || !premium} onClick={() => publish(slug)}>{pub?.status === "PUBLISHED" ? "Atualizar site" : "Publicar site"}</button>
-          {pub?.status === "PUBLISHED" && <button className="btn-secondary py-2 text-xs" disabled={busy} onClick={unpublish}>Despublicar</button>}
-        </div>
-        <p className="mt-3 text-xs text-slate-500">“Salvar” guarda o rascunho. O site na internet só muda quando você clica em “Publicar/Atualizar site”.</p>
-      </div>
+      <VisibilityCard pub={pub} slug={slug} setSlug={setSlug} rootDomain={rootDomain} busy={busy} premium={premium} publish={publish} unpublish={unpublish} />
 
       <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
         <span className="label">Domínio próprio (opcional)</span>
@@ -648,6 +641,94 @@ function PublishPanel({ projectId, pub, setPub, publish, unpublish, busy, premiu
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Avisos automáticos de contraste (o renderizador já corrige o texto dos botões, mas avisa o resto). */
+function ContrastNote({ theme }: { theme: SiteContent["theme"] }) {
+  const issues = [
+    contrast(theme.text, theme.background) < 4.5 && "Texto e fundo têm pouco contraste.",
+    contrast(theme.text, theme.surface) < 4.5 && "Texto e fundo alternativo têm pouco contraste.",
+    contrast(theme.accent, theme.background) < 1.4 && "Os botões quase se confundem com o fundo.",
+  ].filter(Boolean) as string[];
+  if (!issues.length) return <p className="text-xs text-emerald-300/80">✓ Contraste verificado: textos legíveis no fundo escolhido.</p>;
+  return <Alert kind="warn">{issues.join(" ")}</Alert>;
+}
+
+/** Visibilidade: prévia privada (padrão) × site público por link. Publicar ou retirar exige confirmação. */
+function VisibilityCard({ pub, slug, setSlug, rootDomain, busy, premium, publish, unpublish }: {
+  pub: Pub; slug: string; setSlug: (s: string) => void; rootDomain: string; busy: boolean; premium: boolean; publish: (slug?: string) => Promise<void>; unpublish: () => Promise<void>;
+}) {
+  const [step, setStep] = useState<null | "publish" | "unpublish">(null);
+  const isPublic = pub?.status === "PUBLISHED";
+  const suspended = pub?.status === "SUSPENDED";
+  const preview = `${slug || "seu-site"}.${rootDomain}`;
+  return (
+    <div className={`relative overflow-hidden rounded-xl border p-4 transition-colors duration-500 ${isPublic ? "border-emerald-400/30 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.02]"}`}>
+      <div className="flex items-start gap-3">
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-lg ${isPublic ? "bg-emerald-500/15 text-emerald-300 vis-pulse" : "bg-white/5 text-slate-300"}`} aria-hidden>{isPublic ? "◉" : "🔒"}</span>
+        <div className="min-w-0">
+          <p className="font-semibold text-white">{isPublic ? "Site público" : suspended ? "Suspenso" : "Prévia privada"}</p>
+          <p className="text-xs text-slate-400">
+            {isPublic ? "Qualquer pessoa com o link vê somente esta página. Painel, leads, outras prévias e configurações continuam privados." : suspended ? "Fora do ar porque o acesso da conta não está ativo." : "Só você vê esta prévia, dentro do painel. Nada está na internet."}
+          </p>
+        </div>
+      </div>
+
+      {isPublic && pub && (
+        <div className="mt-4 space-y-2 animate-fade-up">
+          <a href={pub.url} target="_blank" rel="noopener noreferrer" className="block truncate rounded-lg bg-black/30 px-3 py-2 text-sm text-emerald-200 hover:underline">{pub.url}</a>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-secondary px-3 py-1.5 text-xs" onClick={async () => { try { await navigator.clipboard.writeText(pub.url); toast("Link copiado"); } catch { toast(pub.url); } }}>Copiar link</button>
+            <button className="btn-secondary px-3 py-1.5 text-xs" disabled={busy || !premium} onClick={() => publish(slug)}>{busy ? <Spinner /> : null}Atualizar com as alterações</button>
+          </div>
+          <p className="text-xs text-slate-500">Alternativo: <a className="underline" href={pub.pathUrl} target="_blank" rel="noopener noreferrer">{pub.pathUrl}</a>{pub.lastDeployAt ? ` · atualizado em ${new Date(pub.lastDeployAt).toLocaleString("pt-BR")}` : ""}</p>
+        </div>
+      )}
+
+      {!isPublic && (
+        <label className="mt-4 block">
+          <span className="label">Endereço do link (quando liberar)</span>
+          <div className="flex items-center gap-1 text-sm">
+            <input className="input" value={slug} maxLength={48} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} aria-label="Endereço do link" />
+            <span className="shrink-0 text-slate-500">.{rootDomain}</span>
+          </div>
+        </label>
+      )}
+
+      {step === "publish" ? (
+        <div className="mt-4 space-y-3 rounded-xl border border-amber-400/30 bg-amber-500/[0.07] p-3 text-sm animate-fade-up" role="alertdialog" aria-label="Confirmar link público">
+          <p className="font-semibold text-amber-100">Liberar link público?</p>
+          <ul className="list-disc space-y-1 pl-5 text-xs text-amber-100/90">
+            <li>Fica público: <b>somente esta página</b>, em {preview}.</li>
+            <li>Continuam privados: painel, leads, rascunhos, outras prévias e configurações.</li>
+            <li>A página pede aos buscadores que não a indexem. Você pode retirar o acesso a qualquer momento.</li>
+          </ul>
+          <div className="flex gap-2">
+            <button className="btn-primary px-3 py-2 text-xs" disabled={busy || !premium} onClick={async () => { await publish(slug); setStep(null); }}>{busy ? <Spinner /> : null}Confirmar e liberar</button>
+            <button className="btn-ghost px-3 py-2 text-xs" onClick={() => setStep(null)}>Cancelar</button>
+          </div>
+        </div>
+      ) : step === "unpublish" ? (
+        <div className="mt-4 space-y-3 rounded-xl border border-red-400/30 bg-red-500/[0.07] p-3 text-sm animate-fade-up" role="alertdialog" aria-label="Confirmar retirada do acesso">
+          <p className="font-semibold text-red-100">Retirar o acesso público?</p>
+          <p className="text-xs text-red-100/80">O link para de funcionar imediatamente. A prévia continua salva e privada no painel.</p>
+          <div className="flex gap-2">
+            <button className="btn-danger px-3 py-2 text-xs" disabled={busy} onClick={async () => { await unpublish(); setStep(null); }}>{busy ? <Spinner /> : null}Retirar acesso</button>
+            <button className="btn-ghost px-3 py-2 text-xs" onClick={() => setStep(null)}>Cancelar</button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4">
+          {isPublic ? (
+            <button className="btn-danger w-full py-2 text-xs" disabled={busy} onClick={() => setStep("unpublish")}>Retirar acesso público</button>
+          ) : (
+            <button className="btn-primary w-full py-2 text-xs" disabled={busy || !premium} onClick={() => setStep("publish")}>Liberar link público…</button>
+          )}
+        </div>
+      )}
+      <p className="mt-3 text-xs text-slate-500">“Salvar” guarda o rascunho privado. O link público só muda quando você confirma a publicação ou a atualização.</p>
     </div>
   );
 }

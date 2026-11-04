@@ -4,9 +4,11 @@ import { json, parseJson, route } from "@/lib/http";
 import { ownProject } from "@/lib/projects";
 import { pathUrlFor, publicUrlFor, publishProject, unpublishProject } from "@/lib/publish";
 import { rateLimit } from "@/lib/rateLimit";
+import { HttpError } from "@/lib/http";
 
 type Ctx = { params: Promise<{ id: string }> };
-const Body = z.object({ slug: z.string().trim().max(48).optional() });
+// confirmPublic: a liberação do link público é sempre um pedido explícito do proprietário.
+const Body = z.object({ slug: z.string().trim().max(48).optional(), confirmPublic: z.boolean().optional() });
 
 /** Publicar / Atualizar site. */
 export const POST = route<Ctx>(async (req, { params }) => {
@@ -15,6 +17,7 @@ export const POST = route<Ctx>(async (req, { params }) => {
   const { id } = await params;
   const project = await ownProject(user.id, id);
   const b = await parseJson(req, Body);
+  if (b.confirmPublic !== true) throw new HttpError(400, "Confirme a liberação do link público.", "confirmation_required");
   const pub = await publishProject(project, user.id, b.slug);
   return json({ publication: { ...pub, html: undefined, url: publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt), pathUrl: pathUrlFor(pub.slug) } });
 });

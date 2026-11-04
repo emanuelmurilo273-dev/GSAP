@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SITE_STYLES } from "./styles";
 
 export const FONTS = [
   "Inter",
@@ -15,6 +16,10 @@ export const FONTS = [
   "Playfair Display",
   "Lora",
   "Merriweather",
+  "DM Serif Display",
+  "Fraunces",
+  "Manrope",
+  "Archivo",
 ] as const;
 
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/, "cor em formato #RRGGBB");
@@ -57,6 +62,8 @@ export const ThemeSchema = z.object({
   headingFont: z.enum(FONTS),
   bodyFont: z.enum(FONTS),
   radius: z.enum(["none", "md", "lg"]),
+  /** Direção visual (estrutura e composição). Ausente em sites antigos → derivada do segmento. */
+  style: z.enum(SITE_STYLES).optional(),
 });
 
 const base = { id: z.string().min(1).max(40), visible: z.boolean().default(true) };

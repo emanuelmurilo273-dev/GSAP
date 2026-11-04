@@ -6,6 +6,7 @@ import { randomToken, sha256 } from "./crypto";
 import { HttpError } from "./http";
 import { computeAccess, type Access } from "./access";
 import { getSettings } from "./settings";
+import { mayAuthenticate } from "./owner";
 
 export const SESSION_COOKIE = "sh_session";
 const SESSION_DAYS = 30;
@@ -51,6 +52,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     include: { user: { include: { subscription: true } } },
   });
   if (!session || session.expiresAt < new Date()) return null;
+  // Modo privado: qualquer conta que não seja a proprietária não tem acesso, mesmo com sessão válida.
+  if (!mayAuthenticate(session.user)) return null;
   const settings = await getSettings();
   const access = computeAccess(session.user, session.user.subscription, settings);
   return { ...session.user, access };

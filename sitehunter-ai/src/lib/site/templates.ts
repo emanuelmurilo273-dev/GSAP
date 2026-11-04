@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
+import { STYLE_INFO, styleForSegment, type SiteStyle } from "./styles";
 
 export type TemplateKey = "restaurant" | "barber" | "clinic" | "mechanic" | "store" | "services";
 
@@ -84,14 +85,24 @@ const isHex = (c: string) => /^#[0-9a-fA-F]{6}$/.test(c);
 let idCounter = 0;
 export const sid = (type: string) => `${type}-${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
-export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: SiteCopy, images: SiteImage[] = []): SiteContent {
-  const theme: Theme = {
-    ...segment.theme,
-    primary: isHex(copy.colors.primary) ? copy.colors.primary : segment.theme.primary,
-    accent: isHex(copy.colors.accent) ? copy.colors.accent : segment.theme.accent,
-    headingFont: copy.headingFont,
-    bodyFont: copy.bodyFont,
+/** Tema completo de uma direção visual (base de cores, tipografia e cantos), mantendo as cores da marca. */
+export function themeForStyle(style: SiteStyle, primary: string, accent: string): Theme {
+  const info = STYLE_INFO[style];
+  return {
+    primary, accent,
+    background: info.background, surface: info.surface, text: info.text, muted: info.muted,
+    headingFont: info.heading as Theme["headingFont"], bodyFont: info.body as Theme["bodyFont"],
+    radius: info.radius, style,
   };
+}
+
+export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: SiteCopy, images: SiteImage[] = [], style?: SiteStyle): SiteContent {
+  // A direção visual (estrutura, tipografia, base de cores) vem do setor; a IA só sugere as cores da marca.
+  const theme = themeForStyle(
+    style ?? styleForSegment(segment.key),
+    isHex(copy.colors.primary) ? copy.colors.primary : segment.theme.primary,
+    isHex(copy.colors.accent) ? copy.colors.accent : segment.theme.accent,
+  );
   const hasPhone = !!company.phone;
   const mainAction = hasPhone ? ("whatsapp" as const) : ("section" as const);
   const [heroImg, aboutImg, ...galleryImgs] = images;
@@ -179,6 +190,51 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
   };
 }
 
+const SINGULAR: Record<string, string> = {
+  barbearia: "barbearia", salao: "salão de beleza", restaurante: "restaurante", odontologia: "clínica odontológica", clinica: "clínica",
+  academia: "academia", oficina: "oficina mecânica", roupas: "loja de roupas", imobiliaria: "imobiliária", servicos: "prestação de serviços",
+  petshop: "pet shop", padaria: "padaria", construcao: "construtora",
+};
+
+/** Serviços típicos por segmento (sugestões genéricas, sempre sinalizadas para confirmação). */
+const SEGMENT_SERVICES: Record<string, { title: string; description: string }[]> = {
+  salao: [
+    { title: "Corte e escova", description: "Corte e finalização de acordo com o seu estilo." },
+    { title: "Coloração", description: "Tons e técnicas combinados com a profissional." },
+    { title: "Unhas", description: "Manicure e pedicure." },
+  ],
+  odontologia: [
+    { title: "Avaliação", description: "Consulta para entender o que você precisa." },
+    { title: "Prevenção e limpeza", description: "Cuidados de rotina com a saúde bucal." },
+    { title: "Agendamento", description: "Combine o melhor horário pelos nossos canais." },
+  ],
+  academia: [
+    { title: "Musculação", description: "Treino com acompanhamento." },
+    { title: "Aulas", description: "Consulte as modalidades disponíveis." },
+    { title: "Avaliação", description: "Converse com a equipe para montar seu treino." },
+  ],
+  padaria: [
+    { title: "Pães", description: "Fornadas ao longo do dia." },
+    { title: "Confeitaria", description: "Bolos e doces." },
+    { title: "Encomendas", description: "Fale com a gente para encomendar." },
+  ],
+  petshop: [
+    { title: "Banho e tosa", description: "Cuidado com o seu pet." },
+    { title: "Produtos", description: "Alimentação e acessórios." },
+    { title: "Atendimento", description: "Tire suas dúvidas com a equipe." },
+  ],
+  imobiliaria: [
+    { title: "Compra e venda", description: "Apoio em cada etapa da negociação." },
+    { title: "Locação", description: "Imóveis para alugar." },
+    { title: "Avaliação", description: "Converse com a equipe sobre o seu imóvel." },
+  ],
+  construcao: [
+    { title: "Obras", description: "Execução com planejamento." },
+    { title: "Reformas", description: "Projetos residenciais e comerciais." },
+    { title: "Orçamento", description: "Solicite um orçamento sem compromisso." },
+  ],
+};
+
 /** Texto padrão usado quando a IA não está configurada. Usa apenas dados reais da empresa. */
 export function fallbackCopy(company: CompanyInfo, segment: Segment): SiteCopy {
   const where = [company.neighborhood, company.city].filter(Boolean).join(", ");
@@ -214,19 +270,20 @@ export function fallbackCopy(company: CompanyInfo, segment: Segment): SiteCopy {
       { title: "Acompanhamento", description: "Estamos disponíveis para tirar dúvidas." },
     ],
   };
-  const seg = segment.label.replace(/s$/, "").toLowerCase();
+  const seg = SINGULAR[segment.key] ?? segment.label.replace(/s$/, "").toLowerCase();
+  const services = SEGMENT_SERVICES[segment.key] ?? typical[segment.template];
   return {
     siteName: company.name,
     seoTitle: `${company.name}${where ? ` — ${where}` : ""}`.slice(0, 120),
     seoDescription: `${company.name}${company.category ? `, ${company.category.toLowerCase()}` : ""}${where ? ` em ${where}` : ""}. Entre em contato.`.slice(0, 300),
     heroTitle: company.name,
-    heroSubtitle: where ? `${segment.label.replace(/s$/, "")} em ${where}. Fale com a gente!` : "Fale com a gente!",
+    heroSubtitle: where ? `${seg[0]!.toUpperCase()}${seg.slice(1)} em ${where}. Fale com a gente!` : "Fale com a gente!",
     primaryCta: company.phone ? "Chamar no WhatsApp" : "Entrar em contato",
     aboutTitle: "Sobre nós",
     aboutText: `A ${company.name} atende${where ? ` em ${where}` : ""}. Entre em contato para saber mais sobre o nosso trabalho.`,
     servicesTitle: segment.template === "store" ? "Nossos produtos" : segment.template === "clinic" ? "Especialidades" : "Serviços",
     servicesIntro: `Conheça o que a ${company.name} oferece.`,
-    services: typical[segment.template],
+    services,
     menuCategories: segment.template === "restaurant" ? [{ name: "Destaques", items: [{ name: "Item do cardápio", description: "Descreva aqui um item confirmado com a empresa." }] }] : [],
     ctaTitle: `Procurando ${seg}${where ? ` em ${where}` : ""}?`,
     ctaText: "Fale com a gente e tire suas dúvidas.",

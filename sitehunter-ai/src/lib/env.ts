@@ -11,6 +11,13 @@ export const env = {
   get rootDomain() { return (opt("ROOT_DOMAIN") ?? "localhost:3000").toLowerCase(); },
   get isProd() { return process.env.NODE_ENV === "production"; },
   get cronSecret() { return opt("CRON_SECRET"); },
+  /**
+   * "private" (padrão): produto de uso exclusivo do proprietário. Sem cadastro
+   * público; só a conta proprietária (ADMIN, e OWNER_EMAIL quando definido)
+   * consegue autenticar. "saas": comportamento multiusuário com assinatura.
+   */
+  get accessMode(): "private" | "saas" { return opt("ACCESS_MODE") === "saas" ? "saas" : "private"; },
+  get ownerEmail() { return opt("OWNER_EMAIL")?.toLowerCase(); },
   get adminEmails() {
     return (opt("ADMIN_EMAILS") ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   },

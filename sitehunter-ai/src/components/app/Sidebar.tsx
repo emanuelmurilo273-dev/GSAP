@@ -48,7 +48,7 @@ function NavList({ items, onNavigate }: { items: Item[]; onNavigate?: () => void
   );
 }
 
-export function Sidebar({ name, email, isAdmin }: { name: string; email: string; isAdmin: boolean }) {
+export function Sidebar({ name, email, isAdmin, privateMode = false }: { name: string; email: string; isAdmin: boolean; privateMode?: boolean }) {
   const [open, setOpen] = useState(false);
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -58,7 +58,7 @@ export function Sidebar({ name, email, isAdmin }: { name: string; email: string;
     <div className="flex h-full flex-col">
       <div className="px-4 py-5"><Logo href="/app" /></div>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3">
-        <NavList items={MAIN} onNavigate={() => setOpen(false)} />
+        <NavList items={privateMode ? MAIN.filter((i) => i.href !== "/app/assinatura") : MAIN} onNavigate={() => setOpen(false)} />
         {isAdmin && (
           <div>
             <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600">Administração</p>
@@ -69,6 +69,7 @@ export function Sidebar({ name, email, isAdmin }: { name: string; email: string;
       <div className="m-3 rounded-xl border border-white/5 bg-white/[0.02] p-3">
         <p className="truncate text-sm font-medium text-white">{name}</p>
         <p className="truncate text-xs text-slate-500">{email}</p>
+        {privateMode && <p className="mt-1 text-[11px] text-emerald-300/80">Painel privado · conta proprietária</p>}
         <button onClick={logout} className="mt-2 text-xs text-slate-400 hover:text-red-300">Sair</button>
       </div>
     </div>
