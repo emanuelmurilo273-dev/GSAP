@@ -33,7 +33,7 @@ export const STYLE_INFO: Record<SiteStyle, StyleInfo> = {
   },
   forge: {
     label: "Oficina em alto contraste",
-    description: "Tipografia condensada, fundo escuro, faixa diagonal e cartões com profundidade 3D. Para barbearias, oficinas, academias e obras.",
+    description: "Tipografia condensada, fundo escuro, faixa diagonal e cartões com profundidade 3D. Para construtoras, serralherias e serviços pesados.",
     uses3d: true, heading: "Bebas Neue", body: "Archivo",
     background: "#0f0f10", surface: "#18181b", text: "#f4f4f5", muted: "#a1a1aa", radius: "none",
   },
