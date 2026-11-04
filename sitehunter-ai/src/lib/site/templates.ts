@@ -156,13 +156,15 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     items: copy.services.map((s) => ({ name: s.title, description: s.description })),
   };
 
+  // Números só entram quando o usuário confirma com a empresa; até lá a seção fica vazia (oculta no site).
+  const stats: Section = { id: "numeros", type: "stats", visible: true, title: "Em números", items: [] };
   const byTemplate: Record<TemplateKey, Section[]> = {
-    restaurant: [hero, about, menu, gallery, hours, cta, contact],
-    barber: [hero, services, about, gallery, hours, cta, contact],
+    restaurant: [hero, about, menu, stats, gallery, hours, cta, contact],
+    barber: [hero, services, stats, about, gallery, hours, cta, contact],
     clinic: [hero, { ...services, title: copy.servicesTitle || "Especialidades" }, about, hours, cta, contact],
-    mechanic: [hero, services, about, hours, quote, contact],
+    mechanic: [hero, services, stats, about, hours, quote, contact],
     store: [hero, products, about, gallery, hours, cta, contact],
-    services: [hero, services, about, gallery, quote, contact],
+    services: [hero, services, stats, about, gallery, quote, contact],
   };
 
   return {
@@ -311,5 +313,6 @@ export function emptySection(type: Section["type"]): Section {
     case "quote": return { id, type, visible: true, title: "Solicite um orçamento", text: "", buttonLabel: "Enviar pelo WhatsApp" };
     case "contact": return { id, type, visible: true, title: "Contato", text: "", showMap: true };
     case "text": return { id, type, visible: true, title: "Título", text: "" };
+    case "stats": return { id, type, visible: true, title: "Em números", items: [{ value: "", unit: "", label: "", source: "" }] };
   }
 }

@@ -67,6 +67,8 @@ describe("Direções visuais", () => {
     const base = buildSiteContent(company, seg, fallbackCopy(company, seg));
     const html = (st: (typeof SITE_STYLES)[number]) => renderSite({ ...base, theme: themeForStyle(st, base.theme.primary, base.theme.accent) });
     expect(html("forge")).toContain('class="band"');
+    expect(html("cinema")).toContain('class="cine-word"');
+    expect(html("cinema")).toContain("data-picker");
     expect(html("clinic")).toContain('class="facts"');
     expect(html("studio")).toContain('class="stack"');
     expect(html("atelier")).not.toContain('class="stack"');
@@ -79,6 +81,24 @@ describe("Direções visuais", () => {
       expect(contrast(i.text, i.background)).toBeGreaterThanOrEqual(7);
       expect(contrast(readableOn(i.muted, i.background), i.background)).toBeGreaterThanOrEqual(4.5);
     }
+  });
+  it("números só aparecem quando confirmados e contam até o valor", () => {
+    const seg = getSegment("barbearia");
+    const c = buildSiteContent(company, seg, fallbackCopy(company, seg));
+    expect(renderSite(c)).not.toContain('class="stat"'); // vazio por padrão: nada inventado
+    const st = c.sections.find((x) => x.type === "stats");
+    if (st?.type !== "stats") throw new Error("sem seção de números");
+    st.items = [{ value: "12", unit: "anos", label: "no mesmo endereço", source: "telefone" }, { value: "", unit: "", label: "sem valor", source: "" }];
+    const html = renderSite(c);
+    expect(html).toContain('data-count="12"');
+    expect(html).not.toContain("sem valor");
+    expect(html).not.toContain("telefone\u003c"); // a fonte da confirmação não vai para o site
+  });
+  it("movimento é aprimoramento progressivo e respeita movimento reduzido", () => {
+    const seg = getSegment("barbearia");
+    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg)));
+    expect(html).toContain("prefers-reduced-motion: reduce");
+    expect(html).not.toMatch(/class="[^"]*\brv\b/); // nada nasce oculto no HTML
   });
   it("galeria com imagens inválidas não aparece vazia", () => {
     const seg = getSegment("barbearia");

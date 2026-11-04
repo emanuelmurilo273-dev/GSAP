@@ -2,7 +2,7 @@
 // a composição das seções, a tipografia, a paleta de base e o desenho dos
 // botões, não só cor e logo. O segmento sugere uma direção; o usuário troca no editor.
 
-export const SITE_STYLES = ["atelier", "forge", "clinic", "hearth", "studio"] as const;
+export const SITE_STYLES = ["cinema", "atelier", "forge", "clinic", "hearth", "studio"] as const;
 export type SiteStyle = (typeof SITE_STYLES)[number];
 
 export type StyleInfo = {
@@ -19,6 +19,12 @@ export type StyleInfo = {
 };
 
 export const STYLE_INFO: Record<SiteStyle, StyleInfo> = {
+  cinema: {
+    label: "Palco cinematográfico",
+    description: "Palco preto, brilho na cor da marca, palavra gigante ao fundo, cenas que mudam ao rolar e textos que entram desfocados. Para marcas que querem impacto: barbearias, academias, oficinas.",
+    uses3d: true, heading: "Manrope", body: "Inter",
+    background: "#000000", surface: "#0a0a0d", text: "#f5f5f7", muted: "#a1a1aa", radius: "lg",
+  },
   atelier: {
     label: "Ateliê editorial",
     description: "Serifa elegante, muito respiro e imagem em moldura de arco. Sóbrio, sem 3D. Para beleza, moda e estética.",
@@ -52,7 +58,7 @@ export const STYLE_INFO: Record<SiteStyle, StyleInfo> = {
 };
 
 const BY_SEGMENT: Record<string, SiteStyle> = {
-  barbearia: "forge", oficina: "forge", academia: "forge", construcao: "forge",
+  barbearia: "cinema", academia: "cinema", oficina: "cinema", construcao: "forge",
   salao: "atelier", roupas: "atelier",
   odontologia: "clinic", clinica: "clinic",
   restaurante: "hearth", padaria: "hearth",

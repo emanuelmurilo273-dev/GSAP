@@ -86,6 +86,13 @@ export const SectionSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("quote"), title: text(120), text: text(500), buttonLabel: text(60) }),
   z.object({ ...base, type: z.literal("contact"), title: text(120), text: text(500), showMap: z.boolean() }),
   z.object({ ...base, type: z.literal("text"), title: text(120), text: text(3000) }),
+  // Destaques em números: só valores confirmados pela empresa. Vazio = seção oculta.
+  z.object({
+    ...base,
+    type: z.literal("stats"),
+    title: text(120),
+    items: z.array(z.object({ value: text(12), unit: text(12).default(""), label: text(120), source: text(160).default("") })).max(6),
+  }),
 ]);
 
 export const BusinessSchema = z.object({

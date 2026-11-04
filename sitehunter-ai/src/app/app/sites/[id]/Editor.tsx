@@ -24,6 +24,7 @@ const SECTION_LABELS: Record<Section["type"], string> = {
   quote: "Pedido de orçamento",
   contact: "Contato e localização",
   text: "Texto livre",
+  stats: "Destaques em números",
 };
 
 const ACTIONS: { v: SiteButton["action"]; l: string }[] = [
@@ -278,6 +279,28 @@ function SectionForm({ s, set, sections, onSearchImage }: { s: Section; set: (s:
         <div className="space-y-3">
           <T label="Título" value={s.title} onChange={(title) => set({ ...s, title })} />
           <TA label="Texto" value={s.text} rows={8} max={3000} onChange={(text) => set({ ...s, text })} />
+        </div>
+      );
+    case "stats":
+      return (
+        <div className="space-y-3">
+          <Alert kind="warn">Use somente números confirmados pela empresa (ex.: anos de atuação, cadeiras, metros quadrados). Sem valor, o destaque não aparece no site.</Alert>
+          <T label="Título" value={s.title} onChange={(title) => set({ ...s, title })} />
+          <ListEditor
+            items={s.items}
+            max={6}
+            addLabel="+ Adicionar número"
+            make={() => ({ value: "", unit: "", label: "", source: "" })}
+            onChange={(items) => set({ ...s, items })}
+            render={(it, setIt) => (
+              <div className="grid grid-cols-[1fr_80px] gap-2">
+                <input className="input" placeholder="Número (ex.: 12)" maxLength={12} value={it.value} onChange={(e) => setIt({ ...it, value: e.target.value })} aria-label="Número" />
+                <input className="input" placeholder="Unidade" maxLength={12} value={it.unit} onChange={(e) => setIt({ ...it, unit: e.target.value })} aria-label="Unidade" />
+                <input className="input col-span-2" placeholder="Frase curta (ex.: anos no mesmo endereço)" maxLength={120} value={it.label} onChange={(e) => setIt({ ...it, label: e.target.value })} aria-label="Descrição" />
+                <input className="input col-span-2 text-xs" placeholder="Fonte da confirmação (só para você; não aparece no site)" maxLength={160} value={it.source} onChange={(e) => setIt({ ...it, source: e.target.value })} aria-label="Fonte" />
+              </div>
+            )}
+          />
         </div>
       );
   }

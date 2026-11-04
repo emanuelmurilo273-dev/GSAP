@@ -65,17 +65,18 @@ Cada prévia nasce **privada**: existe só dentro do painel, com a faixa "Prévi
 
 ## Direções visuais dos sites
 
-Os sites gerados não usam um template único. `src/lib/site/styles.ts` define 5 direções; cada uma muda a estrutura da capa, a composição das seções, a tipografia, a base de cores, os botões e os ornamentos:
+Os sites gerados não usam um template único. `src/lib/site/styles.ts` define 6 direções; cada uma muda a estrutura da capa, a composição das seções, a tipografia, a base de cores, os botões e os ornamentos:
 
 | Direção | Para | Capa e composição | 3D |
 |---|---|---|---|
+| Palco cinematográfico | barbearias, academias, oficinas | palco preto, brilho na cor da marca sob o objeto central, palavra gigante ao fundo com parallax, textos que entram desfocados, seletor de serviços que troca o destaque e a cor do brilho, contato em formato de ficha técnica | objeto central inclina com o ponteiro |
 | Ateliê editorial | salões, moda, estética | serifa grande, imagem em moldura de arco, serviços como índice com linhas finas | não |
 | Oficina em alto contraste | barbearias, oficinas, academias, obras | capa escura cheia, tipografia condensada enorme, faixa diagonal com os serviços | cartões com profundidade |
 | Clínica serena | odontologia, clínicas | clara, cantos suaves, contatos confirmados em destaque logo abaixo da capa | não |
 | Casa artesanal | restaurantes, padarias | capa centralizada com formas orgânicas, cardápio com linhas pontilhadas | não |
 | Estúdio contemporâneo | serviços, imobiliárias, pet shops | grade em blocos, pilha de cartões em perspectiva na capa | pilha que segue o ponteiro |
 
-O setor sugere a direção, e o editor permite trocar (aba Design). Sem foto, cada direção usa uma composição gráfica própria em vez de deixar espaços vazios. O texto dos botões é escolhido pelo contraste com a cor, cores de destaque usadas como texto são escurecidas ou clareadas até ficarem legíveis, e o editor avisa quando o contraste fica baixo. O 3D e o movimento respeitam `prefers-reduced-motion` e são desligados em telas de toque.
+O setor sugere a direção, e o editor permite trocar (aba Design). Todas as direções têm entradas ao rolar (mais marcadas na cinematográfica, discretas nas sóbrias) e a seção opcional **Destaques em números**, com números que contam até o valor: ela fica oculta até você preencher valores confirmados pela empresa (o campo "fonte da confirmação" fica só no painel). Sem script, todo o conteúdo aparece normalmente. Sem foto, cada direção usa uma composição gráfica própria em vez de deixar espaços vazios. O texto dos botões é escolhido pelo contraste com a cor, cores de destaque usadas como texto são escurecidas ou clareadas até ficarem legíveis, e o editor avisa quando o contraste fica baixo. O 3D e o movimento respeitam `prefers-reduced-motion` e são desligados em telas de toque.
 
 ## Estúdio de leads
 
