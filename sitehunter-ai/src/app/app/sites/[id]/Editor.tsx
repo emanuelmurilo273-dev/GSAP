@@ -307,8 +307,9 @@ function SectionForm({ s, set, sections, onSearchImage }: { s: Section; set: (s:
 }
 
 // ---------- Busca de imagens ----------
-type Img = SiteImage & { thumb: string; downloadLocation: string };
+type Img = SiteImage & { thumb: string; downloadLocation?: string; license?: string; sourceUrl?: string };
 function ImagePicker({ onPick, onClose }: { onPick: (i: SiteImage) => void; onClose: () => void }) {
+  const [prov, setProv] = useState("banco com licença");
   const [q, setQ] = useState("");
   const [items, setItems] = useState<Img[]>([]);
   const [loading, setLoading] = useState(false);
@@ -318,8 +319,9 @@ function ImagePicker({ onPick, onClose }: { onPick: (i: SiteImage) => void; onCl
     setLoading(true);
     setMsg(null);
     try {
-      const r = await api<{ configured: boolean; images: Img[] }>(`/api/images/search?q=${encodeURIComponent(q)}`);
-      if (!r.configured) setMsg("Banco de imagens não configurado (UNSPLASH_ACCESS_KEY). Cole a URL de uma imagem autorizada.");
+      const r = await api<{ configured: boolean; provider?: string; images: Img[] }>(`/api/images/search?q=${encodeURIComponent(q)}`);
+      if (r.provider) setProv(r.provider);
+      if (!r.configured) setMsg("Busca de imagens desativada no servidor (IMAGE_SEARCH=off). Cole a URL de uma imagem autorizada.");
       setItems(r.images);
       if (r.configured && !r.images.length) setMsg("Nenhuma imagem encontrada.");
     } catch (err) {
@@ -332,19 +334,19 @@ function ImagePicker({ onPick, onClose }: { onPick: (i: SiteImage) => void; onCl
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="card relative flex max-h-[85vh] w-full max-w-3xl flex-col p-5">
-        <div className="flex items-center justify-between"><h3 className="font-semibold text-white">Banco de imagens (Unsplash)</h3><button className="btn-ghost px-2" onClick={onClose}>✕</button></div>
+        <div className="flex items-center justify-between"><h3 className="font-semibold text-white">Banco de imagens · {prov}</h3><button className="btn-ghost px-2" onClick={onClose}>✕</button></div>
         <form onSubmit={search} className="mt-3 flex gap-2"><input autoFocus className="input" placeholder="Ex.: barbearia, comida, dentista (em inglês costuma ter mais resultados)" value={q} onChange={(e) => setQ(e.target.value)} /><button className="btn-primary" disabled={loading || q.length < 2}>{loading ? <Spinner /> : "Buscar"}</button></form>
         {msg && <div className="mt-3"><Alert kind="info">{msg}</Alert></div>}
         <div className="mt-4 grid flex-1 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
           {items.map((i) => (
-            <button key={i.url} className="group relative overflow-hidden rounded-xl" onClick={() => { void api("/api/images/search", { body: { downloadLocation: i.downloadLocation } }).catch(() => undefined); onPick({ url: i.url, alt: i.alt, credit: i.credit, origin: "stock", license: "Licença Unsplash (uso gratuito, com crédito ao fotógrafo)", sourceUrl: i.credit?.link }); onClose(); }}>
+            <button key={i.url} className="group relative overflow-hidden rounded-xl" onClick={() => { void api("/api/images/search", { body: { downloadLocation: i.downloadLocation } }).catch(() => undefined); onPick({ url: i.url, alt: i.alt, credit: i.credit, origin: "stock", license: i.license ?? "Licença Unsplash", sourceUrl: i.sourceUrl ?? i.credit?.link }); onClose(); }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={i.thumb} alt={i.alt} className="aspect-[4/3] w-full object-cover transition group-hover:scale-105" />
-              <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-2 py-1 text-left text-[10px] text-white">{i.credit?.name}</span>
+              <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-2 py-1 text-left text-[10px] text-white">{i.credit?.name}{i.license ? ` · ${i.license}` : ""}</span>
             </button>
           ))}
         </div>
-        <p className="mt-3 text-xs text-slate-500">Fotos do Unsplash, com crédito ao fotógrafo exibido no site.</p>
+        <p className="mt-3 text-xs text-slate-500">Só imagens com licença que permite uso comercial e modificação. O crédito ao autor e a licença aparecem no site.</p>
       </div>
     </div>
   );

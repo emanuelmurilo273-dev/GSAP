@@ -6,6 +6,7 @@ import { detectOpportunities } from "./opportunities";
 import { checkPresence } from "./presence";
 import { getProvider, type ImportRow } from "./providers";
 import type { LeadCriteria, RawBusiness } from "./types";
+import { companyImageCandidates } from "./leadImages";
 
 // Pipeline: descobrir → normalizar/deduplicar → analisar presença → registrar
 // proveniência e oportunidades → salvar. Executa de forma síncrona e limitada
@@ -25,7 +26,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
   return out;
 }
 
-export type RunInput = { userId: string; criteria: LeadCriteria; providerId: "google_places" | "demo" | "import"; rows?: ImportRow[] };
+export type RunInput = { userId: string; criteria: LeadCriteria; providerId: "google_places" | "osm" | "demo" | "import"; rows?: ImportRow[] };
 
 export async function runLeadSearch({ userId, criteria, providerId, rows }: RunInput) {
   const provider = getProvider(providerId);
@@ -67,7 +68,8 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
     for (const { r, keys, presence } of enriched) {
       const { facts, socials, email } = buildFacts(r, presence);
       const opp = detectOpportunities(facts, presence);
-      const c = await createLead(userId, search.id, r, { keys, presence, facts, socials, email, opp, isDemo, language: criteria.language }).catch((e) => {
+      const images = companyImageCandidates(presence);
+      const c = await createLead(userId, search.id, r, { keys, presence, facts, socials, email, opp, isDemo, language: criteria.language, images }).catch((e) => {
         log("warn", "lead_create_failed", { error: String(e) });
         return null;
       });
@@ -89,7 +91,7 @@ async function createLead(
   userId: string,
   searchId: string,
   r: RawBusiness,
-  x: { keys: string[]; presence: object; facts: object; socials: object[]; email: string | null; opp: { list: object[]; score: number }; isDemo: boolean; language: string },
+  x: { keys: string[]; presence: object; facts: object; socials: object[]; email: string | null; opp: { list: object[]; score: number }; isDemo: boolean; language: string; images?: object[] },
 ) {
   return prisma.company.create({
     data: {
@@ -115,6 +117,8 @@ async function createLead(
       presence: x.presence as never,
       facts: x.facts as never,
       socials: x.socials as never,
+      hours: (r.hours ?? null) as never,
+      images: (x.images ?? []) as never,
       opportunities: x.opp.list as never,
       opportunityScore: x.opp.score,
       fetchedAt: new Date(),
@@ -130,7 +134,8 @@ export async function reanalyzeLead(userId: string, id: string) {
   const raw: RawBusiness = {
     sourceId: c.sourceId, name: c.name, category: c.category, address: c.address, neighborhood: c.neighborhood, city: c.city, state: c.state,
     phone: c.phone, email: c.email, website: c.website, mapsUrl: c.mapsUrl, lat: c.lat, lng: c.lng, businessStatus: null,
-    source: { provider: c.source, label: c.source === "google_places" ? "Google Places" : c.source === "demo" ? "Demonstração (fictício)" : "Fornecido pelo usuário", url: c.mapsUrl },
+    source: { provider: c.source, label: c.source === "google_places" ? "Google Maps" : c.source === "osm" ? "OpenStreetMap" : c.source === "demo" ? "Demonstração (fictício)" : "Fornecido pelo usuário", url: c.mapsUrl },
+    hours: (c.hours ?? null) as never,
   };
   const built = buildFacts(raw, presence);
   const prev = (c.facts ?? {}) as Record<string, { status?: string }>;
@@ -138,8 +143,11 @@ export async function reanalyzeLead(userId: string, id: string) {
   const facts = { ...built.facts } as Record<string, unknown>;
   for (const [k, v] of Object.entries(prev)) if (v?.status === "user") facts[k] = v;
   const opp = detectOpportunities(facts as never, presence);
+  // Mantém candidatas já revisadas e acrescenta novas imagens encontradas no site.
+  const prevImgs = ((c.images ?? []) as { url: string }[]);
+  const newImgs = companyImageCandidates(presence).filter((n) => !prevImgs.some((p) => p.url === n.url));
   return prisma.company.update({
     where: { id },
-    data: { presence: presence as never, facts: facts as never, socials: built.socials as never, email: c.email ?? built.email, opportunities: opp.list as never, opportunityScore: opp.score, fetchedAt: new Date() },
+    data: { images: [...prevImgs, ...newImgs] as never, presence: presence as never, facts: facts as never, socials: built.socials as never, email: c.email ?? built.email, opportunities: opp.list as never, opportunityScore: opp.score, fetchedAt: new Date() },
   });
 }

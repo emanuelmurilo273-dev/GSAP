@@ -39,7 +39,7 @@ export type Fact = {
   note?: string;
 };
 
-export const FACT_FIELDS = ["name", "category", "address", "phone", "email", "website", "socials"] as const;
+export const FACT_FIELDS = ["name", "category", "address", "phone", "email", "website", "socials", "hours"] as const;
 export type FactField = (typeof FACT_FIELDS)[number];
 export type Facts = Partial<Record<FactField, Fact>>;
 
@@ -51,6 +51,7 @@ export const FACT_LABELS: Record<FactField, string> = {
   email: "E-mail comercial",
   website: "Site",
   socials: "Perfis sociais",
+  hours: "Horário de funcionamento",
 };
 
 /** Um fato pode ser citado em textos (site/abordagem) somente se confirmado ou informado pelo usuário. */
@@ -60,6 +61,31 @@ export function isUsable(f: Fact | undefined | null): f is Fact & { value: strin
 
 // ---------- Resultado bruto de provedores ----------
 export type SourceRef = { provider: string; label: string; url?: string | null };
+
+export type HoursLine = { label: string; value: string };
+
+/**
+ * Imagem candidata para o site de um lead.
+ *  company → publicada pela própria empresa (site/perfil): exige confirmação de autorização
+ *  stock   → banco com licença compatível (Openverse/Unsplash), com crédito
+ *  generated → gerada por IA (Google Flow, fluxo assistido)
+ */
+export type ImageCandidate = {
+  id: string;
+  url: string;
+  thumb?: string | null;
+  alt: string;
+  origin: "company" | "stock" | "generated";
+  source: string; // ex.: "Site da empresa", "Openverse (Flickr)", "Unsplash"
+  sourceUrl?: string | null;
+  license?: string | null;
+  licenseUrl?: string | null;
+  credit?: { name: string; link: string } | null;
+  status: "candidate" | "approved" | "rejected";
+  requiresPermission: boolean;
+  approvedAt?: string | null;
+  note?: string | null;
+};
 
 export type RawBusiness = {
   sourceId: string;
@@ -77,6 +103,11 @@ export type RawBusiness = {
   lng: number | null;
   businessStatus: string | null;
   source: SourceRef;
+  /** Horários publicados pela fonte (já normalizados em linhas) e o texto original. */
+  hours?: HoursLine[] | null;
+  hoursRaw?: string | null;
+  /** Perfis sociais publicados pela própria fonte (ex.: tags contact:instagram do OSM). */
+  socialLinks?: string[] | null;
 };
 
 export type Social = { network: string; url: string; source: string };

@@ -19,22 +19,23 @@ export const GET = route(async () => {
 });
 
 const Body = CriteriaSchema.extend({
-  provider: z.enum(["google_places", "demo", "import"]).default("google_places"),
+  provider: z.enum(["google_places", "osm", "demo", "import"]).default("osm"),
   csv: z.string().max(500_000).optional(),
 });
 
 /** Inicia uma descoberta de leads. Não entra em contato com nenhuma empresa. */
 export const POST = route(async (req) => {
   const b = await parseJson(req, Body);
-  // Demonstração e importação não usam APIs pagas: basta estar logado.
-  const user = b.provider === "google_places" ? await requirePremium() : await requireUser();
+  // Busca real exige a conta com acesso (no modo privado, só o proprietário chega aqui).
+  const user = b.provider === "google_places" || b.provider === "osm" ? await requirePremium() : await requireUser();
   await rateLimit(`leadsearch:${user.id}`, 10, 60);
   const provider = getProvider(b.provider);
   if (!provider.configured()) throw new HttpError(503, `${provider.label} não está configurado. ${provider.setupHint}`, "not_configured");
   const rows = b.provider === "import" ? csvToRows(b.csv ?? "") : undefined;
   if (b.provider === "import" && !rows?.length) throw new HttpError(400, "CSV sem linhas válidas. A primeira linha precisa ter os cabeçalhos (ao menos “nome”).", "validation");
 
-  const paid = provider.kind === "real";
+  // Só o Google Places é cobrado por requisição; o OpenStreetMap é gratuito (com limite de uso).
+  const paid = provider.id === "google_places";
   if (paid) await consumeUsage(user.id, "searches");
   try {
     const criteria = { niche: b.niche, location: b.location, language: b.language, count: b.provider === "import" ? Math.min(rows!.length, 200) : b.count };

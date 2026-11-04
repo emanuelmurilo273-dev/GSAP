@@ -6,7 +6,7 @@ import type { LeadCriteria, RawBusiness } from "../types";
  * limites, e nunca contornar login, paywall ou CAPTCHA.
  */
 export interface BusinessSearchProvider {
-  id: "google_places" | "demo" | "import";
+  id: "google_places" | "osm" | "demo" | "import";
   label: string;
   /** "real" = dados de fonte pública; "demo" = FICTÍCIOS; "import" = fornecidos pelo usuário */
   kind: "real" | "demo" | "import";

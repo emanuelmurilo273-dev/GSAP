@@ -6,7 +6,9 @@ import { rateLimit } from "@/lib/rateLimit";
 import { consumeUsage, refundUsage } from "@/lib/usage";
 import { generateSiteCopy } from "@/lib/ai";
 import { buildSiteContent, getSegment } from "@/lib/site/templates";
-import { searchImages, trackImageDownload } from "@/lib/images";
+import { searchLicensedImages, trackImageDownload } from "@/lib/images";
+import type { ImageCandidate } from "@/lib/leads/types";
+import type { SiteImage } from "@/lib/site/types";
 import { snapshotVersion } from "@/lib/projects";
 import { audit } from "@/lib/logger";
 import { verifiedCompanyInfo } from "@/lib/leads/verified";
@@ -44,20 +46,29 @@ export const POST = route(async (req) => {
 
   await consumeUsage(user.id, "generations");
   try {
-    const [{ copy, ai }, images] = await Promise.all([
+    // Imagens: primeiro as aprovadas na revisão do lead (da empresa, com autorização declarada, ou de banco
+    // com licença); se faltarem, completa com um banco com licença compatível (Unsplash ou Openverse).
+    const approved = ((company.images ?? []) as ImageCandidate[]).filter((i) => i.status === "approved");
+    const fromLead: SiteImage[] = [...approved.filter((i) => i.origin === "company"), ...approved.filter((i) => i.origin !== "company")].map((i) => ({
+      url: i.url, alt: i.alt, origin: i.origin === "company" ? ("company" as const) : i.origin === "generated" ? ("generated" as const) : ("stock" as const),
+      license: i.license ?? undefined, sourceUrl: i.sourceUrl ?? undefined, credit: i.credit ?? undefined,
+    }));
+    const need = Math.max(0, 5 - fromLead.length);
+    const [{ copy, ai }, stock] = await Promise.all([
       generateSiteCopy(info, segment, b.instructions, language),
-      searchImages(segment.imageQuery, 5).catch(() => []),
+      need && !company.isDemo ? searchLicensedImages(segment.imageQuery, need + 3, { curated: true }).catch(() => []) : Promise.resolve([]),
     ]);
-    const chosen = images.slice(0, 5);
-    chosen.forEach((i) => void trackImageDownload(i.downloadLocation));
-    const content = buildSiteContent(
-      info,
-      segment,
-      copy,
-      chosen.map(({ url, alt, credit }) => ({ url, alt, credit, origin: "stock" as const, license: "Licença Unsplash (uso gratuito, com crédito ao fotógrafo)", sourceUrl: credit?.link })),
-    );
+    const extra = stock.slice(0, need);
+    extra.forEach((i) => i.downloadLocation && void trackImageDownload(i.downloadLocation));
+    const content = buildSiteContent(info, segment, copy, [
+      ...fromLead,
+      ...extra.map((i) => ({ url: i.url, alt: i.alt, credit: i.credit, origin: "stock" as const, license: i.license, sourceUrl: i.sourceUrl })),
+    ]);
     if (company.isDemo) content.reviewNotes.unshift("LEAD DE DEMONSTRAÇÃO: os dados da empresa são fictícios.");
-    if (!chosen.length) content.reviewNotes.push("Nenhuma imagem com licença foi adicionada: use o banco de imagens, imagens autorizadas da empresa ou o assistente do Google Flow.");
+    const used = JSON.stringify(content.sections);
+    const usedExtra = extra.filter((i) => used.includes(i.url)).length;
+    if (usedExtra) content.reviewNotes.push(`${usedExtra} imagem(ns) de banco com licença (${extra[0]!.source}) entraram automaticamente, com crédito: confira se combinam com a empresa e troque se preciso.`);
+    if (!fromLead.length && !extra.length) content.reviewNotes.push("Nenhuma imagem com licença foi adicionada: use o banco de imagens, imagens autorizadas da empresa ou o assistente do Google Flow.");
     const project = await prisma.project.create({
       data: { userId: user.id, companyId: company.id, name: info.name, segment: segment.key, content: content as never, aiGenerated: ai },
     });

@@ -75,12 +75,23 @@ export type CompanyInfo = {
   email?: string | null;
   instagram?: string | null;
   website?: string | null;
+  /** Horários publicados e confirmados (linhas prontas). */
+  hoursLines?: { label: string; value: string }[] | null;
+  hoursSource?: string | null;
   mapsUrl?: string | null;
   lat?: number | null;
   lng?: number | null;
 };
 
 const isHex = (c: string) => /^#[0-9a-fA-F]{6}$/.test(c);
+
+/** Celular brasileiro (DDD + 9 + 8 dígitos) ou número internacional: só então o WhatsApp é oferecido. */
+export function isMobilePhone(phone: string | null | undefined): boolean {
+  let d = (phone ?? "").replace(/\D/g, "");
+  if (d.length === 10 || d.length === 11) d = "55" + d;
+  if (!d) return false;
+  return d.startsWith("55") ? /^55\d{2}9\d{8}$/.test(d) : d.length >= 11;
+}
 
 let idCounter = 0;
 export const sid = (type: string) => `${type}-${Date.now().toString(36)}${(idCounter++).toString(36)}`;
@@ -104,7 +115,8 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     isHex(copy.colors.accent) ? copy.colors.accent : segment.theme.accent,
   );
   const hasPhone = !!company.phone;
-  const mainAction = hasPhone ? ("whatsapp" as const) : ("section" as const);
+  const mobile = isMobilePhone(company.phone);
+  const mainAction = mobile ? ("whatsapp" as const) : hasPhone ? ("phone" as const) : ("section" as const);
   const [heroImg, aboutImg, ...galleryImgs] = images;
 
   const hero: Section = {
@@ -126,17 +138,19 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     type: "hours",
     visible: true,
     title: "Horário de funcionamento",
-    // Horários não são inventados: o usuário preenche após confirmar com a empresa.
-    lines: [
-      { label: "Segunda a sexta", value: "" },
-      { label: "Sábado", value: "" },
-      { label: "Domingo", value: "" },
-    ],
-    note: "Confirme os horários com a empresa antes de publicar.",
+    // Horários nunca são inventados: só entram os publicados pela fonte (confirmados); senão o usuário preenche.
+    lines: company.hoursLines?.length
+      ? company.hoursLines.slice(0, 10)
+      : [
+          { label: "Segunda a sexta", value: "" },
+          { label: "Sábado", value: "" },
+          { label: "Domingo", value: "" },
+        ],
+    note: company.hoursLines?.length ? `Horários publicados no ${company.hoursSource ?? "perfil público"}; confirme com a empresa antes de liberar o link.` : "Confirme os horários com a empresa antes de publicar.",
   };
   const gallery: Section = { id: "galeria", type: "gallery", visible: galleryImgs.length > 0, title: "Galeria", images: galleryImgs };
   const cta: Section = { id: "chamada", type: "cta", visible: true, title: copy.ctaTitle, text: copy.ctaText, button: { label: copy.primaryCta || "Fale conosco", action: mainAction, href: hasPhone ? undefined : "contato" } };
-  const quote: Section = { id: "orcamento", type: "quote", visible: true, title: copy.quoteTitle || "Solicite um orçamento", text: copy.quoteText, buttonLabel: "Enviar pelo WhatsApp" };
+  const quote: Section = { id: "orcamento", type: "quote", visible: true, title: copy.quoteTitle || "Solicite um orçamento", text: copy.quoteText, buttonLabel: mobile ? "Enviar pelo WhatsApp" : "Enviar por e-mail" };
   const contact: Section = { id: "contato", type: "contact", visible: true, title: "Contato e localização", text: copy.contactText, showMap: company.lat != null && company.lng != null };
   const menu: Section = {
     id: "cardapio",
@@ -175,7 +189,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     business: {
       name: company.name,
       phone: company.phone ?? "",
-      whatsapp: company.phone ?? "",
+      whatsapp: mobile ? company.phone ?? "" : "",
       email: company.email ?? "",
       address: company.address ?? "",
       instagram: company.instagram ?? "",
@@ -186,8 +200,9 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     sections: byTemplate[segment.template],
     reviewNotes: [
       "Os serviços/produtos listados são sugestões típicas do segmento — confirme com a empresa.",
-      "Preencha os horários de funcionamento e os preços somente com informações confirmadas.",
+      company.hoursLines?.length ? `Horários vieram do ${company.hoursSource ?? "perfil público"}: confirme com a empresa.` : "Preencha os horários de funcionamento e os preços somente com informações confirmadas.",
       ...(company.phone ? [] : ["A fonte de dados não informou telefone: adicione um contato em 'Dados da empresa'."]),
+      ...(company.phone && !mobile ? ["O telefone informado é fixo: o botão principal liga para ele. Se a empresa usa WhatsApp, informe o número em 'Dados da empresa'."] : []),
     ],
   };
 }
@@ -280,7 +295,7 @@ export function fallbackCopy(company: CompanyInfo, segment: Segment): SiteCopy {
     seoDescription: `${company.name}${company.category ? `, ${company.category.toLowerCase()}` : ""}${where ? ` em ${where}` : ""}. Entre em contato.`.slice(0, 300),
     heroTitle: company.name,
     heroSubtitle: where ? `${seg[0]!.toUpperCase()}${seg.slice(1)} em ${where}. Fale com a gente!` : "Fale com a gente!",
-    primaryCta: company.phone ? "Chamar no WhatsApp" : "Entrar em contato",
+    primaryCta: isMobilePhone(company.phone) ? "Chamar no WhatsApp" : company.phone ? "Ligar agora" : "Entrar em contato",
     aboutTitle: "Sobre nós",
     aboutText: `A ${company.name} atende${where ? ` em ${where}` : ""}. Entre em contato para saber mais sobre o nosso trabalho.`,
     servicesTitle: segment.template === "store" ? "Nossos produtos" : segment.template === "clinic" ? "Especialidades" : "Serviços",

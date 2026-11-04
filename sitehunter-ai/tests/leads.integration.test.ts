@@ -55,7 +55,7 @@ describe("Pipeline de leads", () => {
     expect(r.createdIds).toHaveLength(3);
     const l = await prisma.company.findFirstOrThrow({ where: { userId: u.id, sourceId: "pl0" } });
     expect(l.isDemo).toBe(false);
-    expect((l.facts as Facts).phone).toMatchObject({ status: "confirmed", source: "Google Places", sourceUrl: "https://maps.google.com/?cid=0" });
+    expect((l.facts as Facts).phone).toMatchObject({ status: "confirmed", source: "Google Maps", sourceUrl: "https://maps.google.com/?cid=0" });
     expect((l.opportunities as { code: string }[]).map((o) => o.code)).toContain("social_only");
     expect(fetchMock).toHaveBeenCalledTimes(1); // perfis sociais/sem site: nenhum site acessado
   });

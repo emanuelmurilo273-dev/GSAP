@@ -8,6 +8,65 @@ Plataforma SaaS para encontrar empresas brasileiras que possivelmente ainda não
 - Guia de implantação e configuração das integrações: [`docs/DEPLOY.md`](docs/DEPLOY.md)
 - Status de cada funcionalidade: [`docs/STATUS.md`](docs/STATUS.md)
 
+## Início rápido (uso pessoal, no seu computador)
+
+**Requisitos:** Node.js 22+ e PostgreSQL 16 (ou Docker). Nenhuma chave de API é obrigatória para começar: a busca real usa o OpenStreetMap e as imagens com licença vêm do Openverse.
+
+1. Baixe o código e instale as dependências:
+   ```bash
+   git clone -b claude/funny-hopper-0mr6uu https://github.com/emanuelmurilo273-dev/GSAP.git
+   cd GSAP/sitehunter-ai
+   npm install
+   ```
+2. Crie um banco PostgreSQL (exemplo com Docker):
+   ```bash
+   docker run -d --name sitehunter-db -e POSTGRES_USER=sitehunter -e POSTGRES_PASSWORD=sitehunter -e POSTGRES_DB=sitehunter -p 5432:5432 postgres:16
+   ```
+3. Configure o ambiente: `cp .env.example .env` e preencha no mínimo:
+   ```env
+   DATABASE_URL="postgresql://sitehunter:sitehunter@localhost:5432/sitehunter"
+   APP_URL="http://localhost:3000"
+   ROOT_DOMAIN="localhost:3000"
+   ACCESS_MODE="private"
+   OWNER_EMAIL="voce@seudominio.com.br"
+   OSM_CONTACT_EMAIL="voce@seudominio.com.br"   # exigido pela política de uso do OpenStreetMap
+   ```
+4. Crie as tabelas e a sua conta (a senha é pedida no terminal, mínimo de 12 caracteres):
+   ```bash
+   npx prisma migrate deploy
+   npm run owner:create -- voce@seudominio.com.br "Seu nome"
+   ```
+   Com Docker Compose (servidor): `docker compose exec -it app node scripts/owner.mjs voce@seudominio.com.br "Seu nome"`.
+5. Inicie: `npm run build && npm start` (ou `npm run dev` para desenvolvimento) e abra http://localhost:3000. Entre com o e-mail e a senha do passo 4. Não existe cadastro público.
+
+### Como usar
+
+1. **Estúdio de leads** → aba **OpenStreetMap** (ou **Google Maps**, se configurado) → informe o ramo (ex.: "barbearia", "dentista") e a cidade → **Iniciar busca de leads**. O app busca as empresas, remove duplicadas, verifica o site público de cada uma (respeitando o robots.txt) e registra a fonte e a confiança de cada dado.
+2. **Abrir perfil** de um lead: revise os dados (selos *Confirmado*, *Inferência*, *Não encontrado*, *Revisado por você*), corrija o que precisar e veja as oportunidades.
+3. **Imagens para o site**: aprove imagens publicadas pela própria empresa (só com a sua confirmação de autorização) ou busque e adicione imagens de banco com licença. As aprovadas entram no site; se faltarem, a geração completa com fotos CC0 atuais, sempre com crédito.
+4. Marque **Revisei os dados** → **Gerar prévia do site**. O editor abre com a prévia animada em 3D. A direção visual vem do setor e pode ser trocada na aba Design. Revise as notas em amarelo, os textos, as imagens, os horários e os números.
+5. **Publicar**: a prévia começa privada. **Liberar link público…** pede confirmação e libera só aquela página (`/s/<endereço>`). **Retirar acesso público** derruba o link na hora.
+6. **Abordagem comercial** (no perfil do lead): **Gerar rascunho** cria assunto e mensagem em português e no idioma do lead. Edite, copie e envie você mesmo. O app nunca envia nada.
+
+### O que funciona sem configuração e o que depende de conta ou chave
+
+| Recurso | Situação | Configuração |
+|---|---|---|
+| Busca real de empresas no **OpenStreetMap** (nome, categoria, endereço, telefone, e-mail, site, redes e horários quando cadastrados) | ✅ funciona sem chave; testado com buscas reais em Curitiba | `OSM_CONTACT_EMAIL` (recomendado). Limite de 1 consulta/s; para volume maior use `NOMINATIM_URL` com instância própria |
+| Busca real no **Google Maps (Places API New)**, com horários | 🔑 depende de chave paga do Google | `GOOGLE_PLACES_API_KEY`, com "Places API (New)" ativada no Google Cloud |
+| Verificação do site público de cada lead (HTTPS, celular, ano, contatos, redes, imagens) | ✅ funciona | só a página inicial, após o robots.txt |
+| Imagens com licença: **Openverse** (CC0/CC BY/CC BY-SA, uso comercial e modificação) | ✅ funciona sem chave (limite por IP) | `OPENVERSE_TOKEN` opcional para limite maior |
+| Imagens com licença: **Unsplash** | 🔑 chave gratuita | `UNSPLASH_ACCESS_KEY` (quando definida, substitui o Openverse) |
+| Imagens dos canais da própria empresa | ✅ coletadas do site; só entram com a sua confirmação de autorização | — |
+| **Google Flow** | ⚠️ sem API pública oficial: fluxo assistido (prompt pronto, você gera no Flow, importa e revisa). Nada é gerado automaticamente | — |
+| Textos do site e da abordagem com **IA (Claude)** | 🔑 opcional; sem chave usa textos-modelo sinalizados | `ANTHROPIC_API_KEY` |
+| Sites com direções visuais, 3D, animações ao rolar, modo leve e movimento reduzido | ✅ funciona | — |
+| Painel privado só do proprietário | ✅ funciona | `ACCESS_MODE=private`, `OWNER_EMAIL`, `npm run owner:create` |
+| Link público por prévia | ✅ funciona em `/s/<endereço>`; subdomínios exigem DNS curinga e HTTPS (ver `docs/DEPLOY.md`) | `ROOT_DOMAIN`, Caddy |
+| E-mails de recuperação de senha | 🔑 opcional; sem SMTP o link aparece no log do servidor | `SMTP_*` |
+
+**Limites honestos:** a cobertura do OpenStreetMap varia por cidade (muitos comércios não têm telefone ou horário cadastrados). O Google Maps tem cobertura maior, mas é pago. Fotos de contribuidores do Google Maps não são reutilizadas, porque os direitos são dos autores. O modo **Demonstração** gera empresas fictícias, sempre marcadas como DEMO.
+
 ## Arquitetura
 
 | Camada | Tecnologia |

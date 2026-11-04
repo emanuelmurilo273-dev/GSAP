@@ -2,6 +2,7 @@ import { env } from "../../env";
 import { HttpError } from "../../http";
 import { log } from "../../logger";
 import { mapPlace } from "../../places";
+import { parseGoogleHours } from "../hours";
 import type { LeadCriteria, RawBusiness } from "../types";
 import type { BusinessSearchProvider } from "./types";
 
@@ -21,6 +22,8 @@ const FIELDS = [
   "places.googleMapsUri",
   "places.primaryTypeDisplayName",
   "places.businessStatus",
+  "places.regularOpeningHours.weekdayDescriptions",
+  "places.internationalPhoneNumber",
   "nextPageToken",
 ].join(",");
 
@@ -54,7 +57,7 @@ export const googlePlacesProvider: BusinessSearchProvider = {
         if (out.length) break; // devolve o que já foi obtido
         throw new HttpError(res.status === 429 ? 503 : 502, res.status === 429 ? "Limite de requisições do Google Places atingido. Tente mais tarde." : "O Google Places não respondeu corretamente.", "upstream");
       }
-      const data = (await res.json()) as { places?: Parameters<typeof mapPlace>[0][]; nextPageToken?: string };
+      const data = (await res.json()) as { places?: (Parameters<typeof mapPlace>[0] & { regularOpeningHours?: { weekdayDescriptions?: string[] }; internationalPhoneNumber?: string })[]; nextPageToken?: string };
       for (const p of data.places ?? []) {
         if (p.businessStatus === "CLOSED_PERMANENTLY") continue;
         const m = mapPlace(p);
@@ -73,7 +76,9 @@ export const googlePlacesProvider: BusinessSearchProvider = {
           lat: m.lat,
           lng: m.lng,
           businessStatus: m.businessStatus,
-          source: { provider: "google_places", label: "Google Places", url: m.mapsUrl },
+          source: { provider: "google_places", label: "Google Maps", url: m.mapsUrl },
+          hours: parseGoogleHours(p.regularOpeningHours?.weekdayDescriptions),
+          hoursRaw: p.regularOpeningHours?.weekdayDescriptions?.join("; ") ?? null,
         });
       }
       pageToken = data.nextPageToken;

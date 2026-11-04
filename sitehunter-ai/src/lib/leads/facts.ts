@@ -12,7 +12,8 @@ export function buildFacts(raw: RawBusiness, presence: PresenceReport, at = new 
   const demo = raw.source.provider === "demo";
   const fromUser = raw.source.provider === "import";
   const baseStatus: Fact["status"] = fromUser ? "user" : "confirmed";
-  const conf = demo ? 0 : fromUser ? 0.7 : 0.9;
+  // Dados colaborativos (OSM) podem estar desatualizados: confiança um pouco menor.
+  const conf = demo ? 0 : fromUser ? 0.7 : raw.source.provider === "osm" ? 0.8 : 0.9;
   const src = raw.source.label;
   const srcUrl = raw.source.url;
   const known = (v: string | null, field: string) =>
@@ -33,12 +34,18 @@ export function buildFacts(raw: RawBusiness, presence: PresenceReport, at = new 
     facts.website = f(null, "inferred", src, srcUrl, 0.5, at, raw.website ? "A fonte informa somente um perfil social, não um site próprio." : `${src} não informa um site. Isso não prova que a empresa não tenha site: confira antes do contato.`);
   }
 
+  // Horários publicados pela fonte
+  facts.hours = raw.hours?.length
+    ? f(raw.hours.map((h) => `${h.label}: ${h.value}`).join(" · "), baseStatus, src, srcUrl, conf, at, demo ? "Dado fictício (modo demonstração)" : raw.hoursRaw && raw.source.provider === "osm" ? `Original: ${raw.hoursRaw}` : undefined)
+    : f(null, "not_found", src, srcUrl, 0, at, `${src} não informa horários.`);
+
   // Redes sociais: da fonte + links publicados no próprio site
   const socials: Social[] = [];
   if (raw.website && isSocialUrl(raw.website)) socials.push({ network: normalizeDomain(raw.website)!.split(".")[0]!, url: raw.website, source: src });
+  for (const u of raw.socialLinks ?? []) if (!socials.some((x) => x.url.toLowerCase() === u.toLowerCase())) socials.push({ network: normalizeDomain(u)?.split(".")[0] ?? "rede", url: u, source: src });
   for (const s of presence.socials ?? []) if (!socials.some((x) => x.url.toLowerCase() === s.url.toLowerCase())) socials.push(s);
   facts.socials = socials.length
-    ? f(socials.map((s) => s.url).join(" "), demo ? "confirmed" : baseStatus, socials.length > (raw.website && isSocialUrl(raw.website) ? 1 : 0) ? "Site da empresa" : src, presence.finalUrl ?? srcUrl, demo ? 0 : 0.85, at, demo ? "Dado fictício (modo demonstração)" : undefined)
+    ? f(socials.map((s) => s.url).join(" "), demo ? "confirmed" : baseStatus, socials.some((x) => x.source.startsWith("Site da empresa")) ? "Site da empresa" : src, presence.finalUrl ?? srcUrl, demo ? 0 : 0.85, at, demo ? "Dado fictício (modo demonstração)" : undefined)
     : f(null, "not_found", presence.reachable ? "Site da empresa" : src, presence.finalUrl ?? srcUrl, 0, at, "Nenhum perfil social encontrado nas fontes consultadas.");
 
   // E-mail comercial: da fonte, ou contato genérico publicado no site da empresa

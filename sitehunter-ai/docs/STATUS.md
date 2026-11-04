@@ -34,7 +34,11 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Item | Status |
 |---|---|
 | Critérios nicho / região / idioma / quantidade; histórico de buscas | ✅ |
-| Descoberta real via Google Places (paginada até 30) | 🔑 `GOOGLE_PLACES_API_KEY` (testado com respostas simuladas) |
+| Descoberta real via OpenStreetMap/Nominatim (nome, categoria, endereço, telefone, e-mail, site, redes, horários) | ✅ sem chave; testado com buscas reais |
+| Descoberta real via Google Places (paginada até 30, com horários) | 🔑 `GOOGLE_PLACES_API_KEY` (testado com respostas simuladas) |
+| Horários normalizados (OSM opening_hours e Google weekdayDescriptions) e usados no site | ✅ testado |
+| Imagens: candidatas do site da empresa (com autorização), banco com licença (Openverse sem chave / Unsplash com chave), revisão por lead | ✅ testado com Openverse real |
+| WhatsApp oferecido só para celulares (fixo → botão de ligar) | ✅ testado |
 | Importação de CSV do usuário | ✅ testado |
 | Modo demonstração (dados fictícios, sempre identificados, nunca deduplicados contra reais) | ✅ testado |
 | Normalização e deduplicação (domínio, telefone, nome+cidade, perfil social) | ✅ testado |

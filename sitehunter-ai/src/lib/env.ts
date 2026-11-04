@@ -25,6 +25,10 @@ export const env = {
   get anthropicKey() { return opt("ANTHROPIC_API_KEY"); },
   get aiModel() { return opt("AI_MODEL") ?? "claude-opus-5-5"; },
   get unsplashKey() { return opt("UNSPLASH_ACCESS_KEY"); },
+  get openverseToken() { return opt("OPENVERSE_TOKEN"); },
+  get imageSearchDisabled() { return opt("IMAGE_SEARCH") === "off"; },
+  get nominatimUrl() { return opt("NOMINATIM_URL"); },
+  get osmContactEmail() { return opt("OSM_CONTACT_EMAIL"); },
   get kiwifyWebhookTokens() {
     return [opt("KIWIFY_WEBHOOK_TOKEN"), opt("KIWIFY_WEBHOOK_TOKEN_PREVIOUS")].filter(Boolean) as string[];
   },

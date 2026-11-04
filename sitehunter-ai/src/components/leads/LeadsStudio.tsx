@@ -33,9 +33,10 @@ function matchesOpp(l: LeadView, f: (typeof OPP_FILTERS)[number]["key"]) {
 
 export function LeadsStudio({ initialLeads, initialSearches, providers, premium, nicheSuggestions }: { initialLeads: LeadView[]; initialSearches: SearchRow[]; providers: ProviderRow[]; premium: boolean; nicheSuggestions: string[] }) {
   const google = providers.find((p) => p.id === "google_places")!;
+  const defaultProvider: ProviderRow["id"] = !premium ? "demo" : google.configured ? "google_places" : "osm";
   const [leads, setLeads] = useState(initialLeads);
   const [searches, setSearches] = useState(initialSearches);
-  const [provider, setProvider] = useState<ProviderRow["id"]>(google.configured && premium ? "google_places" : "demo");
+  const [provider, setProvider] = useState<ProviderRow["id"]>(defaultProvider);
   const [form, setForm] = useState({ niche: "", location: "", language: "pt-BR", count: 10 });
   const [csv, setCsv] = useState("");
   const [running, setRunning] = useState(false);
@@ -121,7 +122,8 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
           <form onSubmit={start} className="space-y-5 p-5 sm:p-7">
             <div role="tablist" aria-label="Fonte dos leads" className="flex flex-wrap gap-1 rounded-xl border border-white/10 bg-ink-900/60 p-1">
               {[
-                { id: "google_places" as const, label: "Busca real", sub: "Google Places" },
+                { id: "google_places" as const, label: "Google Maps", sub: google.configured ? "busca real" : "requer chave" },
+                { id: "osm" as const, label: "OpenStreetMap", sub: "busca real · sem chave" },
                 { id: "import" as const, label: "Importar", sub: "CSV seu" },
                 { id: "demo" as const, label: "Demonstração", sub: "dados fictícios" },
               ].map((t) => (
@@ -144,6 +146,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
                 {!google.configured ? <>A busca real não está configurada. {google.setupHint} Enquanto isso, use o modo demonstração (dados fictícios, identificados) ou importe um CSV.</> : <>A busca real usa a cota do plano Premium. <Link href="/app/assinatura" className="underline">Ver assinatura</Link> ou teste com o modo demonstração.</>}
               </Alert>
             )}
+            {provider === "osm" && (premium ? <Alert kind="info">Busca real em dados abertos do OpenStreetMap (© colaboradores do OSM, licença ODbL). Telefones, sites, redes e horários aparecem quando a comunidade os cadastrou; a cobertura varia por cidade. Limite de 1 consulta por segundo.</Alert> : <Alert kind="warn">A busca real exige a conta proprietária com acesso ativo.</Alert>)}
             {provider === "demo" && <Alert kind="info">Modo demonstração: as empresas geradas são <b>fictícias</b>, ficam marcadas como DEMO e nunca se misturam com leads reais na deduplicação.</Alert>}
 
             {provider !== "import" ? (
@@ -184,10 +187,10 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
             {error && <Alert>{error}</Alert>}
             {running && <div className="progress-line" role="progressbar" aria-label="Buscando leads" />}
             <div className="flex flex-wrap items-center gap-3">
-              <button className={`btn-primary ${running ? "btn-busy" : ""}`} disabled={running || !canRun || (provider === "google_places" && realBlocked)}>
+              <button className={`btn-primary ${running ? "btn-busy" : ""}`} disabled={running || !canRun || (provider === "google_places" && realBlocked) || (provider === "osm" && !premium)}>
                 {running ? <><Spinner /> Processando…</> : provider === "import" ? "Importar e analisar" : "Iniciar busca de leads"}
               </button>
-              <p className="text-xs text-slate-500">{provider === "google_places" ? "Usa 1 pesquisa da cota mensal." : "Não consome a cota."} Nenhuma empresa é contatada.</p>
+              <p className="text-xs text-slate-500">{provider === "google_places" ? "Usa 1 pesquisa da cota mensal (cobrada pelo Google)." : provider === "osm" ? "Gratuita; respeita o limite de uso do OpenStreetMap." : "Não consome a cota."} Nenhuma empresa é contatada.</p>
             </div>
           </form>
 
@@ -298,7 +301,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
                   ))}
                   {l.socials.length > 0 && <div className="flex gap-2"><dt className="w-16 shrink-0 text-xs text-slate-500">Social</dt><dd className="truncate text-slate-300">{l.socials.map((s) => s.network).join(", ")}</dd></div>}
                 </dl>
-                <p className="mt-3 text-[11px] text-slate-500">Fonte: {l.source === "google_places" ? "Google Places" : l.source === "demo" ? "Demonstração" : "Importação"} · coletado em {new Date(l.fetchedAt).toLocaleDateString("pt-BR")}{l.reviewedAt ? " · revisado" : ""}</p>
+                <p className="mt-3 text-[11px] text-slate-500">Fonte: {l.source === "google_places" ? "Google Maps" : l.source === "osm" ? "OpenStreetMap" : l.source === "demo" ? "Demonstração" : "Importação"} · coletado em {new Date(l.fetchedAt).toLocaleDateString("pt-BR")}{l.reviewedAt ? " · revisado" : ""}</p>
                 <div className="mt-auto flex flex-wrap gap-2 pt-4">
                   <Link href={`/app/leads/${l.id}`} className="btn-primary px-3 py-2 text-xs">Abrir perfil</Link>
                   {l.projects[0] && <Link href={`/app/sites/${l.projects[0].id}`} className="btn-secondary px-3 py-2 text-xs">Prévia</Link>}

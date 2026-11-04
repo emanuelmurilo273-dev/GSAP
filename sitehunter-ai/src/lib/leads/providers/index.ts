@@ -1,9 +1,10 @@
 import { demoProvider } from "./demo";
 import { googlePlacesProvider } from "./googlePlaces";
 import { importProvider } from "./csvImport";
+import { osmProvider } from "./osm";
 import type { BusinessSearchProvider } from "./types";
 
-export const PROVIDERS: BusinessSearchProvider[] = [googlePlacesProvider, importProvider, demoProvider];
+export const PROVIDERS: BusinessSearchProvider[] = [googlePlacesProvider, osmProvider, importProvider, demoProvider];
 
 export function getProvider(id: string): BusinessSearchProvider {
   const p = PROVIDERS.find((x) => x.id === id);

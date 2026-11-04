@@ -45,8 +45,22 @@ export function analyzeHtml(html: string, pageUrl: string, now = new Date()): Om
     .filter((e) => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(e) && GENERIC_EMAIL.test(e))
     .slice(0, 3);
   const phones = [...new Set(hrefs.filter((h) => h.toLowerCase().startsWith("tel:")).map((h) => h.slice(4).trim()))].slice(0, 3);
-  const og = meta(html, "og:image");
-  const imageCandidates = og && /^https?:\/\//.test(og) ? [{ url: og, alt: meta(html, "og:image:alt") ?? "", sourceUrl: pageUrl }] : [];
+  // Imagens publicadas pela própria empresa: og:image, twitter:image e fotos grandes da página inicial.
+  const abs = (u: string) => { try { return new URL(decode(u), pageUrl).toString(); } catch { return null; } };
+  const found: { url: string; alt: string; sourceUrl: string }[] = [];
+  const push = (u: string | null, alt: string) => { if (u && /^https:\/\//.test(u) && !found.some((f) => f.url === u) && !/logo|icon|sprite|favicon|avatar|pixel|placeholder|\.svg(\?|$)|\.gif(\?|$)/i.test(u)) found.push({ url: u, alt: alt.slice(0, 160), sourceUrl: pageUrl }); };
+  push(meta(html, "og:image") ? abs(meta(html, "og:image")!) : null, meta(html, "og:image:alt") ?? "");
+  push(meta(html, "twitter:image") ? abs(meta(html, "twitter:image")!) : null, "");
+  for (const m of html.matchAll(/<img\b[^>]*>/gi)) {
+    if (found.length >= 6) break;
+    const tag = m[0];
+    const src = tag.match(/\s(?:data-src|src)=["']([^"']+)["']/i)?.[1];
+    const w = Number(tag.match(/\swidth=["']?(\d+)/i)?.[1] ?? 0);
+    if (!src || (w && w < 300)) continue;
+    if (!/\.(jpe?g|webp|png)(\?|$)/i.test(src)) continue;
+    push(abs(src), decode(tag.match(/\salt=["']([^"']*)["']/i)?.[1] ?? ""));
+  }
+  const imageCandidates = found;
   return {
     title: title ? decode(title).slice(0, 200) : null,
     description: meta(html, "description") ?? meta(html, "og:description"),

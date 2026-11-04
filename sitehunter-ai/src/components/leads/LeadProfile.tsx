@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api } from "@/components/api";
 import { Alert, Spinner, toast } from "@/components/ui";
 import { DemoBadge, FACT_CLASS, FactBadge, ScoreMeter, STATUS_LABEL } from "./FactBadge";
+import { LeadImages } from "./LeadImages";
 import { FACT_LABELS, type FactField } from "@/lib/leads/types";
 import type { LeadView } from "./types";
 
@@ -20,7 +21,7 @@ const SKIP_LABEL: Record<string, string> = {
   blocked_address: "Endereço bloqueado por segurança (rede privada/interna).",
 };
 
-export function LeadProfile({ initialLead, segments, guessedSegment, initialDrafts, ai, premium, senderName }: { initialLead: LeadView; segments: { key: string; label: string }[]; guessedSegment: string; initialDrafts: Draft[]; ai: boolean; premium: boolean; senderName: string }) {
+export function LeadProfile({ initialLead, segments, guessedSegment, initialDrafts, ai, premium, senderName, imageQuery }: { initialLead: LeadView; segments: { key: string; label: string }[]; guessedSegment: string; initialDrafts: Draft[]; ai: boolean; premium: boolean; senderName: string; imageQuery: string }) {
   const [lead, setLead] = useState(initialLead);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -173,9 +174,9 @@ export function LeadProfile({ initialLead, segments, guessedSegment, initialDraf
               </div>
             ) : (
               <dl className="mt-5 divide-y divide-white/5">
-                {(["name", "category", "address", "phone", "email", "website", "socials"] as FactField[]).map((k) => {
+                {(["name", "category", "address", "phone", "email", "website", "socials", "hours"] as FactField[]).map((k) => {
                   const f = lead.facts[k];
-                  const value = k === "socials" ? null : ((lead as unknown as Record<string, string | null>)[k] ?? null);
+                  const value = k === "socials" ? null : k === "hours" ? (lead.hours?.length ? lead.hours.map((h) => `${h.label}: ${h.value}`).join("\n") : null) : ((lead as unknown as Record<string, string | null>)[k] ?? null);
                   return (
                     <div key={k} className="grid gap-1 py-3 sm:grid-cols-[150px_1fr_auto] sm:items-start sm:gap-4">
                       <dt className="text-xs uppercase tracking-wide text-slate-500">{FACT_LABELS[k]}</dt>
@@ -184,6 +185,8 @@ export function LeadProfile({ initialLead, segments, guessedSegment, initialDraf
                           lead.socials.length ? (
                             <ul className="space-y-1">{lead.socials.map((s) => <li key={s.url} className="truncate"><a href={s.url} target="_blank" rel="noopener noreferrer" className="text-brand-300 hover:underline">{s.network}</a> <span className="text-xs text-slate-500">· {s.source}</span></li>)}</ul>
                           ) : <span className="text-slate-500">—</span>
+                        ) : k === "hours" && value ? (
+                          <span className="whitespace-pre-line">{value}</span>
                         ) : k === "website" && value ? (
                           <a href={value} target="_blank" rel="noopener noreferrer" className="break-all text-brand-300 hover:underline">{value}</a>
                         ) : (
@@ -288,19 +291,8 @@ export function LeadProfile({ initialLead, segments, guessedSegment, initialDraf
             </div>
           </section>
 
-          {/* ---------- Imagens do site da empresa ---------- */}
-          {!!p?.imageCandidates?.length && (
-            <section className="card p-5 sm:p-6">
-              <h2 className="font-semibold text-white">Imagens publicadas pela empresa</h2>
-              <p className="mt-1 text-xs text-slate-400">Encontradas no site da empresa. <b className="text-amber-200">Não são usadas automaticamente:</b> só adicione à prévia (no editor) se tiver autorização da empresa.</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {p.imageCandidates.map((im) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <a key={im.url} href={im.sourceUrl} target="_blank" rel="noopener noreferrer"><img src={im.url} alt={im.alt || "Imagem do site da empresa"} className="aspect-video w-full rounded-lg object-cover" loading="lazy" referrerPolicy="no-referrer" /></a>
-                ))}
-              </div>
-            </section>
-          )}
+          {/* ---------- Imagens ---------- */}
+          <LeadImages leadId={lead.id} initial={lead.images} defaultQuery={imageQuery} isDemo={lead.isDemo} />
 
           {/* ---------- Abordagem ---------- */}
           <section className="card p-5 sm:p-6">

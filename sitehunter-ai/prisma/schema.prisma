@@ -186,6 +186,8 @@ model Company {
   excludedAt    DateTime?                // lead excluído da lista pelo usuário
   email         String?                  // e-mail comercial público (com fonte em `facts`)
   socials       Json?                    // [{ network, url, source }]
+  hours         Json?                    // [{ label, value }] horários publicados (fonte em facts.hours)
+  images        Json?                    // ImageCandidate[] (origem, licença, status de revisão)
   facts         Json?                    // proveniência por campo (ver src/lib/leads/types.ts)
   presence      Json?                    // resultado da análise de presença digital
   opportunities Json?                    // [{ code, label, detail, severity, evidence }]

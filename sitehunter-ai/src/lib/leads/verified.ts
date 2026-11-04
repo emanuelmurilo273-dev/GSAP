@@ -1,7 +1,7 @@
 import type { Company } from "@prisma/client";
 import type { CompanyInfo } from "../site/templates";
 import { isSocialUrl } from "./normalize";
-import { isUsable, type Facts, type Opportunity, type PresenceReport, type Social } from "./types";
+import { isUsable, type Facts, type ImageCandidate, type Opportunity, type PresenceReport, type Social } from "./types";
 
 /**
  * Dados da empresa que podem ir para o site/abordagem: somente fatos
@@ -10,7 +10,7 @@ import { isUsable, type Facts, type Opportunity, type PresenceReport, type Socia
  */
 export function verifiedCompanyInfo(c: Company): CompanyInfo {
   const facts = (c.facts ?? null) as Facts | null;
-  if (!facts) return c; // empresas salvas antes do pipeline (dados da fonte)
+  if (!facts) return { ...c, hoursLines: null }; // empresas salvas antes do pipeline (dados da fonte)
   const v = (k: keyof Facts) => (isUsable(facts[k]) ? facts[k]!.value : null);
   const socials = ((c.socials ?? []) as Social[]).filter(() => isUsable(facts.socials));
   return {
@@ -23,6 +23,8 @@ export function verifiedCompanyInfo(c: Company): CompanyInfo {
     phone: v("phone"),
     email: v("email"),
     website: v("website"),
+    hoursLines: isUsable(facts.hours) && Array.isArray(c.hours) ? (c.hours as { label: string; value: string }[]) : null,
+    hoursSource: facts.hours?.source ?? null,
     instagram: socials.find((s) => s.network === "instagram")?.url ?? (c.website && isSocialUrl(c.website) && /instagram/.test(c.website) ? c.website : null),
     mapsUrl: c.mapsUrl,
     lat: c.lat,
@@ -48,6 +50,8 @@ export function leadView(c: Company & { projects?: { id: string; name: string }[
     excluded: !!c.excludedAt,
     language: c.language,
     socials: (c.socials ?? []) as Social[],
+    hours: (c.hours ?? null) as { label: string; value: string }[] | null,
+    images: (c.images ?? []) as ImageCandidate[],
     facts: (c.facts ?? {}) as Facts,
     presence: (c.presence ?? null) as PresenceReport | null,
     opportunities: (c.opportunities ?? []) as Opportunity[],

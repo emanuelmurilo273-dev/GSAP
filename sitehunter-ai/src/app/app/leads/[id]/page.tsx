@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { pageUser } from "@/lib/pageAuth";
 import { leadView } from "@/lib/leads/verified";
 import { guessSegmentKey } from "@/lib/leads/normalize";
-import { SEGMENTS } from "@/lib/site/templates";
+import { SEGMENTS, getSegment } from "@/lib/site/templates";
 import { aiConfigured } from "@/lib/ai";
 import { LeadProfile } from "@/components/leads/LeadProfile";
 
@@ -22,6 +22,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
       ai={aiConfigured()}
       premium={user.access.premium}
       senderName={user.name}
+      imageQuery={getSegment(guessSegmentKey(c.category ?? "", c.category)).imageQuery}
     />
   );
 }

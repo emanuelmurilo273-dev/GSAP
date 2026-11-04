@@ -54,9 +54,10 @@ export default async function Dashboard() {
     { done: proposals > 0, label: "Gerar uma proposta comercial", href: "/app/sites" },
   ];
   const integrations = [
-    { name: "Google Places (busca)", ok: !!env.googlePlacesKey },
+    { name: "Google Maps / Places (busca, requer chave)", ok: !!env.googlePlacesKey },
+    { name: "OpenStreetMap (busca, sem chave)", ok: true },
     { name: "IA (Anthropic Claude)", ok: aiConfigured() },
-    { name: "Banco de imagens (Unsplash)", ok: imagesConfigured() },
+    { name: env.unsplashKey ? "Imagens com licença (Unsplash)" : "Imagens com licença (Openverse, sem chave)", ok: imagesConfigured() },
     { name: "Google Flow (fluxo assistido, sem API)", ok: true },
     { name: "Webhook Kiwify", ok: env.kiwifyWebhookTokens.length > 0 },
     { name: "E-mail (SMTP)", ok: !!env.smtp },

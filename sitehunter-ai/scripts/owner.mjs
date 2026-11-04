@@ -1,6 +1,7 @@
 // Cria ou atualiza a conta PROPRIETÁRIA (modo privado, sem cadastro público).
 //
 //   npm run owner:create -- voce@dominio.com "Seu nome"
+//   Docker: docker compose exec -it app node scripts/owner.mjs voce@dominio.com "Seu nome"
 //
 // A senha vem de OWNER_PASSWORD ou é pedida no terminal (sem eco). Mínimo de
 // 12 caracteres. Ao trocar a senha, todas as sessões abertas são encerradas.
@@ -10,11 +11,11 @@ import { createInterface } from "node:readline";
 
 const MIN = 12;
 
-function askHidden(q: string): Promise<string> {
+function askHidden(q) {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    const out = rl as unknown as { _writeToOutput: (s: string) => void; output: NodeJS.WriteStream };
-    out._writeToOutput = (s: string) => { if (s.includes(q)) process.stdout.write(s); };
+    const out = rl;
+    out._writeToOutput = (s) => { if (s.includes(q)) process.stdout.write(s); };
     rl.question(q, (a) => { rl.close(); process.stdout.write("\n"); resolve(a); });
   });
 }
