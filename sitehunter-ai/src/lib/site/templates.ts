@@ -71,6 +71,8 @@ export type CompanyInfo = {
   city?: string | null;
   state?: string | null;
   phone?: string | null;
+  email?: string | null;
+  instagram?: string | null;
   website?: string | null;
   mapsUrl?: string | null;
   lat?: number | null;
@@ -161,9 +163,9 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
       name: company.name,
       phone: company.phone ?? "",
       whatsapp: company.phone ?? "",
-      email: "",
+      email: company.email ?? "",
       address: company.address ?? "",
-      instagram: "",
+      instagram: company.instagram ?? "",
       mapsUrl: company.mapsUrl ?? "",
       lat: company.lat ?? null,
       lng: company.lng ?? null,

@@ -8,6 +8,7 @@ import { getUsage } from "@/lib/usage";
 import { aiConfigured } from "@/lib/ai";
 import { env } from "@/lib/env";
 import { imagesConfigured } from "@/lib/images";
+import { Scene3D } from "@/components/studio/Scene3D";
 
 function months(n: number) {
   const out: { key: string; label: string }[] = [];
@@ -23,7 +24,7 @@ export default async function Dashboard() {
   const user = await pageUser();
   const since = new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1);
   const [companies, projects, published, proposals, visits, recentProjects, recentProposals, usage] = await Promise.all([
-    prisma.company.count({ where: { userId: user.id } }),
+    prisma.company.count({ where: { userId: user.id, excludedAt: null } }),
     prisma.project.count({ where: { userId: user.id } }),
     prisma.publication.count({ where: { userId: user.id, status: "PUBLISHED" } }),
     prisma.proposal.count({ where: { userId: user.id } }),
@@ -39,7 +40,7 @@ export default async function Dashboard() {
     propostas: recentProposals.filter((p) => key(p.createdAt) === m.key).length,
   }));
   const stats = [
-    { label: "Empresas salvas", value: companies, href: "/app/empresas" },
+    { label: "Leads ativos", value: companies, href: "/app/leads" },
     { label: "Sites criados", value: projects, href: "/app/sites" },
     { label: "Sites no ar", value: published, href: "/app/sites?status=PUBLISHED" },
     { label: "Propostas", value: proposals, href: "/app/propostas" },
@@ -47,8 +48,8 @@ export default async function Dashboard() {
   ];
   const steps = [
     { done: user.access.premium, label: "Assinar o plano Premium", href: "/app/assinatura" },
-    { done: companies > 0, label: "Buscar e salvar empresas", href: "/app/buscar" },
-    { done: projects > 0, label: "Criar um site com IA", href: "/app/empresas" },
+    { done: companies > 0, label: "Descobrir leads", href: "/app/leads" },
+    { done: projects > 0, label: "Gerar uma prévia de site", href: "/app/leads" },
     { done: published > 0, label: "Publicar um site", href: "/app/sites" },
     { done: proposals > 0, label: "Gerar uma proposta comercial", href: "/app/sites" },
   ];
@@ -56,13 +57,29 @@ export default async function Dashboard() {
     { name: "Google Places (busca)", ok: !!env.googlePlacesKey },
     { name: "IA (Anthropic Claude)", ok: aiConfigured() },
     { name: "Banco de imagens (Unsplash)", ok: imagesConfigured() },
+    { name: "Google Flow (fluxo assistido, sem API)", ok: true },
     { name: "Webhook Kiwify", ok: env.kiwifyWebhookTokens.length > 0 },
     { name: "E-mail (SMTP)", ok: !!env.smtp },
   ];
 
   return (
     <>
-      <PageHeader title={`Olá, ${user.name.split(" ")[0]}!`} subtitle="Acompanhe seus projetos e oportunidades." actions={<Link href="/app/buscar" className="btn-primary">Buscar empresas</Link>} />
+      <PageHeader title={`Olá, ${user.name.split(" ")[0]}!`} subtitle="Seu estúdio de prospecção: dados públicos viram prévias de site e abordagens prontas para revisar." actions={<Link href="/app/leads" className="btn-primary">Descobrir leads</Link>} />
+      <section className="card relative mb-5 grid overflow-hidden lg:grid-cols-[1fr_1.2fr]">
+        <div className="pointer-events-none absolute inset-0 grid-bg opacity-60 [mask-image:radial-gradient(ellipse_at_right,black_10%,transparent_70%)]" />
+        <div className="relative p-6 sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-signal)]">Fluxo do estúdio</p>
+          <h2 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">Descobrir → verificar → prévia → abordagem</h2>
+          <ol className="mt-5 space-y-2 text-sm text-slate-300">
+            <li><b className="text-white">1.</b> Defina nicho, região, idioma e quantidade.</li>
+            <li><b className="text-white">2.</b> Revise cada fato com sua fonte e confiança; corrija o que precisar.</li>
+            <li><b className="text-white">3.</b> Gere a prévia do site (não publicada) e edite à vontade.</li>
+            <li><b className="text-white">4.</b> Copie ou exporte a abordagem. Nada é enviado automaticamente.</li>
+          </ol>
+          <Link href="/app/leads" className="btn-primary mt-6">Abrir estúdio de leads</Link>
+        </div>
+        <div className="relative hidden sm:block"><Scene3D compact /></div>
+      </section>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         {stats.map((s, i) => (
           <Link key={s.label} href={s.href} className="card card-hover p-4 animate-fade-up" style={{ animationDelay: `${i * 60}ms` }}>

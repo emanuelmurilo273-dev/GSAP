@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 export async function cleanDb() {
   if (!/_test\b/.test(process.env.DATABASE_URL ?? "")) throw new Error("cleanDb só roda em banco de teste");
   await prisma.$executeRawUnsafe(
-    `TRUNCATE "AuditLog","RateLimit","UsageCounter","Proposal","Publication","ProjectVersion","Project","Company","WebhookEvent","Payment","Subscription","AuthToken","Session","User","PlatformSettings" RESTART IDENTITY CASCADE`,
+    `TRUNCATE "OutreachDraft","LeadSearch","AuditLog","RateLimit","UsageCounter","Proposal","Publication","ProjectVersion","Project","Company","WebhookEvent","Payment","Subscription","AuthToken","Session","User","PlatformSettings" RESTART IDENTITY CASCADE`,
   );
 }
 

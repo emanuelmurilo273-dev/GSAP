@@ -14,7 +14,7 @@ export default async function SitesPage() {
   });
   return (
     <>
-      <PageHeader title="Meus sites" subtitle="Hospedagem incluída enquanto sua assinatura estiver ativa." actions={<Link href="/app/empresas" className="btn-primary">Novo site</Link>} />
+      <PageHeader title="Meus sites" subtitle="Hospedagem incluída enquanto sua assinatura estiver ativa." actions={<Link href="/app/leads" className="btn-primary">Novo site</Link>} />
       <SitesClient
         premium={user.access.premium}
         projects={projects.map((p) => ({

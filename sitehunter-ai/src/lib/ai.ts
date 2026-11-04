@@ -71,7 +71,7 @@ ${JSON.stringify(
 </dados_empresa>`;
 }
 
-async function structured<T>(system: string, prompt: string, schema: Record<string, unknown>, validator: z.ZodType<T>, maxTokens = 16000): Promise<T> {
+export async function structured<T>(system: string, prompt: string, schema: Record<string, unknown>, validator: z.ZodType<T>, maxTokens = 16000): Promise<T> {
   const c = getClient();
   try {
     const res = await c.beta.messages.create({
@@ -109,9 +109,10 @@ async function structured<T>(system: string, prompt: string, schema: Record<stri
 }
 
 /** Gera os textos do site. Retorna também se a IA foi realmente usada. */
-export async function generateSiteCopy(company: CompanyInfo, segment: Segment, instructions?: string): Promise<{ copy: SiteCopy; ai: boolean }> {
+export async function generateSiteCopy(company: CompanyInfo, segment: Segment, instructions?: string, language: "pt-BR" | "en" | "es" = "pt-BR"): Promise<{ copy: SiteCopy; ai: boolean }> {
   if (!aiConfigured()) return { copy: fallbackCopy(company, segment), ai: false };
-  const system = `Você é redator(a) e designer de sites para pequenas empresas brasileiras. Crie o conteúdo de um site de uma página.\n${RULES}`;
+  const langRule = language === "pt-BR" ? "" : `\n- IMPORTANTE: escreva TODO o conteúdo do site em ${language === "en" ? "inglês" : "espanhol"} (esta regra substitui a de idioma acima).`;
+  const system = `Você é redator(a) e designer de sites para pequenas empresas. Crie o conteúdo de um site de uma página.\n${RULES}${langRule}\n- Não use superlativos ou alegações sem comprovação ("líder", "o melhor", "nº 1", resultados garantidos, certificações).`;
   const prompt = `${companyBlock(company, segment)}
 
 Modelo de layout: ${segment.template}.

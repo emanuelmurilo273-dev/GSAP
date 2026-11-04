@@ -8,8 +8,7 @@ type Item = { href: string; label: string; icon: string };
 
 const MAIN: Item[] = [
   { href: "/app", label: "Painel", icon: "M3 12l9-8 9 8M5 10v10h14V10" },
-  { href: "/app/buscar", label: "Buscar empresas", icon: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm9 16-4-4" },
-  { href: "/app/empresas", label: "Empresas salvas", icon: "M4 21V5a2 2 0 0 1 2-2h8l6 6v12M9 21v-6h6v6" },
+  { href: "/app/leads", label: "Estúdio de leads", icon: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm9 16-4-4M8 11h6M11 8v6" },
   { href: "/app/sites", label: "Meus sites", icon: "M3 5h18v14H3zM3 9h18" },
   { href: "/app/propostas", label: "Propostas", icon: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" },
   { href: "/app/assinatura", label: "Assinatura", icon: "M3 7h18v10H3zM3 11h18" },

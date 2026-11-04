@@ -7,6 +7,8 @@ import { env } from "@/lib/env";
 import { imagesConfigured } from "@/lib/images";
 import { whatsappLink } from "@/lib/whatsapp";
 import { Editor } from "./Editor";
+import { getSegment } from "@/lib/site/templates";
+import type { PresenceReport } from "@/lib/leads/types";
 
 export default async function EditorPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
@@ -42,6 +44,12 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
           : null
       }
       updatedAt={project.updatedAt.toISOString()}
+      companyImages={((project.company?.presence ?? null) as PresenceReport | null)?.imageCandidates ?? []}
+      segmentLabel={getSegment(project.segment).label}
+      niche={project.company?.category ?? null}
+      isDemo={!!project.company?.isDemo}
+      leadId={project.companyId}
+      lang={project.company?.language ?? "pt-BR"}
     />
   );
 }

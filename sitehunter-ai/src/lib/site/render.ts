@@ -78,13 +78,18 @@ function button(b: SiteButton, c: SiteContent, cls = "btn"): string {
   return `<a class="${cls}" href="${esc(href)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${esc(b.label)}</a>`;
 }
 
+/** Crédito / aviso de origem. Imagens geradas por IA SEMPRE levam o aviso. */
+export function imageCaption(i: SiteImage, tag = "figcaption"): string {
+  if (i.origin === "generated") return `<${tag} class="gen-note">Imagem ilustrativa gerada por IA${i.generator ? ` (${esc(i.generator)})` : ""}</${tag}>`;
+  if (i.credit) return `<${tag}>Foto: <a href="${esc(safeUrl(i.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a>${i.origin === "stock" || !i.origin ? " / Unsplash" : ""}</${tag}>`;
+  return "";
+}
+
 function img(i: SiteImage | undefined, cls = ""): string {
   if (!i?.url) return "";
   const src = safeUrl(i.url);
   if (src === "#") return "";
-  const credit = i.credit
-    ? `<figcaption>Foto: <a href="${esc(safeUrl(i.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a> / Unsplash</figcaption>`
-    : "";
+  const credit = imageCaption(i);
   return `<figure class="${cls}"><img src="${esc(src)}" alt="${esc(i.alt)}" loading="lazy">${credit}</figure>`;
 }
 
@@ -100,7 +105,7 @@ function sectionHtml(s: Section, c: SiteContent): string {
     <p class="lead">${esc(s.subtitle)}</p>
     <div class="actions">${s.buttons.map((b, i) => button(b, c, i === 0 ? "btn" : "btn btn-ghost")).join("")}</div>
   </div>
-  ${s.image?.credit ? `<p class="hero-credit">Foto: <a href="${esc(safeUrl(s.image.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(s.image.credit.name)}</a> / Unsplash</p>` : ""}
+  ${s.image?.url ? imageCaption(s.image, "p").replace(/^<p( class="gen-note")?>/, '<p class="hero-credit">') : ""}
 </section>`;
     case "about":
       return `<section id="${esc(s.id)}"><div class="wrap ${s.image?.url ? "split" : "narrow"}"><div>${head(s.title)}${nl2p(s.text)}</div>${img(s.image, "rounded")}</div></section>`;
@@ -177,7 +182,7 @@ const NAV_LABELS: Partial<Record<Section["type"], string>> = {
   contact: "Contato",
 };
 
-export function renderSite(c: SiteContent, opts: { footerCredit?: boolean } = { footerCredit: true }): string {
+export function renderSite(c: SiteContent, opts: { footerCredit?: boolean; previewRibbon?: string | null; lang?: string } = { footerCredit: true }): string {
   const th = c.theme;
   const radius = th.radius === "none" ? "0px" : th.radius === "md" ? "10px" : "18px";
   const visible = c.sections.filter((s) => s.visible);
@@ -191,7 +196,7 @@ export function renderSite(c: SiteContent, opts: { footerCredit?: boolean } = { 
   const year = new Date().getFullYear();
 
   return `<!doctype html>
-<html lang="pt-BR">
+<html lang="${esc(opts.lang ?? "pt-BR")}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -233,6 +238,8 @@ section.alt{background:var(--sf)}
 .hero-inner{position:relative}
 .hero h1{font-size:clamp(2.2rem,6vw,4rem);max-width:820px;margin-bottom:16px}
 .hero .lead{font-size:clamp(1.05rem,2.2vw,1.3rem);max-width:640px;opacity:.92;margin-bottom:28px}
+.preview-ribbon{position:relative;z-index:60;background:repeating-linear-gradient(135deg,#111827 0 14px,#1f2937 14px 28px);color:#fde68a;text-align:center;font:600 12px/1.2 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:8px 12px}
+.gen-note{font-style:italic}
 .hero-credit{position:absolute;right:12px;bottom:8px;font-size:.7rem;opacity:.7}
 .hero-credit a{color:#fff}
 .actions{display:flex;flex-wrap:wrap;gap:12px}
@@ -287,6 +294,7 @@ footer a{color:inherit}
 </style>
 </head>
 <body>
+${opts.previewRibbon ? `<div class="preview-ribbon" role="note">${esc(opts.previewRibbon)}</div>` : ""}
 <header class="topbar"><div class="wrap">
   <a class="brand" href="#">${esc(c.siteName)}</a>
   <input type="checkbox" id="menu-toggle" aria-label="Abrir menu"><label class="burger" for="menu-toggle" aria-hidden="true">☰</label>

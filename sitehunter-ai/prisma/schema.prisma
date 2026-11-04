@@ -68,6 +68,8 @@ model User {
   projects      Project[]
   proposals     Proposal[]
   usage         UsageCounter[]
+  leadSearches  LeadSearch[]
+  outreachDrafts OutreachDraft[]
   auditLogs     AuditLog[]
 }
 
@@ -178,15 +180,80 @@ model Company {
   lat           Float?
   lng           Float?
   notes         String?
+  // ---- Pipeline de leads (proveniência, oportunidades, deduplicação) ----
+  searchId      String?
+  isDemo        Boolean  @default(false) // dados FICTÍCIOS do modo demonstração
+  excludedAt    DateTime?                // lead excluído da lista pelo usuário
+  email         String?                  // e-mail comercial público (com fonte em `facts`)
+  socials       Json?                    // [{ network, url, source }]
+  facts         Json?                    // proveniência por campo (ver src/lib/leads/types.ts)
+  presence      Json?                    // resultado da análise de presença digital
+  opportunities Json?                    // [{ code, label, detail, severity, evidence }]
+  opportunityScore Int   @default(0)
+  dedupeKeys    String[] @default([])
+  language      String   @default("pt-BR")
+  reviewedAt    DateTime?
   fetchedAt     DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   projects      Project[]
   proposals     Proposal[]
+  search        LeadSearch? @relation(fields: [searchId], references: [id], onDelete: SetNull)
+  outreachDrafts OutreachDraft[]
 
   @@unique([userId, source, sourceId])
   @@index([userId, createdAt])
+  @@index([userId, searchId])
+}
+
+enum LeadSearchStatus {
+  RUNNING
+  DONE
+  PARTIAL   // concluída com falhas em parte do enriquecimento
+  FAILED
+}
+
+/// Uma execução de descoberta de leads (critérios + resultado).
+model LeadSearch {
+  id          String           @id @default(cuid())
+  userId      String
+  provider    String           // google_places | demo | import
+  niche       String
+  location    String
+  language    String           @default("pt-BR")
+  requested   Int
+  status      LeadSearchStatus @default(RUNNING)
+  isDemo      Boolean          @default(false)
+  found       Int              @default(0)
+  created     Int              @default(0)
+  duplicates  Int              @default(0)
+  log         Json?            // etapas e avisos (sem dados pessoais)
+  error       String?
+  startedAt   DateTime         @default(now())
+  finishedAt  DateTime?
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companies   Company[]
+
+  @@index([userId, startedAt])
+}
+
+/// Rascunho de abordagem comercial. Nunca é enviado pelo sistema.
+model OutreachDraft {
+  id          String   @id @default(cuid())
+  userId      String
+  companyId   String
+  language    String
+  subject     String
+  body        String
+  ai          Boolean  @default(false)
+  factsUsed   Json?    // fatos confirmados citados na mensagem
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, companyId])
 }
 
 model Project {

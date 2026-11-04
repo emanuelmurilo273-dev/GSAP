@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { FlowAssistant } from "@/components/studio/FlowAssistant";
 import { api } from "@/components/api";
 import { Alert, Spinner, StatusBadge, toast } from "@/components/ui";
 import { renderSite } from "@/lib/site/render";
-import { FONTS, type Section, type SiteButton, type SiteContent, type SiteImage } from "@/lib/site/types";
+import { FONTS, IMAGE_ORIGINS, type ImageOrigin, type Section, type SiteButton, type SiteContent, type SiteImage } from "@/lib/site/types";
 import { emptySection } from "@/lib/site/templates";
 
 type Pub = { status: string; slug: string; url: string; pathUrl: string; customDomain: string | null; customDomainVerified: boolean; lastDeployAt: string | null } | null;
@@ -82,7 +83,21 @@ function ButtonEditor({ value, onChange, sections, onRemove }: { value: SiteButt
   );
 }
 
+type CompanyImage = { url: string; alt: string; sourceUrl: string };
+type Assets = { openFlow: (cb: (i: SiteImage) => void) => void; companyImages: CompanyImage[] };
+const AssetsCtx = createContext<Assets>({ openFlow: () => undefined, companyImages: [] });
+
+const ORIGIN_LABEL: Record<ImageOrigin, string> = {
+  stock: "Banco de imagens (licença)",
+  company: "Da empresa (autorizada)",
+  generated: "Gerada por IA",
+  user: "Própria (tenho os direitos)",
+};
+
 function ImageEditor({ value, onChange, onSearch, label = "Imagem" }: { value?: SiteImage; onChange: (i?: SiteImage) => void; onSearch?: (cb: (i: SiteImage) => void) => void; label?: string }) {
+  const { openFlow, companyImages } = useContext(AssetsCtx);
+  const [showCompany, setShowCompany] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
   return (
     <div className="space-y-2">
       <span className="label">{label}</span>
@@ -90,14 +105,49 @@ function ImageEditor({ value, onChange, onSearch, label = "Imagem" }: { value?: 
         <div className="relative overflow-hidden rounded-xl border border-white/10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value.url} alt={value.alt} className="h-28 w-full object-cover" />
+          {value.origin === "generated" && <span className="absolute left-2 top-2 rounded bg-black/75 px-2 py-0.5 text-[10px] font-semibold text-amber-200">GERADA POR IA · ilustrativa</span>}
           <button className="absolute right-2 top-2 rounded-lg bg-black/70 px-2 py-1 text-xs text-white" onClick={() => onChange(undefined)}>Remover</button>
         </div>
       )}
-      <input className="input" placeholder="URL da imagem (https://...)" value={value?.url ?? ""} onChange={(e) => onChange(e.target.value ? { url: e.target.value, alt: value?.alt ?? "", credit: undefined } : undefined)} />
-      {value?.url && <input className="input" placeholder="Descrição da imagem (acessibilidade)" value={value.alt} maxLength={200} onChange={(e) => onChange({ ...value, alt: e.target.value })} />}
-      {value?.credit && <p className="text-xs text-slate-500">Crédito: {value.credit.name} / Unsplash</p>}
-      {onSearch && <button className="btn-secondary w-full py-2 text-xs" onClick={() => onSearch((i) => onChange(i))}>Buscar no banco de imagens</button>}
-      <p className="text-xs text-slate-600">Use apenas imagens próprias, da empresa (com autorização) ou de bancos com licença de uso.</p>
+      <input className="input" placeholder="URL da imagem (https://...)" value={value?.url ?? ""} onChange={(e) => onChange(e.target.value ? { url: e.target.value, alt: value?.alt ?? "", credit: undefined, origin: "user", license: "Declarado pelo usuário" } : undefined)} />
+      {value?.url && (
+        <>
+          <input className="input" placeholder="Descrição da imagem (acessibilidade)" value={value.alt} maxLength={200} onChange={(e) => onChange({ ...value, alt: e.target.value })} />
+          <div className="grid grid-cols-2 gap-2">
+            <select className="input text-xs" aria-label="Origem da imagem" value={value.origin ?? (value.credit ? "stock" : "user")} onChange={(e) => onChange({ ...value, origin: e.target.value as ImageOrigin })}>
+              {IMAGE_ORIGINS.map((o) => <option key={o} value={o}>{ORIGIN_LABEL[o]}</option>)}
+            </select>
+            <input className="input text-xs" placeholder="Licença / condição de uso" maxLength={300} value={value.license ?? ""} onChange={(e) => onChange({ ...value, license: e.target.value })} aria-label="Licença" />
+          </div>
+          <p className="text-xs text-slate-500">
+            {value.credit ? `Crédito: ${value.credit.name} / Unsplash. ` : ""}
+            {value.origin === "generated" ? "Será exibida com o aviso “imagem ilustrativa gerada por IA”." : value.origin === "company" ? "Use somente com autorização da empresa." : ""}
+            {value.sourceUrl ? <> Origem: <a href={value.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">link</a></> : null}
+          </p>
+        </>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        {onSearch && <button className="btn-secondary py-2 text-xs" onClick={() => onSearch((i) => onChange(i))}>Banco de imagens</button>}
+        <button className="btn-secondary py-2 text-xs" onClick={() => openFlow((i) => onChange(i))}>Google Flow (assistido)</button>
+        {companyImages.length > 0 && <button className="btn-secondary col-span-2 py-2 text-xs" onClick={() => setShowCompany((v) => !v)}>Imagens do site da empresa ({companyImages.length})</button>}
+      </div>
+      {showCompany && (
+        <div className="space-y-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+          <label className="flex items-start gap-2 text-xs text-amber-100">
+            <input type="checkbox" className="mt-0.5" checked={authorized} onChange={(e) => setAuthorized(e.target.checked)} />
+            Tenho autorização da empresa para usar estas imagens nesta prévia.
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {companyImages.map((ci) => (
+              <button key={ci.url} disabled={!authorized} className="overflow-hidden rounded-lg disabled:opacity-40" onClick={() => { onChange({ url: ci.url, alt: ci.alt, origin: "company", sourceUrl: ci.sourceUrl, license: "Imagem da empresa, uso autorizado (declarado pelo usuário)" }); setShowCompany(false); }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={ci.url} alt={ci.alt || "Imagem do site da empresa"} className="aspect-square w-full object-cover" referrerPolicy="no-referrer" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <p className="text-xs text-slate-600">Use apenas imagens próprias, da empresa (com autorização), de bancos com licença ou geradas e identificadas como tal.</p>
     </div>
   );
 }
@@ -262,7 +312,7 @@ function ImagePicker({ onPick, onClose }: { onPick: (i: SiteImage) => void; onCl
         {msg && <div className="mt-3"><Alert kind="info">{msg}</Alert></div>}
         <div className="mt-4 grid flex-1 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
           {items.map((i) => (
-            <button key={i.url} className="group relative overflow-hidden rounded-xl" onClick={() => { void api("/api/images/search", { body: { downloadLocation: i.downloadLocation } }).catch(() => undefined); onPick({ url: i.url, alt: i.alt, credit: i.credit }); onClose(); }}>
+            <button key={i.url} className="group relative overflow-hidden rounded-xl" onClick={() => { void api("/api/images/search", { body: { downloadLocation: i.downloadLocation } }).catch(() => undefined); onPick({ url: i.url, alt: i.alt, credit: i.credit, origin: "stock", license: "Licença Unsplash (uso gratuito, com crédito ao fotógrafo)", sourceUrl: i.credit?.link }); onClose(); }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={i.thumb} alt={i.alt} className="aspect-[4/3] w-full object-cover transition group-hover:scale-105" />
               <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-2 py-1 text-left text-[10px] text-white">{i.credit?.name}</span>
@@ -279,6 +329,7 @@ function ImagePicker({ onPick, onClose }: { onPick: (i: SiteImage) => void; onCl
 export function Editor(props: {
   projectId: string; projectName: string; initialContent: SiteContent; aiGenerated: boolean; premium: boolean; imagesEnabled: boolean; rootDomain: string;
   companyPhone: string | null; initialOutreach: string; initialWhatsapp: string | null; publication: Pub; updatedAt: string;
+  companyImages?: CompanyImage[]; segmentLabel?: string; niche?: string | null; isDemo?: boolean; leadId?: string | null; lang?: string;
 }) {
   const [content, setContent] = useState<SiteContent>(props.initialContent);
   const [saved, setSaved] = useState(JSON.stringify(props.initialContent));
@@ -292,7 +343,12 @@ export function Editor(props: {
   const [picker, setPicker] = useState<((i: SiteImage) => void) | null>(null);
   const [showNotes, setShowNotes] = useState(true);
   const dirty = JSON.stringify(content) !== saved;
-  const html = useMemo(() => renderSite(content), [content]);
+  const [flowCb, setFlowCb] = useState<((i: SiteImage) => void) | null>(null);
+  const [view3d, setView3d] = useState(false);
+  const unpublished = pub?.status !== "PUBLISHED";
+  const ribbon = unpublished ? `Prévia não publicada · demonstração${props.isDemo ? " com dados fictícios" : ""}` : null;
+  const html = useMemo(() => renderSite(content, { footerCredit: true, previewRibbon: ribbon, lang: props.lang }), [content, ribbon, props.lang]);
+  const assets = useMemo<Assets>(() => ({ openFlow: (cb) => setFlowCb(() => cb), companyImages: props.companyImages ?? [] }), [props.companyImages]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const save = useCallback(async () => {
@@ -364,20 +420,24 @@ export function Editor(props: {
   const sel = content.sections.find((s) => s.id === selected);
 
   return (
+    <AssetsCtx.Provider value={assets}>
     <div className="-mx-4 -my-6 sm:-mx-8 sm:-my-8">
       {/* Barra superior */}
       <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 border-b border-white/5 bg-ink-950/90 px-4 py-3 backdrop-blur sm:px-6 lg:top-0">
-        <Link href="/app/sites" className="btn-ghost px-2 text-sm">← Sites</Link>
+        <Link href={props.leadId ? `/app/leads/${props.leadId}` : "/app/sites"} className="btn-ghost px-2 text-sm">← {props.leadId ? "Lead" : "Sites"}</Link>
         <div className="mr-auto min-w-0">
           <p className="truncate font-semibold text-white">{props.projectName}</p>
           <p className="flex items-center gap-2 text-xs text-slate-500">
             {pub ? <StatusBadge status={pub.status} /> : <StatusBadge status="DRAFT" />}
+            {unpublished && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950">Prévia não publicada</span>}
+            {props.isDemo && <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">DEMO</span>}
             {dirty ? <span className="text-amber-300">Alterações não salvas</span> : <span>Tudo salvo</span>}
           </p>
         </div>
         <div className="flex rounded-xl border border-white/10 p-1">
           <button className={`rounded-lg px-2.5 py-1 text-xs ${device === "desktop" ? "bg-brand-500/20 text-white" : "text-slate-400"}`} onClick={() => setDevice("desktop")}>💻 Computador</button>
           <button className={`rounded-lg px-2.5 py-1 text-xs ${device === "mobile" ? "bg-brand-500/20 text-white" : "text-slate-400"}`} onClick={() => setDevice("mobile")}>📱 Celular</button>
+          <button aria-pressed={view3d} className={`rounded-lg px-2.5 py-1 text-xs ${view3d ? "bg-brand-500/20 text-white" : "text-slate-400"}`} onClick={() => setView3d((v) => !v)} title="Moldura em perspectiva (passe o mouse para endireitar)">◇ 3D</button>
         </div>
         <button className="btn-secondary py-2" onClick={previewTab}>Visualizar</button>
         <button className="btn-secondary py-2" onClick={save} disabled={!dirty || saving || !props.premium}>{saving && <Spinner />}Salvar</button>
@@ -480,13 +540,22 @@ export function Editor(props: {
 
         {/* Pré-visualização */}
         <div className="grid-bg flex justify-center bg-ink-900/50 p-4 sm:p-6 lg:h-[calc(100vh-65px)]">
-          <div className={`h-[70vh] overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl transition-all duration-500 lg:h-full ${device === "mobile" ? "w-[390px] max-w-full" : "w-full"}`}>
-            <iframe ref={iframeRef} title="Pré-visualização do site" srcDoc={html} sandbox="allow-scripts allow-popups" className="h-full w-full" />
+          <div className={`pframe-wrap flex h-[70vh] w-full justify-center lg:h-full ${view3d ? "is-3d" : ""}`}>
+            <div className={`pframe flex h-full flex-col transition-all duration-500 ${device === "mobile" ? "w-[390px] max-w-full" : "w-full"}`}>
+              <div className="pframe-chrome">
+                <span className="dots"><b /><b /><b /></span>
+                <span className="pframe-url">{pub?.status === "PUBLISHED" ? pub.url : "prévia local · não publicada"}</span>
+                {unpublished && <span className="pframe-badge">PRÉVIA</span>}
+              </div>
+              <iframe ref={iframeRef} title="Pré-visualização do site" srcDoc={html} sandbox="allow-scripts allow-popups" className="w-full flex-1 bg-white" />
+            </div>
           </div>
         </div>
       </div>
       {picker && <ImagePicker onPick={picker} onClose={() => setPicker(null)} />}
+      {flowCb && <FlowAssistant segmentLabel={props.segmentLabel ?? props.projectName} niche={props.niche} palette={{ primary: content.theme.primary, accent: content.theme.accent }} onInsert={flowCb} onClose={() => setFlowCb(null)} />}
     </div>
+    </AssetsCtx.Provider>
   );
 }
 

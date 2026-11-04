@@ -26,6 +26,24 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Salvar empresas, anotações, atualizar dados pela fonte | ✅ / 🔑 |
 | Nenhum dado inventado (sem chave → mensagem clara, a pesquisa não é contada) | ✅ testado |
 
+## Estúdio de leads
+| Item | Status |
+|---|---|
+| Critérios nicho / região / idioma / quantidade; histórico de buscas | ✅ |
+| Descoberta real via Google Places (paginada até 30) | 🔑 `GOOGLE_PLACES_API_KEY` (testado com respostas simuladas) |
+| Importação de CSV do usuário | ✅ testado |
+| Modo demonstração (dados fictícios, sempre identificados, nunca deduplicados contra reais) | ✅ testado |
+| Normalização e deduplicação (domínio, telefone, nome+cidade, perfil social) | ✅ testado |
+| Verificação de presença: robots.txt (RFC 9309), só página inicial, proteção SSRF, limites de tempo e tamanho | ✅ testado (unidade); acesso real depende da rede do servidor |
+| Proveniência por campo (confirmado / inferido / não encontrado / revisado) e oportunidades com evidência | ✅ testado |
+| Perfil do lead: revisar, corrigir, excluir, restaurar, reanalisar, anotar | ✅ |
+| Prévia do site só com fatos confirmados/revisados, faixa “prévia não publicada” | ✅ testado |
+| Abordagem: assunto e mensagem em pt-BR + en/es, editar, copiar, exportar .txt/.md, descartar; nunca enviada | ✅ testado (texto com IA 🔑 `ANTHROPIC_API_KEY`) |
+| Origem, licença e texto alternativo por imagem; aviso em imagens geradas; imagens da empresa só com autorização | ✅ |
+| Google Flow | 🚧 sem API pública: fluxo **assistido** (prompt + importação manual + checagem). Nenhuma geração automática |
+| Busca na web / diretórios além do Google Places | 🚧 interface `BusinessSearchProvider` pronta; nenhum provedor adicional implementado |
+| Pipeline assíncrono (fila) para buscas grandes | 🚧 hoje é síncrono e limitado a 30 leads por busca |
+
 ## Sites
 | Item | Status |
 |---|---|

@@ -21,10 +21,24 @@ const color = z.string().regex(/^#[0-9a-fA-F]{6}$/, "cor em formato #RRGGBB");
 const text = (max = 600) => z.string().max(max);
 const url = z.string().max(2000);
 
+/**
+ * Origem de cada imagem (guardada junto com a licença/condição de uso):
+ *  stock     → banco de imagens com licença compatível (ex.: Unsplash, com crédito)
+ *  company   → imagem da própria empresa; o usuário confirmou ter autorização
+ *  generated → gerada por IA (ex.: Google Flow); exibida com aviso "ilustrativa"
+ *  user      → enviada/indicada pelo usuário, que declara ter os direitos
+ */
+export const IMAGE_ORIGINS = ["stock", "company", "generated", "user"] as const;
+export type ImageOrigin = (typeof IMAGE_ORIGINS)[number];
+
 export const ImageSchema = z.object({
   url,
   alt: text(200).default(""),
   credit: z.object({ name: text(120), link: url }).optional(),
+  origin: z.enum(IMAGE_ORIGINS).optional(),
+  license: text(300).optional(),
+  sourceUrl: url.optional(),
+  generator: text(80).optional(), // ex.: "Google Flow"
 });
 
 export const ButtonSchema = z.object({
