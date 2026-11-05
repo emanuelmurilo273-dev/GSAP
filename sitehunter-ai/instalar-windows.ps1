@@ -1,9 +1,11 @@
 ﻿# Instalador do SiteHunter AI para Windows (chamado por instalar-windows.bat).
 $ErrorActionPreference = "Continue"
+# Qualquer erro inesperado aparece na tela (a janela não fecha sozinha).
+trap { Write-Host ""; Write-Host "  ERRO: $_" -ForegroundColor Red; try { Stop-Transcript | Out-Null } catch {}; Read-Host "  Pressione Enter para fechar"; exit 1 }
 Set-Location -Path $PSScriptRoot
 $log = Join-Path $PSScriptRoot "instalacao-log.txt"
 Start-Transcript -Path $log -Force | Out-Null
-function Fim($code) { Stop-Transcript | Out-Null; Write-Host ""; Read-Host "Pressione Enter para fechar"; exit $code }
+function Fim($code) { try { Stop-Transcript | Out-Null } catch {}; Write-Host ""; if ($code -eq 0) { Start-Sleep -Seconds 1 }; exit $code }
 
 Write-Host ""
 Write-Host "  SiteHunter AI - instalação no seu computador" -ForegroundColor Cyan
