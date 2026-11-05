@@ -63,6 +63,12 @@ describe("Mensagem de WhatsApp", () => {
     expect(m.body).toContain("Barbearia Teste");
     expect(m.body).toContain("https://exemplo.site/p/abc");
     expect(m.body).toMatch(/por conta própria/i);
+    // Começa pelo problema observado, explica o impacto e só depois oferece a prévia.
+    const iObs = m.body.indexOf("não encontrei um site"), iWhy = m.body.indexOf("mais difíceis de achar"), iOffer = m.body.indexOf("montei uma sugestão");
+    expect(iObs).toBeGreaterThan(0);
+    expect(iWhy).toBeGreaterThan(iObs);
+    expect(iOffer).toBeGreaterThan(iWhy);
+    expect(m.basis).toBe("problem");
     expect(m.body).toMatch(/não mando mais/);
     expect(m.body).not.toMatch(/garant|aument|pediram|solicitou/i);
     expect(m.body.length).toBeLessThan(600);
@@ -70,7 +76,7 @@ describe("Mensagem de WhatsApp", () => {
   it("sem prévia publicada, oferece enviar o link em vez de inventar um", () => {
     const m = templateWhatsapp({ facts, opportunities: [], senderName: "Ana", previewUrl: null, hasPreview: true }, "pt-BR");
     expect(m.body).not.toMatch(/https?:\/\//);
-    expect(m.body).toMatch(/Posso enviar o link/);
+    expect(m.body).toMatch(/Posso te enviar o link/);
   });
 });
 
@@ -127,5 +133,19 @@ describe("WhatsApp: formato e DDD", () => {
     const a = analyzeHtml(`<p>Atendimento pelo WhatsApp: (47) 99123-4567 · Tel. (47) 3333-1111</p>`, "https://x.com.br/");
     expect(a.whatsapp).toEqual(["47991234567"]);
     expect(a.whatsappWritten).toBe(true);
+  });
+});
+
+describe("Abordagem sem problema verificável", () => {
+  it("usa uma oportunidade observável; sem fonte pública, pede edição", () => {
+    const pub: Facts = { name: { value: "Loja X", status: "confirmed", source: "OpenStreetMap", confidence: 0.8, collectedAt: "x" } };
+    const a = templateWhatsapp({ facts: pub, opportunities: [], senderName: "Ana", previewUrl: null, hasPreview: false }, "pt-BR");
+    expect(a.basis).toBe("opportunity");
+    expect(a.needsEdit).toBe(false);
+    const own: Facts = { name: { value: "Loja Y", status: "user", source: "Fornecido pelo usuário", confidence: 0.7, collectedAt: "x" } };
+    const b = templateWhatsapp({ facts: own, opportunities: [], senderName: "Ana", previewUrl: null, hasPreview: false }, "pt-BR");
+    expect(b.needsEdit).toBe(true);
+    expect(b.body).toMatch(/\[Escreva aqui/);
+    expect(a.body + b.body).not.toMatch(/perdendo|vendas|garant/i);
   });
 });

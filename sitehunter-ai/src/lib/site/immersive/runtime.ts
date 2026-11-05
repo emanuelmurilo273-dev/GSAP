@@ -437,6 +437,8 @@ export function immersiveRuntime(cfg) {
     if (i === 0) { p.s *= cfg.choreo === "drift" ? 1.2 : 1.1; p.ry = -0.55; p.rz = 0.18; }
     if (sd === 0) { p.x = 0; p.y = -2.0; p.s *= 0.66; p.z = 0; } // texto centralizado no alto, objeto abaixo dele
     if (last) { p.ry = Math.PI * 2 + 0.4 + i * 0.2; p.rx = 0.25; p.s *= 0.95; }
+    // Capítulos de foto ampla: o objeto sai de cena (e volta no capítulo seguinte, entrando de baixo).
+    if (chapters[i] && chapters[i].dataset.hide) { p.s = 0.001; p.y = -4.5; p.z = -2; }
     if (mobile) { p.x *= 0.1; p.y = (sd === 0 ? 0 : p.y * 0.4) + 1.15; p.s *= 0.74; p.z = Math.min(p.z, 0.4); }
     return p;
   });
@@ -477,8 +479,9 @@ export function immersiveRuntime(cfg) {
     hero.position.set(cur.x, cur.y + (reduce ? 0 : Math.sin(clock * 0.9) * 0.06), cur.z);
     hero.rotation.set(cur.rx + my * 0.18, cur.ry + idle + mx * 0.35, cur.rz);
     hero.scale.setScalar(cur.s);
-    floor.position.x = cur.x; floor.position.z = cur.z; floor.scale.setScalar(cur.s);
-    floor.material.opacity = 0.35 + 0.2 * Math.sin(clock * 1.3) * (reduce ? 0 : 1) + 0.15;
+    floor.position.x = cur.x; floor.position.z = cur.z; floor.scale.setScalar(Math.max(0.001, cur.s));
+    hero.visible = cur.s > 0.02;
+    floor.material.opacity = (0.35 + 0.2 * Math.sin(clock * 1.3) * (reduce ? 0 : 1) + 0.15) * Math.min(1, cur.s);
 
     secs.forEach(function (o) {
       var ud = o.userData, a = reduce ? (f >= ud.k ? 1 : 0) : smooth(ud.k - 0.7, ud.k, f);

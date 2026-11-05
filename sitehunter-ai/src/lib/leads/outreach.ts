@@ -157,39 +157,92 @@ Return a subject and a body.`;
 }
 
 // ---------------------------------------------------------------------------
-// Mensagem curta para WhatsApp. Mesmas regras: só fatos verificados, a prévia é
-// apresentada como sugestão própria (a empresa não pediu), sem promessas, com saída fácil.
-// O sistema só monta o link wa.me; quem abre e toca em enviar é sempre o usuário.
+// Mensagem de WhatsApp: começa pelo problema ou oportunidade OBSERVÁVEL (com fato verificado),
+// explica em uma frase por que isso pode atrapalhar o cliente e só então oferece a prévia como
+// possível solução. Sem acusações, sem "você está perdendo vendas", sem promessas. O sistema só
+// monta o link wa.me; quem abre e toca em enviar é sempre o usuário.
 
-const WA: Record<Language, { greet: (n: string) => string; intro: (s: string) => string; preview: (url: string | null) => string; close: string }> = {
-  "pt-BR": {
-    greet: (n) => (n ? `Olá, pessoal da ${n}! Tudo bem?` : "Olá! Tudo bem?"),
-    intro: (s) => `Aqui é ${s}, trabalho com criação de sites para negócios locais.`,
-    preview: (url) =>
-      url
-        ? `Por conta própria, montei uma sugestão de site para vocês, só como ideia: ${url}`
-        : "Por conta própria, montei uma sugestão de site para vocês. Posso enviar o link para darem uma olhada?",
-    close: "Se não tiver interesse, é só me avisar que não mando mais mensagens.",
-  },
-  en: {
-    greet: (n) => (n ? `Hi ${n} team!` : "Hi there!"),
-    intro: (s) => `This is ${s}, I build websites for local businesses.`,
-    preview: (url) => (url ? `On my own initiative I put together a website suggestion for you, just as an idea: ${url}` : "On my own initiative I put together a website suggestion for you. May I send you the link?"),
-    close: "If you're not interested, just let me know and I won't message again.",
-  },
-  es: {
-    greet: (n) => (n ? `¡Hola, equipo de ${n}!` : "¡Hola!"),
-    intro: (s) => `Soy ${s}, creo sitios web para negocios locales.`,
-    preview: (url) => (url ? `Por iniciativa propia preparé una sugerencia de sitio para ustedes, solo como idea: ${url}` : "Por iniciativa propia preparé una sugerencia de sitio para ustedes. ¿Les puedo enviar el enlace?"),
-    close: "Si no les interesa, avísenme y no vuelvo a escribir.",
-  },
+type WaParams = { name: string; source: string; url: string; year: string; phone: string; sitePhone: string; category: string; city: string };
+type WaDict = {
+  greet: (n: string) => string;
+  problem: Partial<Record<Opportunity["code"], (p: WaParams) => [string, string]>>; // [observação, por que importa]
+  opportunity: (p: WaParams) => string;
+  offer: (url: string | null, sender: string) => string;
+  close: string;
 };
 
-export function templateWhatsapp(input: OutreachInput, lang: Language): OutreachDraftText {
-  const base = templateOutreach(input, lang);
-  const w = WA[lang];
-  const name = base.factsUsed.find((f) => f.field === "name")?.value ?? "";
+const WA_PT: WaDict = {
+  greet: (n) => (n ? `Olá, pessoal da ${n}! Tudo bem?` : "Olá! Tudo bem?"),
+  problem: {
+    no_website: (p) => [`Procurei a ${p.name} no ${p.source} e não encontrei um site informado.`, `Quem procura ${p.category || "o serviço"}${p.city ? ` em ${p.city}` : ""} pela internet costuma conferir serviços, horários e como chegar antes de chamar, e sem um site essas informações ficam mais difíceis de achar.`],
+    social_only: (p) => [`Vi que o canal online da ${p.name} no ${p.source} é um perfil em rede social.`, "O perfil ajuda, mas quem não usa a rede ou chega pelo Google pode ter mais dificuldade para encontrar serviços, horários e contato num só lugar."],
+    site_unreachable: (p) => [`Tentei abrir o site ${p.url} e ele não carregou.`, "Quem tenta acessar nesse momento não consegue ver os serviços nem o contato de vocês."],
+    not_mobile: (p) => [`Notei que a página inicial de ${p.url} não está configurada para telas de celular.`, "Quem acessa pelo celular pode ter dificuldade para ler a página e encontrar o contato."],
+    outdated: (p) => [`Notei que o rodapé de ${p.url} ainda mostra © ${p.year}.`, "Isso pode passar a impressão de que as informações do site não estão atualizadas."],
+    no_https: (p) => [`Notei que ${p.url} abre sem conexão segura (HTTPS).`, "Alguns navegadores mostram o aviso de “não seguro”, o que pode deixar quem visita em dúvida."],
+    inconsistent_phone: (p) => [`Notei que o telefone do site (${p.sitePhone}) é diferente do que aparece no ${p.source} (${p.phone}).`, "Isso pode confundir quem tenta ligar para vocês."],
+    missing_seo: (p) => [`Notei que a página inicial de ${p.url} não tem título e descrição para o Google.`, "Isso pode dificultar que a página apareça bem para quem procura pelos serviços de vocês."],
+  },
+  opportunity: (p) => `Encontrei a ${p.name} no ${p.source} e pensei numa forma de apresentar os serviços de vocês de um jeito mais completo na internet.`,
+  offer: (url, s) => (url ? `Aqui é ${s}, crio sites para negócios locais. Por conta própria, montei uma sugestão de site que resolve isso, só como ideia: ${url}` : `Aqui é ${s}, crio sites para negócios locais. Por conta própria, montei uma sugestão de site que resolve isso. Posso te enviar o link para dar uma olhada?`),
+  close: "Se não fizer sentido para vocês, é só me avisar que não mando mais mensagens.",
+};
+
+const WA_EN: WaDict = {
+  greet: (n) => (n ? `Hi ${n} team!` : "Hi there!"),
+  problem: {
+    no_website: (p) => [`I looked up ${p.name} on ${p.source} and didn't find a website listed.`, "People searching online usually check services, hours and directions first, and without a website that information is harder to find."],
+    social_only: (p) => [`I noticed ${p.name}'s online channel on ${p.source} is a social media profile.`, "It helps, but people who don't use that network may have a harder time finding services, hours and contact in one place."],
+    site_unreachable: (p) => [`I tried to open ${p.url} and it didn't load.`, "Anyone trying to visit right now can't see your services or contact details."],
+    not_mobile: (p) => [`I noticed the home page at ${p.url} isn't set up for phone screens.`, "Visitors on a phone may find it hard to read and to find your contact."],
+    outdated: (p) => [`I noticed the footer at ${p.url} still shows © ${p.year}.`, "That can give the impression the information isn't up to date."],
+    no_https: (p) => [`I noticed ${p.url} loads without a secure (HTTPS) connection.`, "Some browsers show a “not secure” warning, which can make visitors hesitate."],
+    inconsistent_phone: (p) => [`I noticed the phone on the website (${p.sitePhone}) differs from the one on ${p.source} (${p.phone}).`, "That can confuse people trying to call you."],
+    missing_seo: (p) => [`I noticed the home page at ${p.url} has no title and description for Google.`, "That can make it harder for the page to show up for people looking for your services."],
+  },
+  opportunity: (p) => `I came across ${p.name} on ${p.source} and thought of a way to present your services more completely online.`,
+  offer: (url, s) => (url ? `This is ${s}, I build websites for local businesses. On my own initiative I put together a website suggestion that addresses this, just as an idea: ${url}` : `This is ${s}, I build websites for local businesses. On my own initiative I put together a website suggestion that addresses this. May I send you the link?`),
+  close: "If it's not useful for you, just let me know and I won't message again.",
+};
+
+const WA_ES: WaDict = {
+  greet: (n) => (n ? `¡Hola, equipo de ${n}!` : "¡Hola!"),
+  problem: {
+    no_website: (p) => [`Busqué a ${p.name} en ${p.source} y no encontré un sitio web.`, "Quien busca en internet suele revisar servicios, horarios y cómo llegar antes de escribir, y sin un sitio esa información es más difícil de encontrar."],
+    social_only: (p) => [`Vi que el canal en línea de ${p.name} en ${p.source} es un perfil de red social.`, "Ayuda, pero quien no usa esa red puede tener más dificultad para encontrar servicios, horarios y contacto en un solo lugar."],
+    site_unreachable: (p) => [`Intenté abrir ${p.url} y no cargó.`, "Quien intenta entrar ahora no puede ver sus servicios ni su contacto."],
+    not_mobile: (p) => [`Noté que la página de inicio de ${p.url} no está preparada para el celular.`, "Quien entra desde el celular puede tener dificultad para leerla y encontrar el contacto."],
+    outdated: (p) => [`Noté que el pie de página de ${p.url} todavía muestra © ${p.year}.`, "Eso puede dar la impresión de que la información no está actualizada."],
+    no_https: (p) => [`Noté que ${p.url} se abre sin conexión segura (HTTPS).`, "Algunos navegadores muestran el aviso de “no seguro”, lo que puede generar dudas."],
+    inconsistent_phone: (p) => [`Noté que el teléfono del sitio (${p.sitePhone}) es distinto del que aparece en ${p.source} (${p.phone}).`, "Eso puede confundir a quien intenta llamar."],
+    missing_seo: (p) => [`Noté que la página de inicio de ${p.url} no tiene título ni descripción para Google.`, "Eso puede dificultar que la página aparezca para quien busca sus servicios."],
+  },
+  opportunity: (p) => `Encontré a ${p.name} en ${p.source} y pensé en una forma de presentar sus servicios de manera más completa en internet.`,
+  offer: (url, s) => (url ? `Soy ${s}, creo sitios web para negocios locales. Por iniciativa propia preparé una sugerencia de sitio que resuelve esto, solo como idea: ${url}` : `Soy ${s}, creo sitios web para negocios locales. Por iniciativa propia preparé una sugerencia de sitio que resuelve esto. ¿Les puedo enviar el enlace?`),
+  close: "Si no les resulta útil, avísenme y no vuelvo a escribir.",
+};
+
+export const WA_DICTS: Record<Language, WaDict> = { "pt-BR": WA_PT, en: WA_EN, es: WA_ES };
+
+export type WhatsappDraft = OutreachDraftText & { basis: "problem" | "opportunity"; needsEdit: boolean };
+
+export function templateWhatsapp(input: OutreachInput & { category?: string | null; city?: string | null }, lang: Language): WhatsappDraft {
+  const d = WA_DICTS[lang];
+  const name = isUsable(input.facts.name) ? input.facts.name.value! : "";
+  const publicSource = input.facts.name?.status === "confirmed" ? input.facts.name.source : null;
+  const obs = pickObservation(input.opportunities, !!publicSource);
+  const site = input.facts.website?.value ?? "";
+  const params: WaParams = {
+    name, source: publicSource ?? "", url: site.replace(/^https?:\/\//, "").replace(/\/$/, ""),
+    year: obs?.evidence?.match(/\d{4}/)?.[0] ?? "", phone: input.facts.phone?.value ?? "", sitePhone: obs?.evidence?.split(",")[0]?.trim() ?? "",
+    category: (input.category ?? "").toLowerCase(), city: input.city ?? "",
+  };
+  const used: OutreachDraftText["factsUsed"] = [];
+  if (name) used.push({ field: "name", value: name, source: input.facts.name!.source });
+  const pair = obs && d.problem[obs.code] ? d.problem[obs.code]!(params) : null;
+  if (obs?.evidence && obs.code !== "no_website") used.push({ field: obs.code, value: obs.evidence, source: obs.code === "social_only" ? params.source : "Verificação do site" });
   const url = input.hasPreview ? input.previewUrl ?? null : null;
-  const body = [w.greet(name), "", [w.intro(input.senderName), base.observation].filter(Boolean).join(" "), "", w.preview(url), "", w.close].join("\n");
-  return { subject: "WhatsApp", body, factsUsed: base.factsUsed, observation: base.observation };
+  const opening = pair ? `${pair[0]} ${pair[1]}` : publicSource ? d.opportunity(params) : "";
+  const body = [d.greet(name), "", opening || "[Escreva aqui um problema ou oportunidade que você confirmou sobre a empresa.]", "", d.offer(url, input.senderName), "", d.close].join("\n");
+  return { subject: "WhatsApp", body, factsUsed: used, observation: pair?.[0] ?? null, basis: pair ? "problem" : "opportunity", needsEdit: !opening };
 }

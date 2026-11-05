@@ -16,7 +16,7 @@ export const GET = route(async (req) => {
       ...(demo === "1" ? { isDemo: true } : demo === "0" ? { isDemo: false } : {}),
     },
     orderBy: [{ opportunityScore: "desc" }, { createdAt: "desc" }],
-    include: { projects: { select: { id: true, name: true } } },
+    include: { projects: { select: { id: true, name: true, publication: { select: { status: true } } } } },
     take: 500,
   });
   return json({ leads: companies.map(leadView) });

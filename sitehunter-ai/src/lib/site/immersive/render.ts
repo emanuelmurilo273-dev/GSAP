@@ -39,7 +39,7 @@ function fontsHref(fams: string[]) {
   return `https://fonts.googleapis.com/css2?${[...new Set(fams)].map((f) => `family=${encodeURIComponent(f).replace(/%20/g, "+")}${FONT_W[f] ?? ":wght@400;700"}`).join("&")}&display=swap`;
 }
 
-type Ch = { id: string; side: "left" | "right" | "center"; cls?: string; html: string; nav?: string };
+type Ch = { id: string; side: "left" | "right" | "center"; cls?: string; html: string; nav?: string; hide?: boolean };
 
 function sideFor(concept: Concept, i: number): Ch["side"] {
   if (concept.layout === "center") return i === 0 ? "center" : i % 2 ? "left" : "right";
@@ -73,22 +73,36 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const wa = waNumber(b.whatsapp);
   const chapters: Omit<Ch, "side">[] = [];
 
-  // Capítulo 0: abertura com a palavra gigante atrás do objeto 3D
   const heroImg = hero?.image && hero.image.origin === "company" ? hero.image : undefined;
-  chapters.push({
-    id: hero?.id ?? "inicio",
-    cls: "ch-hero",
-    html: `<div class="bgclip" aria-hidden="true"><div class="bgword">${esc(k.heroWord)}</div></div>
-      ${heroImg ? `<div class="hero-photo">${card(heroImg, 0, "pc-hero")}</div>` : ""}
-      <div class="panel">
+  // Abertura editorial (referência do site imobiliário): foto ampla, texto grande sobreposto e legível.
+  const firstImg = [hero?.image, ...(gallery?.images ?? []), about?.image].find((i): i is SiteImage => !!i && !!imgSrc(i));
+  const photoHero = k.heroMode === "photo" ? heroImg ?? firstImg : undefined;
+  const [heroTitle, heroFull] = splitName(hero?.title || c.siteName);
+  const heroText = `
         ${k.kicker ? `<p class="kicker rv">${esc(k.kicker)}</p>` : ""}
-        ${(() => { const [t, full] = splitName(hero?.title || c.siteName); return `<h1 class="display rv" style="--d:1;--L:${longest(t)}">${esc(t)}</h1>${full ? `<p class="fullname rv" style="--d:1">${esc(full)}</p>` : ""}`; })()}
+        <h1 class="display rv" style="--d:1;--L:${longest(heroTitle)}">${esc(heroTitle)}</h1>${heroFull ? `<p class="fullname rv" style="--d:1">${esc(heroFull)}</p>` : ""}
         ${hero?.subtitle ? `<p class="lede rv" style="--d:2">${esc(hero.subtitle)}</p>` : ""}
         ${hero?.buttons.length ? `<div class="acts rv" style="--d:3">${hero.buttons.map((x, i) => button(x, c, i ? "btn ghost" : "btn")).join("")}</div>` : ""}
-        ${k.highlights.length ? `<p class="badge rv" style="--d:4">${esc(k.highlights[0])}</p>` : ""}
-      </div>
+        ${k.highlights.length ? `<p class="badge rv" style="--d:4">${esc(k.highlights[0])}</p>` : ""}`;
+  if (photoHero) {
+    chapters.push({
+      id: hero?.id ?? "inicio",
+      cls: "ch-hero ch-photo",
+      hide: true,
+      html: `<figure class="bleed" data-depth><img src="${esc(imgSrc(photoHero)!)}" alt="${esc(photoHero.alt)}" fetchpriority="high" decoding="async">${imageCaption(photoHero, "figcaption", "bleed-cap")}</figure>
+      <div class="panel">${heroText}</div>
       <div class="cue" aria-hidden="true"><span></span>Role para explorar</div>`,
-  });
+    });
+  } else {
+    chapters.push({
+      id: hero?.id ?? "inicio",
+      cls: "ch-hero",
+      html: `<div class="bgclip" aria-hidden="true"><div class="bgword">${esc(k.heroWord)}</div></div>
+      ${heroImg ? `<div class="hero-photo">${card(heroImg, 0, "pc-hero")}</div>` : ""}
+      <div class="panel">${heroText}</div>
+      <div class="cue" aria-hidden="true"><span></span>Role para explorar</div>`,
+    });
+  }
 
   // Serviços / produtos / cardápio: um capítulo por item (o objeto gira entre eles)
   const items = services?.items.map((i) => ({ t: i.title, d: i.description }))
@@ -109,15 +123,20 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     });
   });
 
-  // Sobre (com foto em profundidade quando houver)
+  // Sobre: faixa de foto ampla com texto sobreposto (editorial) ou texto com foto em profundidade.
   if (about && (about.text || about.title)) {
-    const img = about.image ? card(about.image, 1, "pc-about") : "";
-    chapters.push({
+    const aImg = about.image && imgSrc(about.image) && about.image !== photoHero ? about.image : undefined;
+    const band = !!aImg && (k.heroMode === "photo" || k.seed % 3 !== 0);
+    chapters.push(band ? {
+      id: about.id, nav: "Sobre", cls: "ch-band", hide: true,
+      html: `<figure class="bleed" data-depth><img src="${esc(imgSrc(aImg!)!)}" alt="${esc(aImg!.alt)}" loading="lazy" decoding="async">${imageCaption(aImg!, "figcaption", "bleed-cap")}</figure>
+      <div class="panel"><p class="kicker rv">${esc(about.title)}</p><div class="body big rv" style="--d:1">${nl2p(about.text)}</div></div>`,
+    } : {
       id: about.id, nav: "Sobre",
       html: `<div class="panel">
         <p class="kicker rv">${esc(about.title)}</p>
         <div class="body big rv" style="--d:1">${nl2p(about.text)}</div>
-        ${img ? `<div class="float-photo rv" style="--d:2">${img}</div>` : ""}
+        ${aImg ? `<div class="float-photo rv" style="--d:2">${card(aImg, 1, "pc-about")}</div>` : ""}
       </div>`,
     });
   }
@@ -135,7 +154,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
 
   // Galeria: cartões de foto em camadas que atravessam a cena
   // A foto de capa de banco (não da empresa) não cobre o objeto 3D: vai para a galeria.
-  const gimgs = [...(hero?.image && !heroImg ? [hero.image] : []), ...(gallery?.images ?? [])].filter((i) => imgSrc(i));
+  const gimgs = [...(hero?.image && !heroImg ? [hero.image] : []), ...(gallery?.images ?? [])].filter((i) => imgSrc(i) && i !== photoHero && i.url !== photoHero?.url);
   if (gimgs.length) {
     chapters.push({
       id: gallery?.id ?? "galeria", nav: "Galeria", cls: "ch-gallery",
@@ -173,11 +192,11 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     </div>`,
   });
 
-  const all: Ch[] = chapters.map((ch, i) => ({ ...ch, side: sideFor(k, i) }));
+  const all: Ch[] = chapters.map((ch, i) => ({ ...ch, side: ch.hide ? (i === 0 ? "left" : sideFor(k, i) === "center" ? "left" : sideFor(k, i)) : sideFor(k, i) }));
   const nav = all.filter((x) => x.nav).slice(0, 4).map((x) => `<a href="#${esc(x.id)}">${esc(x.nav!)}</a>`).join("");
   const mainBtn = hero?.buttons[0];
   const fallbackArt = objectSvg(FALLBACK[k.model], P.accent, P.accent2, "fb");
-  const credits = [heroImg, about?.image, ...gimgs].filter((i): i is SiteImage => !!i && !!imgSrc(i));
+  const credits = [photoHero ?? heroImg, about?.image, ...gimgs].filter((i): i is SiteImage => !!i && !!imgSrc(i));
   const threeSrc = opts.threeSrc ?? "/vendor/three.min.js";
   const cfg = { model: k.model, secondary: k.secondary, material: k.material, motif: k.motif, choreo: k.choreo, pal: P, seed: k.seed };
   const up = k.caseStyle === "upper";
@@ -227,6 +246,18 @@ main{position:relative}
 .ch-hero{min-height:130vh}
 .ch-hero .panel{top:max(110px,22vh)}
 .ch-hero[data-side=center] .panel{top:max(96px,13vh)}
+.bleed{position:absolute;inset:0;margin:0;overflow:hidden;z-index:2;background:var(--bg2)}
+.bleed img{width:100%;height:100%;object-fit:cover;transform:translateY(calc((var(--p,.5) - .5) * -8%)) scale(1.12);will-change:transform}
+.bleed::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,color-mix(in srgb,var(--bg) 88%,transparent) 0%,color-mix(in srgb,var(--bg) 55%,transparent) 42%,transparent 75%),linear-gradient(0deg,var(--bg) 0%,transparent 35%,transparent 80%,color-mix(in srgb,var(--bg) 60%,transparent) 100%)}
+.bleed-cap{position:absolute;right:16px;bottom:12px;z-index:3;max-width:60%;font-size:11px;color:rgba(255,255,255,.75);text-align:right;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.bleed-cap a{color:inherit}
+.ch-photo,.ch-band{min-height:112vh}
+.ch-photo .panel,.ch-band .panel{z-index:4}
+.ch-photo .display{text-shadow:0 2px 30px rgba(0,0,0,.35)}
+.ch-band{align-items:center}.ch-band .panel{position:relative;top:auto;margin:22vh 0;padding:clamp(22px,3vw,36px);border-radius:22px;background:color-mix(in srgb,var(--bg) 66%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid color-mix(in srgb,var(--ink) 10%,transparent)}
+.ch[data-side=right] .bleed::after{background:linear-gradient(270deg,color-mix(in srgb,var(--bg) 88%,transparent) 0%,color-mix(in srgb,var(--bg) 55%,transparent) 42%,transparent 75%),linear-gradient(0deg,var(--bg) 0%,transparent 35%,transparent 80%,color-mix(in srgb,var(--bg) 60%,transparent) 100%)}
+.ch[data-side=right] .bleed-cap{right:auto;left:16px;text-align:left}
+.ch-band::before,.ch-photo::before{display:none}
 .bgclip{position:absolute;inset:0 0 auto 0;height:100vh;overflow:hidden;z-index:0;pointer-events:none}
 .bgword{position:absolute;z-index:0;left:50%;top:50%;transform:translate(-50%,-56%);font:800 clamp(90px,21vw,360px)/.85 var(--fd);letter-spacing:-.04em;white-space:nowrap;color:transparent;-webkit-text-stroke:1px color-mix(in srgb,var(--ink) 22%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 16%,transparent),transparent 80%);-webkit-background-clip:text;background-clip:text;pointer-events:none;user-select:none}
 .kicker{font:600 12px/1.3 var(--fb);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin-bottom:18px}
@@ -285,6 +316,9 @@ footer a{color:var(--mu)}
   .cue{display:none}
   .ch::before,.ch[data-side=left]::before,.ch[data-side=right]::before{background:linear-gradient(180deg,transparent 30%,color-mix(in srgb,var(--bg) 88%,transparent) 62%)}
   .ch[data-side=center]{text-align:left}.ch[data-side=center] .acts{justify-content:flex-start}
+  .ch-photo .bleed::after,.ch-band .bleed::after{background:linear-gradient(0deg,var(--bg) 8%,color-mix(in srgb,var(--bg) 70%,transparent) 45%,transparent 75%)}
+  .ch-band .panel{margin:40svh 0 8svh;padding:20px}
+  .bleed-cap{max-width:80%;top:12px;bottom:auto}
   .bgclip{height:100svh}.bgword{top:30%;font-size:28vw}
   :root,.ch[data-side=center]{--pw:calc(100vw - 36px)}
   .display{font-size:min(clamp(40px,12vw,64px),calc(var(--pw) / (var(--L,8) * var(--kw))))}
@@ -301,7 +335,7 @@ footer a{color:var(--mu)}
   html{scroll-behavior:auto}
   .rv{transition:opacity .4s;transform:none;filter:none}
   .cue span{animation:none}
-  .float-photo .pcard,.stack .pcard{transform:none}
+  .float-photo .pcard,.stack .pcard,.bleed img{transform:none}
 }
 </style>
 </head>
@@ -311,7 +345,7 @@ ${opts.previewRibbon ? `<div class="ribbon">${esc(opts.previewRibbon)}</div>` : 
 <canvas id="stage3d" aria-hidden="true"></canvas>
 <div class="fallback" aria-hidden="true">${fallbackArt}</div>
 <main>
-${all.map((ch, i) => `<section id="${esc(ch.id)}" class="ch ${ch.cls ?? ""}" data-ch="${i}" data-side="${ch.side}">${ch.html}</section>`).join("\n")}
+${all.map((ch, i) => `<section id="${esc(ch.id)}" class="ch ${ch.cls ?? ""}" data-ch="${i}" data-side="${ch.side}"${ch.hide ? ' data-hide="1"' : ""}>${ch.html}</section>`).join("\n")}
 </main>
 <footer>
   <p>© ${new Date().getFullYear()} ${esc(b.name)}${b.address ? ` · ${esc(b.address)}` : ""}</p>

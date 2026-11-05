@@ -63,8 +63,9 @@ export function mapOpenverse(r: OVImage): LicensedImage | null {
 const CURATED_SOURCES = "stocksnap,wordpress,nappy";
 const OUTDATED = /vintage|historic|archive|retro|antig|old |19\d\d|18\d\d|\bwar\b|museum|street \(/i;
 
-export async function searchOpenverse(query: string, perPage = 12, opts: { curated?: boolean } = {}): Promise<LicensedImage[]> {
+export async function searchOpenverse(query: string, perPage = 12, opts: { curated?: boolean; wide?: boolean } = {}): Promise<LicensedImage[]> {
   const params = new URLSearchParams({ q: query, license_type: "commercial,modification", page_size: String(Math.min(20, opts.curated ? perPage * 2 : perPage)), mature: "false" });
+  if (opts.wide) params.set("aspect_ratio", "wide");
   if (opts.curated) {
     params.set("source", CURATED_SOURCES);
     params.set("category", "photograph");
@@ -92,7 +93,7 @@ export async function searchOpenverse(query: string, perPage = 12, opts: { curat
 }
 
 /** Busca no banco disponível: Unsplash quando há chave, senão Openverse. */
-export async function searchLicensedImages(query: string, perPage = 12, opts: { curated?: boolean } = {}): Promise<LicensedImage[]> {
+export async function searchLicensedImages(query: string, perPage = 12, opts: { curated?: boolean; wide?: boolean } = {}): Promise<LicensedImage[]> {
   if (env.imageSearchDisabled) return [];
   if (env.unsplashKey) {
     const u = await searchImages(query, perPage);

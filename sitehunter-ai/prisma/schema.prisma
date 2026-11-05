@@ -186,6 +186,8 @@ model Company {
   excludedAt    DateTime?                // lead excluído da lista pelo usuário
   email         String?                  // e-mail comercial público (com fonte em `facts`)
   whatsapp      String?                  // WhatsApp comercial CONFIRMADO (só dígitos, com DDI); inferências ficam só em facts
+  waMessage     String?                  // abordagem de WhatsApp editada pelo usuário
+  contactedAt   DateTime?                // marcado pelo usuário depois de enviar a mensagem
   socials       Json?                    // [{ network, url, source }]
   hours         Json?                    // [{ label, value }] horários publicados (fonte em facts.hours)
   images        Json?                    // ImageCandidate[] (origem, licença, status de revisão)

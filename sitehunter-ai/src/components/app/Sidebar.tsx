@@ -6,14 +6,15 @@ import { Logo } from "@/components/Logo";
 
 type Item = { href: string; label: string; icon: string };
 
-const MAIN: Item[] = [
-  { href: "/app", label: "Painel", icon: "M3 12l9-8 9 8M5 10v10h14V10" },
-  { href: "/app/leads", label: "Estúdio de leads", icon: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm9 16-4-4M8 11h6M11 8v6" },
-  { href: "/app/sites", label: "Meus sites", icon: "M3 5h18v14H3zM3 9h18" },
-  { href: "/app/propostas", label: "Propostas", icon: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" },
-  { href: "/app/assinatura", label: "Assinatura", icon: "M3 7h18v10H3zM3 11h18" },
-  { href: "/app/conta", label: "Minha conta", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0" },
+// As 5 abas do app, na ordem do fluxo de trabalho.
+export const TABS: (Item & { short: string; step: string })[] = [
+  { href: "/app/buscar", label: "Buscar empresas", short: "Buscar", step: "1", icon: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm9 16-4-4" },
+  { href: "/app/leads", label: "Leads encontrados", short: "Leads", step: "2", icon: "M4 6h16M4 12h16M4 18h10" },
+  { href: "/app/sites", label: "Prévia dos sites", short: "Prévias", step: "3", icon: "M3 5h18v14H3zM3 9h18" },
+  { href: "/app/abordagens", label: "Abordagens", short: "Abordagens", step: "4", icon: "M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" },
+  { href: "/app/configuracoes", label: "Configurações", short: "Config.", step: "5", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7-3 2-1-2-4-2 1-2-2V4h-4v2L9 8 7 7 5 11l2 1-2 1 2 4 2-1 2 2v2h4v-2l2-2 2 1 2-4z" },
 ];
+const MAIN: Item[] = TABS;
 const ADMIN: Item[] = [
   { href: "/admin", label: "Visão geral", icon: "M4 20V10M10 20V4M16 20v-7M22 20H2" },
   { href: "/admin/usuarios", label: "Usuários", icon: "M16 20v-2a4 4 0 0 0-8 0v2M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" },
@@ -26,12 +27,13 @@ function NavList({ items, onNavigate }: { items: Item[]; onNavigate?: () => void
   return (
     <ul className="space-y-1">
       {items.map((i) => {
-        const active = i.href === "/app" || i.href === "/admin" ? path === i.href : path.startsWith(i.href);
+        const active = i.href === "/app" || i.href === "/admin" ? path === i.href : path.startsWith(i.href) || (i.href === "/app/leads" && path.startsWith("/app/leads/")) || (i.href === "/app/configuracoes" && (path.startsWith("/app/conta") || path.startsWith("/app/assinatura") || path.startsWith("/app/propostas")));
         return (
           <li key={i.href}>
             <Link
               href={i.href}
               onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
               className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                 active ? "bg-gradient-to-r from-brand-600/25 to-brand-500/5 text-white ring-1 ring-brand-500/30" : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
               }`}
@@ -56,9 +58,9 @@ export function Sidebar({ name, email, isAdmin, privateMode = false }: { name: s
   }
   const content = (
     <div className="flex h-full flex-col">
-      <div className="px-4 py-5"><Logo href="/app" /></div>
+      <div className="px-4 py-5"><Logo href="/app/buscar" /></div>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3">
-        <NavList items={privateMode ? MAIN.filter((i) => i.href !== "/app/assinatura") : MAIN} onNavigate={() => setOpen(false)} />
+        <NavList items={MAIN} onNavigate={() => setOpen(false)} />
         {isAdmin && (
           <div>
             <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600">Administração</p>
@@ -77,11 +79,12 @@ export function Sidebar({ name, email, isAdmin, privateMode = false }: { name: s
   return (
     <>
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-ink-950/90 px-4 py-3 backdrop-blur lg:hidden">
-        <Logo href="/app" />
+        <Logo href="/app/buscar" />
         <button onClick={() => setOpen(true)} className="btn-ghost px-2.5" aria-label="Abrir menu">
           <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         </button>
       </div>
+      <BottomTabs />
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-white/5 bg-ink-900/80 backdrop-blur-xl lg:block">{content}</aside>
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
@@ -90,5 +93,25 @@ export function Sidebar({ name, email, isAdmin, privateMode = false }: { name: s
         </div>
       )}
     </>
+  );
+}
+
+/** Barra de abas fixa no celular: as 5 abas sempre à mão, com a ativa destacada. */
+function BottomTabs() {
+  const path = usePathname();
+  return (
+    <nav aria-label="Abas" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-white/10 bg-ink-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      {TABS.map((t) => {
+        const on = path.startsWith(t.href) || (t.href === "/app/configuracoes" && (path.startsWith("/app/conta") || path.startsWith("/app/assinatura")));
+        return (
+          <Link key={t.href} href={t.href} aria-current={on ? "page" : undefined} className={`flex flex-col items-center gap-1 py-2 text-[10.5px] font-medium ${on ? "text-white" : "text-slate-500"}`}>
+            <span className={`grid h-7 w-12 place-items-center rounded-full transition ${on ? "bg-brand-500/25 text-brand-300" : ""}`}>
+              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={t.icon} /></svg>
+            </span>
+            {t.short}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

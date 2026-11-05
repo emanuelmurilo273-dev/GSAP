@@ -17,7 +17,7 @@ const LANGS = [
   { code: "es", label: "Español" },
 ] as const;
 
-const STEPS = ["Descobrindo empresas na fonte", "Normalizando e removendo duplicadas", "Verificando sites públicos (robots.txt respeitado)", "Registrando fontes e oportunidades"];
+const STEPS = ["Descobrindo empresas na fonte", "Removendo duplicadas", "Verificando sites públicos (robots.txt respeitado)", "Confirmando WhatsApp comercial em fonte pública", "Registrando fontes e oportunidades"];
 
 const OPP_FILTERS = [
   { key: "all", label: "Todas" },
@@ -34,7 +34,22 @@ function matchesOpp(l: LeadView, f: (typeof OPP_FILTERS)[number]["key"]) {
   return codes.includes("inconsistent_phone");
 }
 
-export function LeadsStudio({ initialLeads, initialSearches, providers, premium, nicheSuggestions }: { initialLeads: LeadView[]; initialSearches: SearchRow[]; providers: ProviderRow[]; premium: boolean; nicheSuggestions: string[] }) {
+const STAGES = [
+  { key: "all", label: "Todos" },
+  { key: "new", label: "Novos" },
+  { key: "review", label: "Prévia em revisão" },
+  { key: "published", label: "Prévia liberada" },
+  { key: "contacted", label: "Contatados" },
+] as const;
+const STAGE_CLASS: Record<string, string> = { new: "bg-sky-500/15 text-sky-200", review: "bg-amber-500/15 text-amber-200", published: "bg-emerald-500/15 text-emerald-200", contacted: "bg-violet-500/15 text-violet-200" };
+const STAGE_TXT: Record<string, string> = { new: "Novo", review: "Prévia em revisão", published: "Prévia liberada", contacted: "Contatado" };
+export function prettyWa(n: string | null) {
+  if (!n) return "";
+  const m = n.match(/^55(\d{2})(\d{4,5})(\d{4})$/);
+  return m ? `+55 (${m[1]}) ${m[2]}-${m[3]}` : `+${n}`;
+}
+
+export function LeadsStudio({ mode, initialLeads, initialSearches, providers, premium, nicheSuggestions, initialSearchId = "" }: { mode: "search" | "list"; initialLeads: LeadView[]; initialSearches: SearchRow[]; providers: ProviderRow[]; premium: boolean; nicheSuggestions: string[]; initialSearchId?: string }) {
   const google = providers.find((p) => p.id === "google_places")!;
   const defaultProvider: ProviderRow["id"] = !premium ? "demo" : google.configured ? "google_places" : "osm";
   const [leads, setLeads] = useState(initialLeads);
@@ -50,7 +65,9 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
   const [opp, setOpp] = useState<(typeof OPP_FILTERS)[number]["key"]>("all");
   const [dataset, setDataset] = useState<"all" | "real" | "demo">("all");
   const [view, setView] = useState<"active" | "excluded">("active");
-  const [searchFilter, setSearchFilter] = useState<string>("");
+  const [searchFilter, setSearchFilter] = useState<string>(initialSearchId);
+  const [stage, setStage] = useState<(typeof STAGES)[number]["key"]>("all");
+  const [lastSearch, setLastSearch] = useState<SearchRow | null>(null);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -60,15 +77,19 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
     () =>
       leads.filter(
         (l) =>
+          (l.waConfirmed || l.isDemo) &&
+          (stage === "all" || l.stage === stage) &&
           (view === "active" ? !l.excluded : l.excluded) &&
           (dataset === "all" || (dataset === "demo" ? l.isDemo : !l.isDemo)) &&
           (!searchFilter || l.searchId === searchFilter) &&
           matchesOpp(l, opp) &&
-          `${l.name} ${l.category ?? ""} ${l.address ?? ""}`.toLowerCase().includes(q.toLowerCase()),
+          `${l.name} ${l.category ?? ""} ${l.address ?? ""} ${l.city ?? ""}`.toLowerCase().includes(q.toLowerCase()),
       ),
-    [leads, view, dataset, searchFilter, opp, q],
+    [leads, view, dataset, searchFilter, opp, q, stage],
   );
-  const counts = { active: leads.filter((l) => !l.excluded).length, excluded: leads.filter((l) => l.excluded).length, demo: leads.filter((l) => l.isDemo).length };
+  const hiddenNoWa = leads.filter((l) => !l.waConfirmed && !l.isDemo && !l.excluded).length;
+  const lastResults = lastSearch ? leads.filter((l) => l.searchId === lastSearch.id) : [];
+  const counts = { active: leads.filter((l) => !l.excluded && (l.waConfirmed || l.isDemo)).length, excluded: leads.filter((l) => l.excluded).length, demo: leads.filter((l) => l.isDemo).length };
 
   async function reload() {
     const [{ leads }, { searches }] = await Promise.all([api<{ leads: LeadView[] }>("/api/leads?view=all"), api<{ searches: SearchRow[] }>("/api/leads/searches")]);
@@ -93,6 +114,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
       setDataset("all");
       toast(`${r.createdIds.length} novos leads · ${r.search.duplicates} duplicados ignorados`);
       setCoverage(coverageOf(r.search));
+      setLastSearch(r.search);
       if (!r.createdIds.length && r.search.found) setError("Todas as empresas encontradas já estavam na sua lista.");
     } catch (err) {
       setError((err as Error).message);
@@ -121,7 +143,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
   return (
     <div className="space-y-6">
       {/* ---------- Configuração da busca ---------- */}
-      <section className="card relative overflow-hidden">
+      {mode === "search" && <section className="card relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 grid-bg opacity-50 [mask-image:radial-gradient(ellipse_at_top_right,black_10%,transparent_65%)]" />
         <div className="relative grid gap-0 xl:grid-cols-[1.15fr_1fr]">
           <form onSubmit={start} className="space-y-5 p-5 sm:p-7">
@@ -191,7 +213,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
             {running && <div className="progress-line" role="progressbar" aria-label="Buscando leads" />}
             <div className="flex flex-wrap items-center gap-3">
               <button className={`btn-primary ${running ? "btn-busy" : ""}`} disabled={running || !canRun || (provider === "google_places" && realBlocked) || (provider === "osm" && !premium)}>
-                {running ? <><Spinner /> Processando…</> : provider === "import" ? "Importar e analisar" : "Iniciar busca de leads"}
+                {running ? <><Spinner /> Buscando e verificando WhatsApp…</> : provider === "import" ? "Importar e analisar" : "Iniciar busca"}
               </button>
               <p className="text-xs text-slate-500">{provider === "google_places" ? "Usa 1 pesquisa da cota mensal (cobrada pelo Google)." : provider === "osm" ? "Gratuita; respeita o limite de uso do OpenStreetMap." : "Não consome a cota."} Nenhuma empresa é contatada.</p>
             </div>
@@ -213,8 +235,12 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
             )}
           </div>
         </div>
-      </section>
+      </section>}
 
+      {mode === "search" && <SearchResults lastSearch={lastSearch} results={lastResults} searches={searches} />}
+
+      {mode === "list" && <>
+      {hiddenNoWa > 0 && <Alert kind="info">{hiddenNoWa} lead(s) antigo(s) sem WhatsApp comercial confirmado em fonte pública estão ocultos. A lista mostra só empresas com WhatsApp confirmado.</Alert>}
       {/* ---------- Histórico ---------- */}
       {searches.length > 0 && (
         <section aria-label="Buscas recentes" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -237,14 +263,18 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
       )}
 
       {/* ---------- Filtros ---------- */}
-      <section className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2">
-          {OPP_FILTERS.map((f) => (
-            <button key={f.key} onClick={() => setOpp(f.key)} className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${opp === f.key ? "bg-[var(--color-signal)] text-ink-950" : "border border-white/10 text-slate-300 hover:border-white/25"}`}>{f.label}</button>
-          ))}
+      <section className="card flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Status">
+          {STAGES.map((f) => {
+            const n = f.key === "all" ? counts.active : leads.filter((l) => !l.excluded && (l.waConfirmed || l.isDemo) && l.stage === f.key).length;
+            return <button key={f.key} role="tab" aria-selected={stage === f.key} onClick={() => setStage(f.key)} className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${stage === f.key ? "bg-[var(--color-signal)] text-ink-950" : "border border-white/10 text-slate-300 hover:border-white/25"}`}>{f.label} <span className="opacity-70">{n}</span></button>;
+          })}
         </div>
         <div className="flex flex-wrap gap-2">
-          <input className="input w-48 py-2" placeholder="Filtrar por nome…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filtrar por nome" />
+          <input className="input w-52 py-2" placeholder="Buscar por nome, cidade…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar leads" />
+          <select className="input w-auto py-2" value={opp} onChange={(e) => setOpp(e.target.value as typeof opp)} aria-label="Oportunidade">
+            {OPP_FILTERS.map((f) => <option key={f.key} value={f.key}>{f.key === "all" ? "Todas as oportunidades" : f.label}</option>)}
+          </select>
           <select className="input w-auto py-2" value={dataset} onChange={(e) => setDataset(e.target.value as typeof dataset)} aria-label="Conjunto de dados">
             <option value="all">Reais + demo</option>
             <option value="real">Somente reais</option>
@@ -258,13 +288,13 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
       </section>
 
       {/* ---------- Resultados ---------- */}
-      {!leads.length ? (
+      {!counts.active && view === "active" ? (
         <div className="card p-10 text-center">
           <p className="text-lg font-semibold text-white">Nenhum lead ainda</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-slate-400">Defina um nicho e uma região acima. Sem chave do Google Places? Experimente o modo demonstração para conhecer o fluxo completo.</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-slate-400">Comece na aba <Link href="/app/buscar" className="text-brand-300 underline">Buscar empresas</Link>: escolha o ramo, o estado e a cidade.</p>
         </div>
       ) : !shown.length ? (
-        <div className="card p-8 text-center text-sm text-slate-400">Nenhum lead com esses filtros. <button className="text-brand-300 underline" onClick={() => { setOpp("all"); setQ(""); setDataset("all"); setSearchFilter(""); }}>Limpar filtros</button></div>
+        <div className="card p-8 text-center text-sm text-slate-400">Nenhum lead com esses filtros. <button className="text-brand-300 underline" onClick={() => { setOpp("all"); setQ(""); setDataset("all"); setSearchFilter(""); setStage("all"); }}>Limpar filtros</button></div>
       ) : (
         <ul className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {shown.map((l, i) => (
@@ -276,6 +306,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
                     <p className="truncate text-xs text-slate-500">{l.category ?? "Categoria não informada"}{l.city ? ` · ${l.city}` : ""}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className={`badge ${STAGE_CLASS[l.stage]}`}>{STAGE_TXT[l.stage]}</span>
                     {l.isDemo && <DemoBadge />}
                     <ScoreMeter score={l.opportunityScore} />
                   </div>
@@ -289,7 +320,14 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
                     ))}
                   </div>
                 )}
-                <dl className="mt-4 space-y-1.5 text-sm">
+                <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-emerald-200">{l.isDemo ? "WhatsApp fictício (demonstração)" : prettyWa(l.whatsapp)}</p>
+                    <p className="truncate text-[11px] text-emerald-200/60">{l.isDemo ? "Lead de demonstração" : `WhatsApp confirmado · fonte: ${l.facts.whatsapp?.source ?? "—"}`}</p>
+                  </div>
+                  {!l.isDemo && l.facts.whatsapp?.sourceUrl && <a href={l.facts.whatsapp.sourceUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[11px] text-emerald-200/80 underline">ver fonte</a>}
+                </div>
+                <dl className="mt-3 space-y-1.5 text-sm">
                   {([
                     ["Endereço", l.address, l.facts.address],
                     ["Telefone", l.phone, l.facts.phone],
@@ -307,7 +345,8 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
                 <p className="mt-3 text-[11px] text-slate-500">Fonte: {l.source === "google_places" ? "Google Maps" : l.source === "osm" ? "OpenStreetMap" : l.source === "demo" ? "Demonstração" : "Importação"} · coletado em {new Date(l.fetchedAt).toLocaleDateString("pt-BR")}{l.reviewedAt ? " · revisado" : ""}</p>
                 <div className="mt-auto flex flex-wrap gap-2 pt-4">
                   <Link href={`/app/leads/${l.id}`} className="btn-primary px-3 py-2 text-xs">Abrir perfil</Link>
-                  {l.projects[0] && <Link href={`/app/sites/${l.projects[0].id}`} className="btn-secondary px-3 py-2 text-xs">Prévia</Link>}
+                  {l.projects[0] ? <Link href={`/app/sites/${l.projects[0].id}`} className="btn-secondary px-3 py-2 text-xs">Prévia</Link> : <Link href={`/app/leads/${l.id}#previa`} className="btn-secondary px-3 py-2 text-xs">Criar prévia</Link>}
+                  <Link href={`/app/abordagens#lead-${l.id}`} className="btn-secondary px-3 py-2 text-xs">Abordagem</Link>
                   {l.excluded ? (
                     <button className="btn-ghost px-3 py-2 text-xs" onClick={() => setExcluded(l, false)}>Restaurar</button>
                   ) : (
@@ -320,6 +359,52 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
         </ul>
       )}
       <p className="text-xs text-slate-600">* Inferência: dedução que precisa ser conferida (ex.: a fonte não informa site). Passe o mouse sobre os selos para ver fonte e confiança.</p>
+      </>}
+    </div>
+  );
+}
+
+/** Aba Buscar: resultado da última busca (só empresas com WhatsApp confirmado) e buscas recentes. */
+function SearchResults({ lastSearch, results, searches }: { lastSearch: SearchRow | null; results: LeadView[]; searches: SearchRow[] }) {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      <section className="card p-5 sm:p-6" aria-live="polite">
+        <h2 className="font-semibold text-white">Resultado da busca</h2>
+        {!lastSearch ? (
+          <p className="mt-2 text-sm text-slate-400">Escolha o ramo, o estado e a cidade e clique em <b>Iniciar busca</b>. Entram na lista só empresas com WhatsApp comercial confirmado em fonte pública.</p>
+        ) : !results.length ? (
+          <p className="mt-2 text-sm text-slate-400">Nenhuma empresa nova com WhatsApp comercial confirmado nesta busca. Tente outro ramo, uma cidade vizinha ou a fonte Google Maps (requer chave).</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-white/5">
+            {results.map((l) => (
+              <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-white">{l.name}</p>
+                  <p className="truncate text-xs text-slate-500">{l.category ?? "—"}{l.city ? ` · ${l.city}` : ""} · <span className="text-emerald-300">{l.isDemo ? "WhatsApp fictício" : prettyWa(l.whatsapp)}</span></p>
+                </div>
+                <Link href={`/app/leads/${l.id}`} className="btn-secondary px-3 py-1.5 text-xs">Abrir</Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {lastSearch && results.length > 0 && <Link href={`/app/leads?search=${lastSearch.id}`} className="btn-primary mt-4">Ver na aba Leads encontrados</Link>}
+      </section>
+      <section className="card p-5 sm:p-6">
+        <h2 className="font-semibold text-white">Buscas recentes</h2>
+        {!searches.length ? <p className="mt-2 text-sm text-slate-400">Nenhuma busca ainda.</p> : (
+          <ul className="mt-3 space-y-2">
+            {searches.slice(0, 8).map((s) => (
+              <li key={s.id}>
+                <Link href={`/app/leads?search=${s.id}`} className="block rounded-xl border border-white/10 px-3 py-2 text-xs hover:border-white/25">
+                  <span className="flex items-center gap-1.5 font-semibold text-slate-200">{s.niche} · {s.location}{s.isDemo && <span className="rounded bg-amber-400/20 px-1 text-[10px] text-amber-200">DEMO</span>}{s.status === "FAILED" && <span className="rounded bg-red-500/20 px-1 text-[10px] text-red-200">falhou</span>}</span>
+                  <span className="text-slate-500">{new Date(s.startedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {s.created} com WhatsApp confirmado</span>
+                  {coverageOf(s) && <span className="mt-1 block text-slate-500">{coverageOf(s)}</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

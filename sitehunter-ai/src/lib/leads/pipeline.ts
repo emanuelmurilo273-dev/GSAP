@@ -30,7 +30,12 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 }
 
 /** Explica a cobertura real da fonte usada; avisa quando a cidade não retornou nada. */
-export function coverageNote(providerId: string, found: number, location: string, niche: string, cityMatched: boolean): string {
+export function coverageNote(providerId: string, found: number, location: string, niche: string, cityMatched: boolean, wa?: { verified: number; noWhatsapp: number; kept: number }): string {
+  const waTxt = wa && providerId !== "demo" ? ` Destas, ${wa.kept} têm WhatsApp comercial confirmado em fonte pública e entraram na lista; ${wa.noWhatsapp} ficaram de fora por não terem WhatsApp confirmado.` : "";
+  return baseCoverage(providerId, found, location, niche, cityMatched) + (found ? waTxt : "");
+}
+
+function baseCoverage(providerId: string, found: number, location: string, niche: string, cityMatched: boolean): string {
   if (providerId === "demo") return "Demonstração: empresas fictícias, nenhuma busca real foi feita.";
   if (providerId === "import") return "Dados importados por você (CSV).";
   const where = cityMatched ? location : `"${location}" (não reconhecido na lista de municípios do IBGE; busca por texto)`;
@@ -59,8 +64,9 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
   const step = (s: string, detail?: string) => steps.push({ step: s, at: new Date().toISOString(), detail });
   try {
     step("discover", provider.label);
-    const raw = await provider.search(criteria, { rows });
-    step("coverage", coverageNote(providerId, raw.length, criteria.location, criteria.niche, !!city));
+    // Só entram empresas com WhatsApp comercial confirmado: busca um conjunto maior e filtra depois da verificação.
+    const pool = providerId === "import" || isDemo ? criteria.count : Math.min(40, Math.max(criteria.count * 3, 20));
+    const raw = await provider.search({ ...criteria, count: pool }, { rows });
     const { unique, duplicates: batchDups } = dedupeBatch(raw);
 
     // Deduplicação contra a lista do usuário (demo só se compara com demo).
@@ -84,23 +90,30 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
         return { checkedAt: new Date().toISOString(), url: r.website, kind: "site" as const, reachable: undefined, error: "falha na verificação" };
       });
       if (presence.reachable && !siteMatchesBusiness(r.name, presence.finalUrl ?? r.website, presence.title)) presence.siteMismatch = true;
-      const commons = isDemo || process.env.IMAGE_SEARCH === "off" || process.env.COMMONS_SEARCH === "off" ? [] : await commonsCandidates(r.name, r.city, r.lat, r.lng);
-      return { r, keys, presence, commons };
+      return { r, keys, presence };
     });
 
     const created: string[] = [];
-    for (const { r, keys, presence, commons } of enriched) {
+    let noWhatsapp = 0;
+    for (const { r, keys, presence } of enriched) {
+      if (created.length >= criteria.count) break;
       const { facts, socials, email } = buildFacts(r, presence);
+      // Regra: WhatsApp comercial confirmado por fonte pública (tag no OSM, link wa.me ou indicação no site da empresa).
+      // Telefone fixo, celular sem indicação ou número de site que não é da empresa ficam de fora.
+      const wa = facts.whatsapp;
+      const whatsapp = wa?.value && wa.status === "confirmed" ? wa.value : null;
+      if (!whatsapp && !isDemo) { noWhatsapp++; continue; }
       const opp = detectOpportunities(facts, presence);
+      const commons = isDemo || process.env.IMAGE_SEARCH === "off" || process.env.COMMONS_SEARCH === "off" ? [] : await commonsCandidates(r.name, r.city, r.lat, r.lng);
       const images = [...sourceImageCandidates(r), ...companyImageCandidates(presence), ...commons];
-      const wa = (facts as { whatsapp?: { value: string | null; status: string } }).whatsapp;
-      const whatsapp = wa?.value && wa.status !== "inferred" && wa.status !== "not_found" ? wa.value : null;
       const c = await createLead(userId, search.id, r, { keys, presence, facts, socials, email, opp, isDemo, language: criteria.language, images, whatsapp }).catch((e) => {
         log("warn", "lead_create_failed", { error: String(e) });
         return null;
       });
       if (c) created.push(c.id);
     }
+    step("whatsapp", `${enriched.length} verificadas · ${noWhatsapp} sem WhatsApp comercial confirmado (excluídas)`);
+    step("coverage", coverageNote(providerId, raw.length, criteria.location, criteria.niche, !!city, { verified: enriched.length, noWhatsapp, kept: created.length }));
     step("done", `${created.length} novos leads`);
     const updated = await prisma.leadSearch.update({
       where: { id: search.id },

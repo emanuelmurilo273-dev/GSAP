@@ -62,7 +62,7 @@ export const POST = route(async (req) => {
     const imageQuery = MODEL_QUERY[draftConcept.model] ?? segment.imageQuery;
     const [{ copy, ai }, stock] = await Promise.all([
       generateSiteCopy(info, segment, b.instructions, language),
-      need && !company.isDemo ? searchLicensedImages(imageQuery, need + 3, { curated: true }).catch(() => []) : Promise.resolve([]),
+      need && !company.isDemo ? searchLicensedImages(imageQuery, need + 3, { curated: true, wide: true }).catch(() => []) : Promise.resolve([]),
     ]);
     const extra = stock.slice(0, need);
     extra.forEach((i) => i.downloadLocation && void trackImageDownload(i.downloadLocation));

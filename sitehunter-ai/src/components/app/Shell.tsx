@@ -45,7 +45,7 @@ export async function Shell({ children, admin = false }: { children: React.React
             <div key={w} className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-sm text-amber-200">⚠ {w}</div>
           ))}
         </div>
-        <main className="px-4 py-6 sm:px-8 sm:py-8">{children}</main>
+        <main className="px-4 pb-28 pt-6 sm:px-8 sm:py-8 lg:pb-8">{children}</main>
       </div>
       <Toaster />
     </div>

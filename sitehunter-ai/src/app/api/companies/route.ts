@@ -10,7 +10,7 @@ export const GET = route(async (req) => {
   const companies = await prisma.company.findMany({
     where: { userId: user.id, ...(onlyNoSite ? { website: null } : {}) },
     orderBy: { createdAt: "desc" },
-    include: { projects: { select: { id: true, name: true } } },
+    include: { projects: { select: { id: true, name: true, publication: { select: { status: true } } } } },
     take: 500,
   });
   return json({ companies });

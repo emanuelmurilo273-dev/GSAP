@@ -14,6 +14,6 @@ export const POST = route<Ctx>(async (_req, { params }) => {
   const { id } = await params;
   const c = await reanalyzeLead(user.id, id);
   if (!c) throw new HttpError(404, "Lead não encontrado.");
-  const full = await prisma.company.findUniqueOrThrow({ where: { id }, include: { projects: { select: { id: true, name: true } } } });
+  const full = await prisma.company.findUniqueOrThrow({ where: { id }, include: { projects: { select: { id: true, name: true, publication: { select: { status: true } } } } } });
   return json({ lead: leadView(full) });
 });

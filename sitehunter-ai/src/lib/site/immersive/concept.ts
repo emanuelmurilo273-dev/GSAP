@@ -17,6 +17,8 @@ export type ConceptInput = {
   instagram?: string | null;
   hasCompanyPhotos?: boolean;
   hasWhatsapp?: boolean;
+  /** Há uma foto ampla utilizável (da empresa ou ilustrativa identificada) para a abertura editorial. */
+  hasWidePhoto?: boolean;
 };
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -191,6 +193,9 @@ export function buildConcept(input: ConceptInput): Concept {
   reasons.push(input.hasCompanyPhotos ? "Fotos da própria empresa (aprovadas) entram no palco e na galeria." : "Sem foto da empresa aprovada: as imagens são ilustrativas e identificadas como tal.");
   if (!input.hasWhatsapp) reasons.push("Sem WhatsApp confirmado: o botão principal liga ou leva ao contato.");
 
+  // Abertura: foto ampla com texto sobreposto (quando há foto boa) ou o objeto 3D. Varia por empresa.
+  const heroMode: "object" | "photo" = input.hasCompanyPhotos ? "photo" : input.hasWidePhoto && seed % 2 === 0 ? "photo" : "object";
+  reasons.push(heroMode === "photo" ? `Abertura editorial com foto ampla e texto sobreposto${input.hasCompanyPhotos ? " (foto da própria empresa)" : " (imagem ilustrativa identificada)"}; o objeto 3D entra no capítulo seguinte.` : "Abertura com o objeto 3D grande sobre fundo escuro.");
   return {
     name: `${MODEL_LABEL[model][0]!.toUpperCase()}${MODEL_LABEL[model].slice(1)}${matTxt} · ${pal[0]}`,
     summary: `${pal[0]}, tipografia ${font.display} e ${MODEL_LABEL[model]}${matTxt}${sec.length ? `, com ${sec.map((k) => MODEL_LABEL[k]).join(" e ")} entrando ao rolar` : ""}.`,
@@ -209,6 +214,7 @@ export function buildConcept(input: ConceptInput): Concept {
     kicker: where || (input.category ?? ""),
     highlights,
     seed,
+    heroMode,
   };
 }
 

@@ -53,12 +53,30 @@ describe("Pipeline de leads", () => {
     vi.stubGlobal("fetch", fetchMock);
     const u = await makeUser("c@test.dev");
     const r = await runLeadSearch({ userId: u.id, criteria: { ...crit, count: 3 }, providerId: "google_places" });
-    expect(r.createdIds).toHaveLength(3);
-    const l = await prisma.company.findFirstOrThrow({ where: { userId: u.id, sourceId: "pl0" } });
-    expect(l.isDemo).toBe(false);
-    expect((l.facts as Facts).phone).toMatchObject({ status: "confirmed", source: "Google Maps", sourceUrl: "https://maps.google.com/?cid=0" });
-    expect((l.opportunities as { code: string }[]).map((o) => o.code)).toContain("social_only");
+    // Telefones fixos sem WhatsApp publicado: nenhuma empresa entra na lista (regra do WhatsApp confirmado).
+    expect(r.createdIds).toHaveLength(0);
+    expect(r.search.found).toBe(5);
+    const log = r.search.log as { step: string; detail?: string }[];
+    expect(log.find((x) => x.step === "whatsapp")?.detail).toMatch(/5 sem WhatsApp comercial confirmado/);
+    expect(log.find((x) => x.step === "coverage")?.detail).toMatch(/0 têm WhatsApp comercial confirmado/);
+    expect(await prisma.company.count({ where: { userId: u.id } })).toBe(0);
     expect(fetchMock).toHaveBeenCalledTimes(1); // perfis sociais/sem site: nenhum site acessado
+  });
+
+  it("só entram empresas com WhatsApp confirmado em fonte pública, com a fonte registrada", async () => {
+    const items = [
+      { osm_type: "node", osm_id: 1, lat: "-25.43", lon: "-49.27", name: "Barbearia Zap", category: "shop", type: "hairdresser", address: { road: "Rua A", city: "Curitiba", state: "Paraná" }, extratags: { "contact:whatsapp": "+55 41 99876-5432", phone: "+55 41 3333-0000" } },
+      { osm_type: "node", osm_id: 2, lat: "-25.43", lon: "-49.27", name: "Barbearia Fixo", category: "shop", type: "hairdresser", address: { road: "Rua B", city: "Curitiba", state: "Paraná" }, extratags: { phone: "+55 41 3333-1111" } },
+      { osm_type: "node", osm_id: 3, lat: "-25.43", lon: "-49.27", name: "Barbearia Celular", category: "shop", type: "hairdresser", address: { road: "Rua C", city: "Curitiba", state: "Paraná" }, extratags: { phone: "+55 41 99111-2222" } },
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(items))));
+    const u = await makeUser("wa@test.dev");
+    const r = await runLeadSearch({ userId: u.id, criteria: { niche: "barbearia", location: "Curitiba - PR", cityIbge: 4106902, language: "pt-BR", count: 5 }, providerId: "osm" });
+    expect(r.createdIds).toHaveLength(1);
+    const l = await prisma.company.findFirstOrThrow({ where: { id: r.createdIds[0] } });
+    expect(l.name).toBe("Barbearia Zap");
+    expect(l.whatsapp).toBe("5541998765432");
+    expect((l.facts as Facts).whatsapp).toMatchObject({ status: "confirmed", source: "OpenStreetMap" });
   });
 
   it("falha do provedor marca a busca como FAILED", async () => {
@@ -74,10 +92,9 @@ describe("Pipeline de leads", () => {
     const other = await makeUser("f@test.dev");
     const rows = csvToRows("nome,cidade,telefone\nPadaria Sol,Recife,(81) 3333-0000\nPadaria Sol,Recife,(81) 3333-0000\n");
     const r = await runLeadSearch({ userId: u.id, criteria: { ...crit, count: 2 }, providerId: "import", rows });
-    expect(r.createdIds).toHaveLength(1);
     expect(r.search.duplicates).toBe(1);
-    const l = await prisma.company.findFirstOrThrow({ where: { id: r.createdIds[0] } });
-    expect((l.facts as Facts).name).toMatchObject({ status: "user", source: "Fornecido pelo usuário" });
+    // Telefone fixo informado na planilha não conta como WhatsApp: a linha fica de fora.
+    expect(r.createdIds).toHaveLength(0);
     expect(await prisma.company.count({ where: { userId: other.id } })).toBe(0);
   });
 });

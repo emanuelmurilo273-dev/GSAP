@@ -213,7 +213,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
           concept: buildConcept({
             name: company.name, category: company.category, segmentKey: segment.key, neighborhood: company.neighborhood, city: company.city,
             hoursLines: company.hoursLines, description: company.ownDescription?.text ?? null, instagram: company.instagram,
-            hasCompanyPhotos: images.some((i) => i.origin === "company"), hasWhatsapp: !!waConfirmed,
+            hasCompanyPhotos: images.some((i) => i.origin === "company"), hasWhatsapp: !!waConfirmed, hasWidePhoto: images.length > 0,
           }),
         }
       : {}),

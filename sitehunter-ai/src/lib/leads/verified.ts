@@ -48,7 +48,24 @@ function ownDescription(c: Company): { text: string; source: string } | null {
   return { text: p.description, source: host };
 }
 
-export function leadView(c: Company & { projects?: { id: string; name: string }[] }) {
+export type LeadStage = "new" | "review" | "published" | "contacted";
+export const STAGE_LABEL: Record<LeadStage, string> = { new: "Novo", review: "Prévia em revisão", published: "Prévia liberada", contacted: "Contatado" };
+
+/** Status do lead no fluxo: novo → prévia em revisão → prévia liberada → contatado (marcado por você). */
+export function leadStage(c: Pick<Company, "contactedAt"> & { projects?: { publication?: { status: string } | null }[] }): LeadStage {
+  if (c.contactedAt) return "contacted";
+  const ps = c.projects ?? [];
+  if (ps.some((p) => p.publication?.status === "PUBLISHED")) return "published";
+  return ps.length ? "review" : "new";
+}
+
+/** Só conta como WhatsApp comercial o número confirmado por fonte pública (OSM, link wa.me ou site da empresa). */
+export function hasConfirmedWhatsapp(c: Pick<Company, "whatsapp" | "facts">): boolean {
+  const f = (c.facts ?? {}) as Facts;
+  return !!c.whatsapp && f.whatsapp?.status === "confirmed";
+}
+
+export function leadView(c: Company & { projects?: { id: string; name: string; publication?: { status: string } | null }[] }) {
   return {
     id: c.id,
     name: c.name,
@@ -76,7 +93,11 @@ export function leadView(c: Company & { projects?: { id: string; name: string }[
     fetchedAt: c.fetchedAt.toISOString(),
     reviewedAt: c.reviewedAt?.toISOString() ?? null,
     searchId: c.searchId,
-    projects: c.projects ?? [],
+    projects: (c.projects ?? []).map((p) => ({ id: p.id, name: p.name, published: p.publication?.status === "PUBLISHED" })),
+    contactedAt: c.contactedAt?.toISOString() ?? null,
+    waMessage: c.waMessage,
+    stage: leadStage(c),
+    waConfirmed: hasConfirmedWhatsapp(c),
   };
 }
 export type LeadView = ReturnType<typeof leadView>;

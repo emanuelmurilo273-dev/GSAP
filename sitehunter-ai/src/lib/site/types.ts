@@ -127,6 +127,8 @@ export const ConceptSchema = z.object({
   heroWord: text(24),
   kicker: text(120),
   highlights: z.array(text(60)).max(3).default([]),
+  /** "photo": abertura editorial com foto ampla (referência do site imobiliário); "object": objeto 3D na abertura. */
+  heroMode: z.enum(["object", "photo"]).default("object"),
   seed: z.number().int().nonnegative(),
 });
 export type Concept = z.infer<typeof ConceptSchema>;

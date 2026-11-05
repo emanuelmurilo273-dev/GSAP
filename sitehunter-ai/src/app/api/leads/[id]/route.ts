@@ -12,7 +12,7 @@ import { normalizeWhatsApp } from "@/lib/whatsapp";
 type Ctx = { params: Promise<{ id: string }> };
 
 async function own(userId: string, id: string) {
-  const c = await prisma.company.findFirst({ where: { id, userId }, include: { projects: { select: { id: true, name: true } } } });
+  const c = await prisma.company.findFirst({ where: { id, userId }, include: { projects: { select: { id: true, name: true, publication: { select: { status: true } } } } } });
   if (!c) throw new HttpError(404, "Lead não encontrado.");
   return c;
 }
@@ -40,6 +40,10 @@ const Patch = z.object({
   /** Confirma que o celular publicado (inferência) é o WhatsApp comercial da empresa. */
   confirmWhatsapp: z.boolean().optional(),
   excluded: z.boolean().optional(),
+  /** Abordagem de WhatsApp editada (null volta ao texto sugerido). */
+  waMessage: z.string().max(1500).nullable().optional(),
+  /** Marcado pelo usuário depois de enviar a mensagem pessoalmente. */
+  contacted: z.boolean().optional(),
   reviewed: z.boolean().optional(),
   language: LanguageSchema.optional(),
 });
@@ -78,10 +82,12 @@ export const PATCH = route<Ctx>(async (req, { params }) => {
     data.opportunityScore = opp.score;
   }
   if (b.notes !== undefined) data.notes = b.notes;
+  if (b.waMessage !== undefined) data.waMessage = b.waMessage?.trim() ? b.waMessage : null;
+  if (b.contacted !== undefined) data.contactedAt = b.contacted ? new Date() : null;
   if (b.excluded !== undefined) data.excludedAt = b.excluded ? new Date() : null;
   if (b.reviewed !== undefined) data.reviewedAt = b.reviewed ? new Date() : null;
   if (b.language) data.language = b.language;
-  const updated = await prisma.company.update({ where: { id: c.id }, data: data as never, include: { projects: { select: { id: true, name: true } } } });
+  const updated = await prisma.company.update({ where: { id: c.id }, data: data as never, include: { projects: { select: { id: true, name: true, publication: { select: { status: true } } } } } });
   return json({ lead: leadView(updated) });
 });
 

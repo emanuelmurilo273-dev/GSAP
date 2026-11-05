@@ -20,14 +20,14 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
   const previewUrl = pub?.status === "PUBLISHED" ? publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt) : null;
   const lang = (LanguageSchema.safeParse(c.language).data ?? "pt-BR") as Language;
   const wa = templateWhatsapp(
-    { facts: (c.facts ?? {}) as Facts, opportunities: (c.opportunities ?? []) as Opportunity[], senderName: user.name.split(" ")[0] || user.name, previewUrl, hasPreview: c.projects.length > 0 },
+    { facts: (c.facts ?? {}) as Facts, opportunities: (c.opportunities ?? []) as Opportunity[], senderName: user.name.split(" ")[0] || user.name, previewUrl, hasPreview: c.projects.length > 0, category: c.category, city: c.city },
     lang,
   );
   return (
     <LeadProfile
-      waText={wa.body}
+      waText={c.waMessage ?? wa.body}
       previewUrl={previewUrl}
-      initialLead={leadView({ ...c, projects: c.projects.map((p) => ({ id: p.id, name: p.name })) })}
+      initialLead={leadView(c)}
       segments={SEGMENTS.map((s) => ({ key: s.key, label: s.label }))}
       guessedSegment={guessSegmentKey(c.category ?? "", c.category)}
       initialDrafts={drafts.map((d) => ({ id: d.id, language: d.language, subject: d.subject, body: d.body, ai: d.ai, factsUsed: (d.factsUsed ?? []) as never, createdAt: d.createdAt.toISOString() }))}
