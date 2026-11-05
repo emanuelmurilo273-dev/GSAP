@@ -116,3 +116,40 @@ describe("Imagens", () => {
     expect(html).toContain("09:00–19:30");
   });
 });
+
+describe("Palco 3D ligado à rolagem", () => {
+  it("objeto adaptado ao negócio", async () => {
+    const { objectKindFor } = await import("@/lib/site/stage");
+    expect(objectKindFor("restaurante", "Cantina")).toBe("plate");
+    expect(objectKindFor("servicos", "Loja de artigos esportivos")).toBe("sneaker");
+    expect(objectKindFor("odontologia", "")).toBe("tooth");
+    expect(objectKindFor("servicos", "Engenharia elétrica")).toBe("gear");
+  });
+  it("serviços e números confirmados viram etapas; sem script tudo visível; foto real só emoldurada", () => {
+    const seg = getSegment("barbearia");
+    const company = { name: "Navalha", city: "Curitiba", phone: "(41) 99876-5432" };
+    const c = buildSiteContent(company, seg, fallbackCopy(company, seg));
+    const st = c.sections.find((x) => x.type === "stats");
+    if (st?.type === "stats") st.items = [{ value: "12", unit: "anos", label: "no mesmo endereço", source: "" }];
+    c.stage = { kind: "scissors", mode: "auto", image: { url: "https://img.test/obj.jpg", alt: "Tesoura", origin: "stock", license: "CC0 (domínio público)", credit: { name: "Ana", link: "https://x.test" } } };
+    const html = renderSite(c);
+    expect(html).toContain("data-scrolly");
+    expect(html).toContain('data-scount="12"');
+    expect(html).toContain('<img class="o3d-face" src="https://img.test/obj.jpg"');
+    expect(html).toContain("Ana</a> · CC0");
+    expect(html.includes('class="scrolly sc-live')).toBe(false);
+    expect(html).toContain("@media (prefers-reduced-motion:reduce){.sc-live{height:auto}}");
+    c.stage.mode = "illustration";
+    expect(renderSite(c)).toContain('class="o3d illus"');
+    c.stage.mode = "off";
+    expect(renderSite(c)).not.toContain("data-scrolly data-poses");
+  });
+  it("restaurante (sem seção de serviços) também ganha o palco, antes do cardápio", () => {
+    const seg = getSegment("restaurante");
+    const company = { name: "Cantina", city: "BH" };
+    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg)));
+    expect(html.indexOf("data-scrolly")).toBeGreaterThan(-1);
+    expect(html.indexOf("data-scrolly")).toBeLessThan(html.indexOf('id="cardapio"'));
+    expect(html).not.toContain("Item do cardápio</h3>");
+  });
+});

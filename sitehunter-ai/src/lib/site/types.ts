@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SITE_STYLES } from "./styles";
+import { OBJECT_KINDS } from "./stage";
 
 export const FONTS = [
   "Inter",
@@ -115,6 +116,14 @@ export const SiteContentSchema = z.object({
   business: BusinessSchema,
   sections: z.array(SectionSchema).max(30),
   reviewNotes: z.array(text(300)).max(10).default([]),
+  /** Palco 3D ligado à rolagem: objeto do negócio (foto real aprovada ou ilustração em relevo). */
+  stage: z
+    .object({
+      kind: z.enum(OBJECT_KINDS),
+      image: ImageSchema.optional(),
+      mode: z.enum(["auto", "photo", "illustration", "off"]).default("auto"),
+    })
+    .optional(),
 });
 
 export type SiteContent = z.infer<typeof SiteContentSchema>;

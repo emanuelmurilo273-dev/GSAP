@@ -9,6 +9,7 @@ import { buildSiteContent, getSegment } from "@/lib/site/templates";
 import { searchLicensedImages, trackImageDownload } from "@/lib/images";
 import type { ImageCandidate } from "@/lib/leads/types";
 import type { SiteImage } from "@/lib/site/types";
+import { OBJECT_QUERY } from "@/lib/site/stage";
 import { snapshotVersion } from "@/lib/projects";
 import { audit } from "@/lib/logger";
 import { verifiedCompanyInfo } from "@/lib/leads/verified";
@@ -64,6 +65,20 @@ export const POST = route(async (req) => {
       ...fromLead,
       ...extra.map((i) => ({ url: i.url, alt: i.alt, credit: i.credit, origin: "stock" as const, license: i.license, sourceUrl: i.sourceUrl })),
     ]);
+    // Objeto do palco 3D: foto aprovada da empresa (produto real) ou foto do objeto do setor num banco com licença.
+    if (content.stage) {
+      const companyPhoto = fromLead.find((i) => i.origin === "company");
+      if (companyPhoto) content.stage.image = companyPhoto;
+      else if (!company.isDemo) {
+        const objs = await searchLicensedImages(OBJECT_QUERY[content.stage.kind], 4, { curated: true }).catch(() => []);
+        const pick = objs.find((o) => !JSON.stringify(content.sections).includes(o.url));
+        if (pick) {
+          content.stage.image = { url: pick.url, alt: pick.alt, credit: pick.credit, origin: "stock", license: pick.license, sourceUrl: pick.sourceUrl };
+          if (pick.downloadLocation) void trackImageDownload(pick.downloadLocation);
+        }
+      }
+      content.reviewNotes.push(content.stage.image ? "Palco 3D: confira se a foto do objeto representa bem a empresa (aba Design permite trocar por ilustração)." : "Palco 3D usando ilustração em relevo; aprove uma foto real do produto no lead para usá-la no lugar.");
+    }
     if (company.isDemo) content.reviewNotes.unshift("LEAD DE DEMONSTRAÇÃO: os dados da empresa são fictícios.");
     const used = JSON.stringify(content.sections);
     const usedExtra = extra.filter((i) => used.includes(i.url)).length;

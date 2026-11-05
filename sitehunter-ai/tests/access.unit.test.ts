@@ -67,12 +67,12 @@ describe("Direções visuais", () => {
     const base = buildSiteContent(company, seg, fallbackCopy(company, seg));
     const html = (st: (typeof SITE_STYLES)[number]) => renderSite({ ...base, theme: themeForStyle(st, base.theme.primary, base.theme.accent) });
     expect(html("forge")).toContain('class="band"');
-    expect(html("cinema")).toContain('class="cine-word"');
-    expect(html("cinema")).toContain("data-picker");
+    expect(html("cinema")).toContain(`class="sc-word"`);
+    expect(html("cinema")).toContain("data-scrolly");
     expect(html("clinic")).toContain('class="facts"');
     expect(html("studio")).toContain('class="stack"');
     expect(html("atelier")).not.toContain('class="stack"');
-    expect(html("clinic")).not.toContain("data-tilt"); // sóbrio: sem 3D
+    expect(html("clinic")).not.toMatch(/<article class="card" data-tilt/); // sóbrio: sem cartões inclinados
   });
   it("texto dos botões sempre legível e paletas de base com contraste AA", () => {
     for (const bg of ["#f472b6", "#c8a464", "#1d4ed8", "#facc15", "#111827"]) expect(contrast(bg, onColor(bg))).toBeGreaterThanOrEqual(4.5 - 0.6);
@@ -90,7 +90,7 @@ describe("Direções visuais", () => {
     if (st?.type !== "stats") throw new Error("sem seção de números");
     st.items = [{ value: "12", unit: "anos", label: "no mesmo endereço", source: "telefone" }, { value: "", unit: "", label: "sem valor", source: "" }];
     const html = renderSite(c);
-    expect(html).toContain('data-count="12"');
+    expect(html).toContain(`data-scount="12"`);
     expect(html).not.toContain("sem valor");
     expect(html).not.toContain("telefone\u003c"); // a fonte da confirmação não vai para o site
   });

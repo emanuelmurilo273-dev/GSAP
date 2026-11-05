@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
 import { STYLE_INFO, styleForSegment, type SiteStyle } from "./styles";
+import { objectKindFor } from "./stage";
 
 export type TemplateKey = "restaurant" | "barber" | "clinic" | "mechanic" | "store" | "services";
 
@@ -198,6 +199,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
       lng: company.lng ?? null,
     },
     sections: byTemplate[segment.template],
+    stage: { kind: objectKindFor(segment.key, `${company.category ?? ""} ${company.name}`), mode: "auto" },
     reviewNotes: [
       "Os serviços/produtos listados são sugestões típicas do segmento — confirme com a empresa.",
       company.hoursLines?.length ? `Horários vieram do ${company.hoursSource ?? "perfil público"}: confirme com a empresa.` : "Preencha os horários de funcionamento e os preços somente com informações confirmadas.",

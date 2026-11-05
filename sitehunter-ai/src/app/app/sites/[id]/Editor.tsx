@@ -9,6 +9,7 @@ import { renderSite } from "@/lib/site/render";
 import { FONTS, IMAGE_ORIGINS, type ImageOrigin, type Section, type SiteButton, type SiteContent, type SiteImage } from "@/lib/site/types";
 import { emptySection, themeForStyle } from "@/lib/site/templates";
 import { SITE_STYLES, STYLE_INFO, contrast, type SiteStyle } from "@/lib/site/styles";
+import { OBJECT_KINDS, OBJECT_LABEL, type ObjectKind } from "@/lib/site/stage";
 
 type Pub = { status: string; slug: string; url: string; pathUrl: string; customDomain: string | null; customDomainVerified: boolean; lastDeployAt: string | null } | null;
 
@@ -541,6 +542,19 @@ export function Editor(props: {
                   <p className="text-xs text-slate-500">Trocar a direção redefine fundo, tipografia e cantos; as cores da marca e os textos são mantidos.</p>
                 </div>
                 <ContrastNote theme={content.theme} />
+                <div className="space-y-2 rounded-xl border border-white/10 p-3">
+                  <span className="label">Palco 3D (rolagem)</span>
+                  <p className="text-xs text-slate-400">O objeto fica fixo e muda de posição, ângulo e escala conforme a pessoa rola; serviços e números confirmados entram em sequência.</p>
+                  <select className="input" aria-label="Modo do palco" value={content.stage?.mode ?? "auto"} onChange={(e) => setContent({ ...content, stage: { kind: content.stage?.kind ?? "gear", ...content.stage, mode: e.target.value as "auto" | "photo" | "illustration" | "off" } })}>
+                    <option value="auto">Automático (foto real se houver, senão ilustração)</option>
+                    <option value="illustration">Sempre ilustração em relevo</option>
+                    <option value="off">Desligado (seções comuns)</option>
+                  </select>
+                  <select className="input" aria-label="Objeto" value={content.stage?.kind ?? "gear"} onChange={(e) => setContent({ ...content, stage: { mode: "auto", ...content.stage, kind: e.target.value as ObjectKind } })}>
+                    {OBJECT_KINDS.map((k) => <option key={k} value={k}>{OBJECT_LABEL[k]}</option>)}
+                  </select>
+                  <ImageEditor label="Foto do objeto (opcional)" value={content.stage?.image} onChange={(image) => setContent({ ...content, stage: { kind: content.stage?.kind ?? "gear", mode: content.stage?.mode ?? "auto", image } })} onSearch={openPicker} />
+                </div>
                 <Color label="Cor principal" value={content.theme.primary} onChange={(primary) => setContent({ ...content, theme: { ...content.theme, primary } })} />
                 <Color label="Cor dos botões" value={content.theme.accent} onChange={(accent) => setContent({ ...content, theme: { ...content.theme, accent } })} />
                 <Color label="Fundo" value={content.theme.background} onChange={(background) => setContent({ ...content, theme: { ...content.theme, background } })} />

@@ -1,5 +1,6 @@
 import type { Section, SiteButton, SiteContent, SiteImage } from "./types";
 import { STYLE_INFO, contrast, googleFontsHref, mix, onColor, readableOn, type SiteStyle } from "./styles";
+import { objectKindFor, objectSvg, posesFor } from "./stage";
 
 // Renderizador puro: converte o conteúdo do projeto em um HTML estático
 // completo. Todo texto é escapado e toda URL é validada — o conteúdo do
@@ -219,6 +220,52 @@ function heroHtml(s: Extract<Section, { type: "hero" }>, c: SiteContent, style: 
       return `<section ${id} class="hero"><div class="wrap hero-grid"><div class="hero-copy">${eyebrow}${title}${lead}${heroActions(s, c)}</div><div class="stack" data-tilt${src ? "" : ' aria-hidden="true"'}>${cards}</div></div>${cap}</section>`;
     }
   }
+}
+
+// ---------- palco 3D ligado à rolagem ----------
+type ScrollyInput = { id: string; intro: string; items: { title: string; description: string }[]; stats: { value: string; unit: string; label: string }[]; hero?: Extract<Section, { type: "hero" }> };
+
+function stageObject(c: SiteContent, uid: string): { html: string; photo: boolean; cap: string } {
+  const st = c.stage;
+  const kind = st?.kind ?? objectKindFor("", c.siteName);
+  const img = st?.image && st.mode !== "illustration" ? st.image : undefined;
+  const src = imgSrc(img);
+  if (src && img) {
+    // Foto real (da empresa, com autorização, ou de banco com licença): só emoldurada e inclinada, nunca editada.
+    const layers = Array.from({ length: 7 }, (_, i) => `<i class="o3d-l" style="--d:${i + 1}"></i>`).join("");
+    return { photo: true, html: `<div class="o3d photo">${layers}<img class="o3d-face" src="${esc(src)}" alt="${esc(img.alt)}" decoding="async"><i class="o3d-spec"></i></div>`, cap: imageCaption(img, "p", "sc-cap") };
+  }
+  const svg = objectSvg(kind, c.theme.primary, c.theme.accent, uid);
+  const layers = Array.from({ length: 10 }, (_, i) => `<div class="o3d-sv" style="--d:${i}">${svg}</div>`).join("");
+  return { photo: false, html: `<div class="o3d illus">${layers}</div>`, cap: "" };
+}
+
+function renderScrolly(c: SiteContent, style: SiteStyle, x: ScrollyInput): string {
+  const steps: string[] = [];
+  steps.push(x.intro);
+  x.items.slice(0, 3).forEach((it, i, arr) => steps.push(`<p class="sc-k">${String(i + 1).padStart(2, "0")} / ${String(arr.length).padStart(2, "0")}</p><h3 class="sc-big">${esc(it.title)}</h3>${it.description ? `<p class="sc-p">${esc(it.description)}</p>` : ""}`));
+  x.stats.slice(0, 3).forEach((st) => {
+    const v = st.value.trim();
+    const num = NUMERIC.test(v) ? ` data-scount="${esc(v.replace(",", "."))}" data-dec="${v.includes(",") ? "," : "."}"` : "";
+    steps.push(`<p class="sc-num"><b${num}>${esc(v)}</b>${st.unit ? `<span>${esc(st.unit)}</span>` : ""}</p><p class="sc-big sc-label">${esc(st.label)}</p>`);
+  });
+  const hours = c.sections.find((s) => s.type === "hours" && s.visible);
+  const lines = hours && hours.type === "hours" ? hours.lines.filter((l) => l.value.trim()) : [];
+  const cta = c.sections.find((s) => s.type === "cta" && s.visible);
+  const btn = x.hero?.buttons[0] ?? (cta && cta.type === "cta" ? cta.button : undefined);
+  steps.push(`<p class="sc-k">${lines.length ? "Horário" : "Contato"}</p><h3 class="sc-big">${esc(cta && cta.type === "cta" ? cta.title : "Vamos conversar?")}</h3>${lines.length ? `<ul class="sc-hours">${lines.map((l) => `<li><span>${esc(l.label)}</span><b>${esc(l.value)}</b></li>`).join("")}</ul>` : ""}${btn ? `<div class="actions">${button(btn, c)}</div>` : ""}`);
+  const poses = posesFor(c.stage?.kind ?? "gear", steps.length);
+  const side = (i: number) => (poses[i]![0]! > 0 ? "left" : poses[i]![0]! < 0 ? "right" : "bottom");
+  const obj = stageObject(c, `s${x.id.replace(/[^a-z0-9]/gi, "").slice(0, 6)}`);
+  return `<section id="${esc(x.id)}" class="scrolly ${obj.photo ? "is-photo" : "is-illus"}" data-scrolly data-poses='${JSON.stringify(poses)}' style="--steps:${steps.length}">
+<div class="sc-stage">
+  ${style === "cinema" ? `<div class="sc-word" aria-hidden="true" style="--len:${Math.max(4, bigWord(c).length)}">${bigWord(c)}</div>` : ""}
+  <div class="sc-obj"><div class="sc-floor" aria-hidden="true"><i class="ga"></i><i class="gb"></i></div><div class="sc-rot"><div class="sc-glow" aria-hidden="true"></div>${obj.html}</div></div>
+  ${obj.cap}
+  <div class="sc-steps">${steps.map((h, i) => `<div class="sc-step" data-step="${i}" data-side="${side(i)}">${h}</div>`).join("")}</div>
+  <div class="sc-bar" aria-hidden="true"><i></i></div>
+</div>
+</section>`;
 }
 
 // ---------- seções ----------
@@ -446,6 +493,74 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .lite .rv{filter:none!important;transform:translateY(12px)}.lite .rv.in{transform:none}
 .lite .hero-bg,.lite .arch img,.lite .soft img,.lite .plate img,.lite .stack .photo img,.lite .orn *,.lite .hero-orn,.lite .stack .tile{animation:none!important}
 .lite .cine-glow{filter:blur(18px)}.lite .cine-photo,.lite .cine-mono .ring{animation:none!important}
+/* ---------- Palco 3D ligado à rolagem ---------- */
+.scrolly{position:relative;background:var(--bg);--glow:var(--p)}
+.sc-stage{position:relative;padding:80px 20px;display:grid;gap:36px;justify-items:center}
+.sc-obj{position:relative;width:min(64vw,340px);aspect-ratio:1;perspective:1200px}
+.sc-rot{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
+.o3d{position:absolute;inset:0;transform-style:preserve-3d}
+.o3d-sv{position:absolute;inset:0;transform:translateZ(calc(var(--d) * -3.4px));filter:brightness(calc(1 - var(--d) * .06))}
+.o3d-sv svg{width:100%;height:100%;display:block;overflow:visible}
+.o3d-sv:first-child{filter:drop-shadow(0 30px 40px rgba(0,0,0,.35))}
+.photo .o3d-face{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:24px;transform:translateZ(1px);box-shadow:0 50px 80px -40px rgba(0,0,0,.65)}
+.photo .o3d-l{position:absolute;inset:0;border-radius:24px;background:color-mix(in srgb,var(--p) 28%,#0c0c10);transform:translateZ(calc(var(--d) * -2.6px))}
+.o3d-spec{position:absolute;inset:0;border-radius:24px;transform:translateZ(2px);pointer-events:none;background:linear-gradient(calc(100deg + var(--ry,0) * 1.4deg),transparent 28%,rgba(255,255,255,.28) 46%,transparent 60%);mix-blend-mode:soft-light}
+.sc-glow{position:absolute;inset:-22%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--p) 34%,transparent),transparent 72%);transform:translateZ(-160px);filter:blur(26px);opacity:.75}
+/* Brilho no "chão", sob o objeto: alterna entre a cor principal e a de destaque a cada etapa (como no vídeo). */
+.sc-floor{position:absolute;left:-35%;right:-35%;top:58%;height:80%;pointer-events:none;will-change:transform}
+.sc-floor i{position:absolute;inset:0;border-radius:50%;filter:blur(30px);transition:opacity 1.1s ease}
+.sc-floor .ga{background:radial-gradient(50% 32% at 50% 30%,color-mix(in srgb,var(--p) 80%,transparent),transparent 75%)}
+.sc-floor .gb{background:radial-gradient(50% 32% at 50% 30%,color-mix(in srgb,var(--a) 80%,transparent),transparent 75%);opacity:0}
+.alt-glow .sc-floor .ga{opacity:.25}.alt-glow .sc-floor .gb{opacity:1}
+.s-clinic .sc-floor,.s-atelier .sc-floor{opacity:.45}
+.sc-steps{display:grid;gap:56px;width:min(760px,100%)}
+.sc-step{min-width:0}
+.sc-k{font:700 .78rem/1.2 var(--bf);letter-spacing:.18em;text-transform:uppercase;color:var(--at);margin-bottom:14px}
+.sc-h1{font-size:clamp(2.6rem,6.4vw,5.4rem);font-weight:800;letter-spacing:-.045em;line-height:.98}
+.sc-big{font-size:clamp(2.2rem,4.8vw,4.2rem);font-weight:800;letter-spacing:-.04em;line-height:1;overflow-wrap:normal;word-break:normal;hyphens:auto;-webkit-hyphens:auto}
+.sc-h1{hyphens:auto;-webkit-hyphens:auto}
+.sc-p{margin-top:16px;font-size:clamp(1.02rem,1.6vw,1.2rem);color:var(--mu);max-width:44ch}
+.sc-num{display:flex;align-items:baseline;gap:8px;font-family:var(--hf);line-height:.9}
+.sc-num b{font-size:clamp(4.4rem,12vw,9rem);font-weight:800;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.sc-num span{font-size:1.4rem;font-weight:700;color:var(--mu)}
+.sc-label{font-size:clamp(1.6rem,3.4vw,2.6rem);margin-top:10px;max-width:16ch}
+.sc-hours{list-style:none;margin-top:18px;display:grid;gap:8px;max-width:360px}
+.sc-hours li{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.sc-cap{position:absolute;right:16px;bottom:12px;margin:0;font-size:.72rem;color:var(--mu);z-index:3}
+.sc-bar{display:none}
+.sc-word{display:none}
+/* Com script e sem movimento reduzido: palco fixo, objeto anda/gira/escala com a rolagem. */
+.sc-live{height:calc(var(--steps) * 92vh + 8vh)}
+.sc-live .sc-stage{position:sticky;top:0;height:100vh;height:100svh;padding:0;display:block;overflow:hidden}
+.sc-live .sc-obj{position:absolute;left:50%;top:50%;width:min(36vw,470px);margin:calc(min(36vw,470px) / -2) 0 0 calc(min(36vw,470px) / -2)}
+.sc-live .sc-step{position:absolute;top:50%;width:min(36vw,480px);opacity:0;filter:blur(12px);transform:translateY(-38%);transition:opacity .7s ease,filter .8s ease,transform .9s cubic-bezier(.2,.7,.1,1);pointer-events:none}
+.sc-live .sc-step.on{opacity:1;filter:none;transform:translateY(-50%);pointer-events:auto}
+.sc-live .sc-step[data-side="left"]{left:max(24px,calc(50% - 580px))}
+.sc-live .sc-step[data-side="right"]{right:max(24px,calc(50% - 580px))}
+.sc-live .sc-step[data-side="bottom"]{left:50%;top:auto;bottom:9vh;width:min(90vw,680px);text-align:center;transform:translate(-50%,24px)}
+.sc-live .sc-step[data-side="bottom"] .sc-big{font-size:clamp(1.9rem,3.6vw,3.2rem)}
+.sc-live .sc-step[data-side="bottom"].on{transform:translate(-50%,0)}
+.sc-live .sc-step[data-side="bottom"] .sc-p,.sc-live .sc-step[data-side="bottom"] .sc-hours{margin-inline:auto}
+.sc-live .sc-step[data-side="bottom"] .actions{justify-content:center}
+.sc-live .sc-steps{position:absolute;inset:0;display:block;width:auto}
+.sc-live .sc-bar{display:block;position:absolute;left:50%;bottom:22px;width:min(220px,40vw);height:3px;margin-left:calc(min(220px,40vw) / -2);border-radius:3px;background:color-mix(in srgb,var(--tx) 14%,transparent);overflow:hidden}
+.sc-live .sc-bar i{display:block;height:100%;width:calc(var(--p,0) * 100%);background:var(--at)}
+.s-cinema .sc-word{display:block;position:absolute;left:50%;top:13%;white-space:nowrap;font:800 clamp(3.5rem,calc(132vw / var(--len,6)),17rem)/.85 var(--hf);letter-spacing:-.05em;color:transparent;background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.02));-webkit-background-clip:text;background-clip:text;transform:translateX(calc(-50% - var(--p,0) * 18%)) scale(calc(1 + var(--p,0) * .1));pointer-events:none}
+.s-cinema .scrolly{background:#000}
+.s-cinema .sc-h1,.s-cinema .sc-big,.s-cinema .sc-num b{background:linear-gradient(180deg,#fff 30%,#c4bfe6);-webkit-background-clip:text;background-clip:text;color:transparent}
+@media (max-width:760px){
+  .sc-live{height:calc(var(--steps) * 84vh + 8vh)}
+  .sc-live .sc-obj{width:min(74vw,330px);top:35%;margin:calc(min(74vw,330px) / -2) 0 0 calc(min(74vw,330px) / -2)}
+  .sc-live .sc-step,.sc-live .sc-step[data-side]{left:20px;right:20px;width:auto;top:auto;bottom:calc(7vh + 14px);text-align:left;transform:translateY(18px)}
+  .sc-live .sc-step.on,.sc-live .sc-step[data-side].on{transform:none}
+  .sc-live .sc-step[data-side="bottom"] .actions{justify-content:flex-start}
+  .sc-h1{font-size:clamp(2.2rem,10vw,3.2rem)}.sc-big{font-size:clamp(1.9rem,8.6vw,2.8rem)}.sc-num b{font-size:clamp(3.6rem,18vw,5.4rem)}
+  .s-cinema .sc-word{top:9%}
+  .sc-live .sc-cap{bottom:auto;top:12px;right:12px;left:auto;max-width:70%;text-align:right}
+}
+.lite .o3d-sv:nth-child(n+4),.lite .o3d-l:nth-child(n+4){display:none}
+.lite .sc-live .sc-step{filter:none}.lite .sc-glow{filter:blur(14px)}
+@media (prefers-reduced-motion:reduce){.sc-live{height:auto}}
 /* Entradas ao rolar: só depois que o script marca o elemento (sem script, tudo visível). */
 .rv{opacity:0;transform:translateY(var(--rv-y,22px));filter:blur(var(--rv-blur,0px));transition:opacity .9s cubic-bezier(.2,.7,.1,1),transform .9s cubic-bezier(.2,.7,.1,1),filter .9s cubic-bezier(.2,.7,.1,1)}
 .rv.in{opacity:1;transform:none;filter:none}
@@ -651,8 +766,37 @@ export function renderSite(c: SiteContent, opts: { footerCredit?: boolean; previ
     .join("");
   const year = new Date().getFullYear();
   let alt = false;
+  // Palco 3D: na direção cinematográfica ele é a própria capa; nas demais entra no lugar dos serviços.
+  // Os serviços e os números confirmados viram etapas do palco (sem repetir seções).
+  const svcSec = visible.find((s) => s.type === "services" || s.type === "products");
+  // Sem serviços (ex.: restaurante): o palco entra antes do cardápio (categorias viram etapas) ou do "Sobre".
+  const anchor = svcSec ?? visible.find((s) => s.type === "menu") ?? visible.find((s) => s.type === "about");
+  const useStage = c.stage?.mode !== "off" && (!!anchor || (style === "cinema" && visible.some((s) => s.type === "hero")));
+  const statSec = visible.find((s) => s.type === "stats");
+  const stItems = svcSec
+    ? svcSec.type === "services" ? svcSec.items : svcSec.type === "products" ? svcSec.items.map((i) => ({ title: i.name, description: i.description })) : []
+    : anchor?.type === "menu"
+      ? anchor.categories.filter((cat) => cat.items.some((i) => i.name && !/^item do card/i.test(i.name))).map((cat) => ({ title: cat.name, description: cat.items.map((i) => i.name).slice(0, 4).join(" · ") }))
+      : [];
+  const stStats = statSec && statSec.type === "stats" ? statSec.items.filter((i) => i.value.trim() && i.label.trim()) : [];
+  let stageDone = false;
   const body = visible
     .map((s) => {
+      if (useStage && !stageDone && style === "cinema" && s.type === "hero") {
+        stageDone = true;
+        const intro = `${c.siteName && c.siteName !== s.title ? `<p class="sc-k">${esc(c.siteName)}</p>` : ""}<h1 class="sc-h1">${esc(s.title)}</h1>${s.subtitle ? `<p class="sc-p">${esc(s.subtitle)}</p>` : ""}${heroActions(s, c)}`;
+        return renderScrolly(c, style, { id: s.id, intro, items: stItems, stats: stStats, hero: s });
+      }
+      if (useStage && s.type === "stats") return ""; // números confirmados viram etapas do palco
+      if (useStage && (s.type === "services" || s.type === "products") && stageDone) return "";
+      if (useStage && !stageDone && anchor && s.id === anchor.id) {
+        stageDone = true;
+        const heroSec = visible.find((h) => h.type === "hero") as Extract<Section, { type: "hero" }> | undefined;
+        const replaces = s.type === "services" || s.type === "products";
+        const intro = `<p class="sc-k">${esc(c.business.name)}</p><h2 class="sc-big">${esc(replaces ? s.title : heroSec?.subtitle || c.siteName)}</h2>${replaces && "intro" in s && s.intro ? `<p class="sc-p">${esc(s.intro)}</p>` : ""}`;
+        const stage = renderScrolly(c, style, { id: replaces ? s.id : `${s.id}-palco`, intro, items: stItems, stats: stStats, hero: heroSec });
+        return replaces ? stage : stage + "\n" + sectionHtml(s, c, style, alt);
+      }
       if (s.type === "hero" || s.type === "cta") return sectionHtml(s, c, style, false);
       const html = sectionHtml(s, c, style, alt);
       if (html) alt = !alt;
@@ -716,6 +860,14 @@ function motionScript(style: SiteStyle, uses3d: boolean) {
 d.querySelectorAll('[data-picker]').forEach(function(sec){var bs=sec.querySelectorAll('[data-pick]'),ps=sec.querySelectorAll('[data-panel]');function on(i){bs.forEach(function(b){var a=b.dataset.pick==i;b.classList.toggle('is-on',a);b.setAttribute('aria-selected',a);if(a&&b.dataset.tone)d.body.style.setProperty('--glow',b.dataset.tone);});ps.forEach(function(p){p.classList.toggle('is-on',p.dataset.panel==i);});}bs.forEach(function(b){b.addEventListener('click',function(){on(b.dataset.pick);});});});
 function fmt(n,dec,src){var s=src.indexOf('.')>-1||src.indexOf(',')>-1?n.toFixed(src.split(/[.,]/)[1].length):String(Math.round(n));return dec===','?s.replace('.',','):s;}
 var counts=d.querySelectorAll('[data-count]');
+if(!rm)d.querySelectorAll('[data-scrolly]').forEach(function(sc){var P=JSON.parse(sc.getAttribute('data-poses')),st=[].slice.call(sc.querySelectorAll('.sc-step')),rot=sc.querySelector('.sc-rot'),fl=sc.querySelector('.sc-floor'),stg=sc.querySelector('.sc-stage'),k=st.length,cur=-1,mob=matchMedia('(max-width: 760px)'),rq=0;sc.classList.add('sc-live');
+function ps(i){var q=P[Math.min(i,P.length-1)].slice();if(mob.matches){q[0]=0;q[1]=q[1]*.4-2;q[5]=q[5]*.92;}return q;}
+function ez(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
+function cnt(el){el.querySelectorAll('[data-scount]').forEach(function(b){if(b.dataset.done)return;b.dataset.done=1;var to=parseFloat(b.dataset.scount),src=b.textContent,t0=performance.now();(function f(n){var q=Math.min(1,(n-t0)/1200),v=to*(1-Math.pow(1-q,3));b.textContent=fmt(v,b.dataset.dec,src);if(q<1)requestAnimationFrame(f);else b.textContent=src;})(t0);});}
+function up(){var r=sc.getBoundingClientRect(),tot=Math.max(1,r.height-innerHeight),p=Math.min(1,Math.max(0,-r.top/tot)),f=p*(k-1),i=Math.min(k-1,Math.floor(f)),t=ez(f-i),a=ps(i),b=ps(Math.min(k-1,i+1)),v=a.map(function(x,j){return x+(b[j]-x)*t;});
+rot.style.transform='translate3d('+v[0].toFixed(2)+'vw,'+v[1].toFixed(2)+'vh,0) rotateX('+v[2].toFixed(1)+'deg) rotateY('+v[3].toFixed(1)+'deg) rotateZ('+v[4].toFixed(1)+'deg) scale('+v[5].toFixed(3)+')';
+if(fl)fl.style.transform='translate3d('+v[0].toFixed(2)+'vw,'+v[1].toFixed(2)+'vh,0) scale('+v[5].toFixed(3)+')';stg.style.setProperty('--p',p.toFixed(3));stg.style.setProperty('--ry',v[3].toFixed(1));var ac=Math.min(k-1,Math.round(f));if(ac!==cur){cur=ac;stg.classList.toggle('alt-glow',ac%2===1);st.forEach(function(s,j){s.classList.toggle('on',j===ac);});cnt(st[ac]);}}
+addEventListener('scroll',function(){cancelAnimationFrame(rq);rq=requestAnimationFrame(up);},{passive:true});addEventListener('resize',up);up();});
 if(rm||!('IntersectionObserver' in window))return;
 var io=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;var t=e.target;io.unobserve(t);if(t.dataset.count){var to=parseFloat(t.dataset.count),src=t.textContent,t0=performance.now();(function f(now){var k=Math.min(1,(now-t0)/1400),v=to*(1-Math.pow(1-k,3));t.textContent=fmt(v,t.dataset.dec,src);if(k<1)requestAnimationFrame(f);else t.textContent=src;})(t0);}else{t.classList.add('in');setTimeout(function(){t.classList.remove('rv','in','img-rv');t.style.transitionDelay='';},1300);}});},{rootMargin:'0px 0px -8% 0px'});
 var groups=d.querySelectorAll('.sec-head,.card:not(.pick-panel),.prose,.gallery figure,.contact li,.stat,.menu-cat,.hours,.cta-inner,.pick-swatches,.facts li');
