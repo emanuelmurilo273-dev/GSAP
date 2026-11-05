@@ -21,6 +21,20 @@ function askHidden(q) {
 }
 
 async function main() {
+  // Modo automático (instalação local com Docker): cria a conta a partir de OWNER_EMAIL e OWNER_PASSWORD
+  // na primeira vez; se ela já existir, não mexe em nada.
+  if (process.argv[2] === "--from-env") {
+    const email = process.env.OWNER_EMAIL?.trim().toLowerCase();
+    if (!email || !process.env.OWNER_PASSWORD) return;
+    const prisma = new PrismaClient();
+    try {
+      if (await prisma.user.findUnique({ where: { email } })) return;
+    } finally {
+      await prisma.$disconnect();
+    }
+    process.argv[2] = email;
+    process.argv[3] = process.env.OWNER_NAME || email.split("@")[0];
+  }
   const email = process.argv[2]?.trim().toLowerCase();
   const name = process.argv[3]?.trim() || email?.split("@")[0] || "Proprietário";
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {

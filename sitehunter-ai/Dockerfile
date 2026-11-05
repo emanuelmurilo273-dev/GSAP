@@ -19,10 +19,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
   && npm install -g prisma@6.19.3 && useradd -m -u 1001 app
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/scripts/owner.mjs ./scripts/owner.mjs
+COPY --from=build /app/node_modules/bcryptjs ./node_modules/bcryptjs
 USER app
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["sh", "-c", "prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "prisma migrate deploy && node scripts/owner.mjs --from-env && node server.js"]

@@ -1,0 +1,36 @@
+# Instalação local fácil: só precisa do Docker Desktop.
+#   Windows: dois cliques em instalar-windows.bat
+#   Mac/Linux: dois cliques em instalar-mac.command (ou: sh instalar-mac.command)
+# Depois: http://localhost:3000
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sitehunter
+      POSTGRES_USER: sitehunter
+      POSTGRES_PASSWORD: sitehunter-local
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sitehunter"]
+      interval: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports: ["3000:3000"]
+    env_file: .env.local-docker
+    environment:
+      DATABASE_URL: postgresql://sitehunter:sitehunter-local@db:5432/sitehunter
+      APP_URL: http://localhost:3000
+      ROOT_DOMAIN: localhost:3000
+      ACCESS_MODE: private
+      COOKIE_SECURE: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -8,7 +8,20 @@ Plataforma SaaS para encontrar empresas brasileiras que possivelmente ainda não
 - Guia de implantação e configuração das integrações: [`docs/DEPLOY.md`](docs/DEPLOY.md)
 - Status de cada funcionalidade: [`docs/STATUS.md`](docs/STATUS.md)
 
-## Início rápido (uso pessoal, no seu computador)
+## Instalação fácil (recomendada)
+
+Só precisa do **Docker Desktop** (https://www.docker.com/products/docker-desktop). Não precisa de Node, Git nem banco de dados.
+
+1. Instale e abra o Docker Desktop.
+2. Baixe o app em ZIP: https://github.com/emanuelmurilo273-dev/GSAP/archive/refs/heads/claude/funny-hopper-0mr6uu.zip e descompacte.
+3. Abra a pasta `sitehunter-ai` e dê dois cliques em:
+   - **Windows:** `instalar-windows.bat`
+   - **Mac:** `instalar-mac.command` (na primeira vez: clique com o botão direito → Abrir). No Linux: `sh instalar-mac.command`.
+4. Digite seu e-mail e crie uma senha (mínimo de 12 caracteres). A primeira montagem leva de 5 a 10 minutos; depois o navegador abre em http://localhost:3000.
+
+O app volta sozinho sempre que o Docker Desktop estiver aberto. Para atualizar, baixe o ZIP novo e rode o instalador outra vez (seus dados ficam guardados). Chaves opcionais (Google Maps, IA, Unsplash) podem ser colocadas no arquivo `.env.local-docker` da pasta.
+
+## Início rápido manual (para desenvolvedores)
 
 **Requisitos:** Node.js 22+ e PostgreSQL 16 (ou Docker). Nenhuma chave de API é obrigatória para começar: a busca real usa o OpenStreetMap e as imagens com licença vêm do Openverse.
 
