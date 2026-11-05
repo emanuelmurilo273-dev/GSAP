@@ -186,6 +186,11 @@ function heroFacts(c: SiteContent) {
   return items.length ? `<ul class="facts">${items.join("")}</ul>` : "";
 }
 
+function prettyWa(n: string) {
+  const m = n.match(/^55(\d{2})(\d{4,5})(\d{4})$/);
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : `+${n}`;
+}
+
 /** Faixa de informações logo após a capa: endereço, horários publicados e contato confirmados. */
 function infoStrip(c: SiteContent, visible: Section[]): string {
   const b = c.business;
@@ -195,7 +200,7 @@ function infoStrip(c: SiteContent, visible: Section[]): string {
   const items = [
     b.address && `<li><span>Onde</span>${b.mapsUrl ? `<a href="${esc(safeUrl(b.mapsUrl))}" target="_blank" rel="noopener noreferrer">${esc(b.address)}</a>` : `<b>${esc(b.address)}</b>`}</li>`,
     lines.length && hours && `<li><span>Horários</span><a href="#${esc(hours.id)}">${esc(lines[0]!.label)}: ${esc(lines[0]!.value)}${lines.length > 1 ? " · ver todos" : ""}</a></li>`,
-    wa ? `<li><span>WhatsApp</span><a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">${esc(b.whatsapp)}</a></li>` : b.phone && `<li><span>Telefone</span><a href="${esc(telHref(b.phone))}">${esc(b.phone)}</a></li>`,
+    wa ? `<li><span>WhatsApp</span><a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">${esc(prettyWa(wa))}</a></li>` : b.phone && `<li><span>Telefone</span><a href="${esc(telHref(b.phone))}">${esc(b.phone)}</a></li>`,
   ].filter(Boolean);
   return items.length >= 2 ? `<aside class="info-strip" aria-label="Informações rápidas"><ul class="wrap">${items.join("")}</ul></aside>` : "";
 }

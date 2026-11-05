@@ -87,6 +87,7 @@ describe("Site: WhatsApp só confirmado, textos e legendas", () => {
     const html = renderSite(buildSiteContent(c, seg, fallbackCopy(c, seg), []));
     expect(html).toContain("wa.me/5541998765432");
     expect(html).toContain('class="info-strip"');
+    expect(html).toContain("(41) 99876-5432");
   });
   it("biblioteca setorial e descrição do site oficial", () => {
     const copy = fallbackCopy({ ...company, ownDescription: { text: "Barbearia de bairro no Centro de Curitiba, com corte clássico e barba feita na navalha desde a reforma da casa.", source: "barbeariateste.com.br" } }, seg);
