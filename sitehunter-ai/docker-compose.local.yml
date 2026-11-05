@@ -18,6 +18,8 @@ services:
       retries: 20
 
   app:
+    # Imagem pronta publicada pelo GitHub Actions; se não der para baixar, o instalador monta localmente.
+    image: ghcr.io/emanuelmurilo273-dev/sitehunter-ai:latest
     build: .
     restart: unless-stopped
     ports: ["3000:3000"]

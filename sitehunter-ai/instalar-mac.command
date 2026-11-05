@@ -26,13 +26,19 @@ if [ ! -f .env.local-docker ]; then
 else
   echo "  Já existe uma instalação. Atualizando e iniciando..."
 fi
+# Daqui em diante tudo o que aparece na tela também vai para instalacao-log.txt (para diagnóstico).
+{
 echo ""
-echo "  Montando o app (a primeira vez demora de 5 a 10 minutos)..."
-docker compose -f docker-compose.local.yml up -d --build || { echo "  Algo deu errado. Copie a mensagem acima."; read -r _; exit 1; }
+echo "  Baixando o app pronto (cerca de 1 GB na primeira vez)..."
+if ! docker compose -f docker-compose.local.yml pull; then
+  echo "  Não deu para baixar o app pronto; vou montar no seu computador (de 5 a 15 minutos)..."
+  docker compose -f docker-compose.local.yml build || { echo "  A montagem falhou. Envie o arquivo instalacao-log.txt desta pasta para o suporte."; read -r _; exit 1; }
+fi
+docker compose -f docker-compose.local.yml up -d || { echo "  O app não iniciou. Envie o arquivo instalacao-log.txt desta pasta."; read -r _; exit 1; }
 echo "  Esperando o app ficar pronto..."
 i=0
 until curl -fsS http://localhost:3000/api/health >/dev/null 2>&1; do
-  i=$((i+1)); [ $i -gt 90 ] && { echo "  Demorou mais que o esperado. Abra http://localhost:3000 em alguns minutos."; read -r _; exit 0; }
+  i=$((i+1)); [ $i -gt 120 ] && { echo "  Demorou mais que o esperado. Últimas mensagens do app:"; docker compose -f docker-compose.local.yml logs --tail 40 app; echo "  Envie o arquivo instalacao-log.txt desta pasta."; read -r _; exit 1; }
   sleep 2
 done
 # A conta já foi criada: tira a senha do arquivo de configuração.
@@ -41,3 +47,5 @@ echo ""
 echo "  Pronto! Abrindo http://localhost:3000 — entre com o e-mail e a senha que você escolheu."
 (open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/null || true)
 echo "  O app volta sozinho sempre que o Docker Desktop estiver aberto."
+} 2>&1 | tee instalacao-log.txt
+printf "  Pressione Enter para fechar. "; read -r _
