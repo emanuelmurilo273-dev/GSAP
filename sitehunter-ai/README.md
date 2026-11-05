@@ -129,9 +129,9 @@ Os sites gerados não usam um template único. `src/lib/site/styles.ts` define 6
 | Direção | Para | Capa e composição | 3D |
 |---|---|---|---|
 | Palco cinematográfico | barbearias, academias, oficinas | palco preto, brilho na cor da marca sob o objeto central, palavra gigante ao fundo com parallax, textos que entram desfocados, seletor de serviços que troca o destaque e a cor do brilho, contato em formato de ficha técnica | objeto central inclina com o ponteiro |
-| Ateliê editorial | salões, moda, estética | serifa grande, imagem em moldura de arco, serviços como índice com linhas finas | não |
+| Ateliê editorial | salões, moda, estética | serifa grande, imagem em moldura de arco, serviços como índice com linhas finas | palco 3D suave |
 | Oficina em alto contraste | construtoras e serviços pesados | capa escura cheia, tipografia condensada enorme, faixa diagonal com os serviços | cartões com profundidade |
-| Clínica serena | odontologia, clínicas | clara, cantos suaves, contatos confirmados em destaque logo abaixo da capa | não |
+| Clínica serena | odontologia, clínicas | clara, cantos suaves, contatos confirmados em destaque logo abaixo da capa | palco 3D discreto |
 | Casa artesanal | restaurantes, padarias | capa centralizada com formas orgânicas, cardápio com linhas pontilhadas | não |
 | Estúdio contemporâneo | serviços, imobiliárias, pet shops | grade em blocos, pilha de cartões em perspectiva na capa | pilha que segue o ponteiro |
 

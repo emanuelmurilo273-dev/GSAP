@@ -27,7 +27,7 @@ export const STYLE_INFO: Record<SiteStyle, StyleInfo> = {
   },
   atelier: {
     label: "Ateliê editorial",
-    description: "Serifa elegante, muito respiro e imagem em moldura de arco. Sóbrio, sem 3D. Para beleza, moda e estética.",
+    description: "Serifa elegante, muito respiro e imagem em moldura de arco; palco 3D com movimento suave. Para beleza, moda e estética.",
     uses3d: false, heading: "DM Serif Display", body: "Lato",
     background: "#fbf8f6", surface: "#f2ebe7", text: "#1f1a17", muted: "#6b5f58", radius: "none",
   },
@@ -39,7 +39,7 @@ export const STYLE_INFO: Record<SiteStyle, StyleInfo> = {
   },
   clinic: {
     label: "Clínica serena",
-    description: "Linhas limpas, cantos suaves e contatos confirmados logo na capa. Sóbrio, sem 3D. Para saúde e serviços que pedem confiança.",
+    description: "Linhas limpas, cantos suaves e contatos confirmados logo na capa; palco 3D discreto. Para saúde e serviços que pedem confiança.",
     uses3d: false, heading: "Manrope", body: "Manrope",
     background: "#ffffff", surface: "#f2f6f9", text: "#0f1b2d", muted: "#4d5c74", radius: "lg",
   },
