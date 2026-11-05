@@ -1,6 +1,6 @@
 <# :
 @echo off
-REM Instalador do SiteHunter AI (Windows). Arquivo unico: a parte abaixo de "#>" e PowerShell.
+REM Instalador do SiteHunter AI (Windows). Arquivo unico: depois deste bloco vem o script PowerShell.
 cd /d "%~dp0"
 echo.
 echo  SiteHunter AI - instalador
