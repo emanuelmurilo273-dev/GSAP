@@ -55,7 +55,7 @@ function splitName(t: string): [string, string] {
   const m = t.match(/^(.{2,40}?)\s*\((.{6,})\)\s*$/);
   return m ? [m[1]!.trim(), m[2]!.trim()] : [t, ""];
 }
-const WIDE: Record<string, number> = { Unbounded: 1.08, "Archivo Black": 0.92, Syne: 0.9, Anton: 0.5, "Bricolage Grotesque": 0.6, "Instrument Serif": 0.46, Fraunces: 0.58, "Cormorant Garamond": 0.5, "Space Grotesk": 0.6, Sora: 0.62 };
+const WIDE: Record<string, number> = { Unbounded: 1.15, "Archivo Black": 1.0, Syne: 1.12, Anton: 0.5, "Bricolage Grotesque": 0.6, "Instrument Serif": 0.46, Fraunces: 0.58, "Cormorant Garamond": 0.5, "Space Grotesk": 0.6, Sora: 0.62 };
 
 function card(i: SiteImage, k: number, cls = ""): string {
   const src = imgSrc(i);
@@ -181,7 +181,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const threeSrc = opts.threeSrc ?? "/vendor/three.min.js";
   const cfg = { model: k.model, secondary: k.secondary, material: k.material, motif: k.motif, choreo: k.choreo, pal: P, seed: k.seed };
   const up = k.caseStyle === "upper";
-  const kw = (WIDE[k.display] ?? 0.6) * (up ? 1.12 : 1);
+  const kw = (WIDE[k.display] ?? 0.66) * (up ? 1.12 : 1);
 
   return `<!doctype html>
 <html lang="${esc(opts.lang ?? "pt-BR")}">
@@ -216,7 +216,7 @@ img{display:block;max-width:100%}
 .top .btn{min-height:40px;padding:0 18px;font-size:14px}
 main{position:relative}
 .ch{position:relative;min-height:150vh;display:flex;align-items:flex-start;padding:0 clamp(16px,6vw,96px)}
-.ch .panel{position:sticky;top:max(96px,24vh);z-index:3;max-width:min(540px,44vw);padding-bottom:10vh}
+.ch .panel{overflow-wrap:break-word;position:sticky;top:max(96px,24vh);z-index:3;max-width:min(540px,44vw);padding-bottom:10vh}
 .ch[data-side=right]{justify-content:flex-end}
 .ch[data-side=center]{justify-content:center;text-align:center}
 .ch[data-side=center] .panel{max-width:min(760px,92vw)}
