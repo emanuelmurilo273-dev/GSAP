@@ -6,7 +6,7 @@ import { detectOpportunities } from "./opportunities";
 import { checkPresence } from "./presence";
 import { getProvider, type ImportRow } from "./providers";
 import type { LeadCriteria, RawBusiness } from "./types";
-import { companyImageCandidates } from "./leadImages";
+import { companyImageCandidates, sourceImageCandidates } from "./leadImages";
 
 // Pipeline: descobrir → normalizar/deduplicar → analisar presença → registrar
 // proveniência e oportunidades → salvar. Executa de forma síncrona e limitada
@@ -68,8 +68,10 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
     for (const { r, keys, presence } of enriched) {
       const { facts, socials, email } = buildFacts(r, presence);
       const opp = detectOpportunities(facts, presence);
-      const images = companyImageCandidates(presence);
-      const c = await createLead(userId, search.id, r, { keys, presence, facts, socials, email, opp, isDemo, language: criteria.language, images }).catch((e) => {
+      const images = [...sourceImageCandidates(r), ...companyImageCandidates(presence)];
+      const wa = (facts as { whatsapp?: { value: string | null; status: string } }).whatsapp;
+      const whatsapp = wa?.value && wa.status !== "inferred" && wa.status !== "not_found" ? wa.value : null;
+      const c = await createLead(userId, search.id, r, { keys, presence, facts, socials, email, opp, isDemo, language: criteria.language, images, whatsapp }).catch((e) => {
         log("warn", "lead_create_failed", { error: String(e) });
         return null;
       });
@@ -91,7 +93,7 @@ async function createLead(
   userId: string,
   searchId: string,
   r: RawBusiness,
-  x: { keys: string[]; presence: object; facts: object; socials: object[]; email: string | null; opp: { list: object[]; score: number }; isDemo: boolean; language: string; images?: object[] },
+  x: { keys: string[]; presence: object; facts: object; socials: object[]; email: string | null; opp: { list: object[]; score: number }; isDemo: boolean; language: string; images?: object[]; whatsapp?: string | null },
 ) {
   return prisma.company.create({
     data: {
@@ -118,6 +120,7 @@ async function createLead(
       facts: x.facts as never,
       socials: x.socials as never,
       hours: (r.hours ?? null) as never,
+      whatsapp: x.whatsapp ?? null,
       images: (x.images ?? []) as never,
       opportunities: x.opp.list as never,
       opportunityScore: x.opp.score,

@@ -46,7 +46,8 @@ Plataforma SaaS para encontrar empresas brasileiras que possivelmente ainda não
 3. **Imagens para o site**: aprove imagens publicadas pela própria empresa (só com a sua confirmação de autorização) ou busque e adicione imagens de banco com licença. As aprovadas entram no site; se faltarem, a geração completa com fotos CC0 atuais, sempre com crédito.
 4. Marque **Revisei os dados** → **Gerar prévia do site**. O editor abre com a prévia animada em 3D. A direção visual vem do setor e pode ser trocada na aba Design. Revise as notas em amarelo, os textos, as imagens, os horários e os números.
 5. **Publicar**: a prévia começa privada. **Liberar link público…** pede confirmação e libera só aquela página (`/s/<endereço>`). **Retirar acesso público** derruba o link na hora.
-6. **Abordagem comercial** (no perfil do lead): **Gerar rascunho** cria assunto e mensagem em português e no idioma do lead. Edite, copie e envie você mesmo. O app nunca envia nada.
+6. **Abordagem por WhatsApp** (no perfil do lead): quando a empresa publicou um WhatsApp comercial (link `wa.me` no site oficial ou tag `contact:whatsapp` no OpenStreetMap), o painel mostra uma mensagem curta, editável, montada só com fatos verificados, e a prévia em forma de balão. **Abrir no WhatsApp para revisar** abre `https://wa.me/NÚMERO?text=…` com o texto preenchido; quem toca em enviar é você. Se a prévia estiver publicada, o link entra na mensagem como sugestão; se não, a mensagem só oferece enviar o link. Sem WhatsApp confirmado, não há botão: o painel pede para você **confirmar** o celular publicado (quando há um) ou **adicionar** um número que você conferiu.
+7. **Abordagem comercial** (e-mail): **Gerar rascunho** cria assunto e mensagem em português e no idioma do lead. Edite, copie e envie você mesmo. O app nunca envia nada.
 
 ### O que funciona sem configuração e o que depende de conta ou chave
 
@@ -57,13 +58,18 @@ Plataforma SaaS para encontrar empresas brasileiras que possivelmente ainda não
 | Verificação do site público de cada lead (HTTPS, celular, ano, contatos, redes, imagens) | ✅ funciona | só a página inicial, após o robots.txt |
 | Imagens com licença: **Openverse** (CC0/CC BY/CC BY-SA, uso comercial e modificação) | ✅ funciona sem chave (limite por IP) | `OPENVERSE_TOKEN` opcional para limite maior |
 | Imagens com licença: **Unsplash** | 🔑 chave gratuita | `UNSPLASH_ACCESS_KEY` (quando definida, substitui o Openverse) |
-| Imagens dos canais da própria empresa | ✅ coletadas do site; só entram com a sua confirmação de autorização | — |
+| Imagens dos canais da própria empresa: site oficial | ✅ coletadas da página inicial (og:image e fotos grandes); só entram com a sua confirmação de autorização | — |
+| Fotos publicadas pela empresa no **Google Maps** (autor = o próprio estabelecimento) | 🔑 depende da chave do Google; fotos de clientes nunca são usadas. O link do Google pode expirar, então para publicar o ideal é pedir o arquivo original | `GOOGLE_PLACES_API_KEY` |
+| Fotos de Instagram/Facebook | ❌ não coletadas: exigem login e os termos dessas redes proíbem coleta automática. Peça as fotos à empresa e adicione-as no editor | — |
+| WhatsApp comercial: detecção (link `wa.me` no site oficial, tag do OSM) e botão com mensagem pronta | ✅ funciona; sem confirmação, o botão não aparece e o app pede para você confirmar ou adicionar | — |
 | **Google Flow** | ⚠️ sem API pública oficial: fluxo assistido (prompt pronto, você gera no Flow, importa e revisa). Nada é gerado automaticamente | — |
 | Textos do site e da abordagem com **IA (Claude)** | 🔑 opcional; sem chave usa textos-modelo sinalizados | `ANTHROPIC_API_KEY` |
 | Sites com direções visuais, 3D, animações ao rolar, modo leve e movimento reduzido | ✅ funciona | — |
 | Painel privado só do proprietário | ✅ funciona | `ACCESS_MODE=private`, `OWNER_EMAIL`, `npm run owner:create` |
 | Link público por prévia | ✅ funciona em `/s/<endereço>`; subdomínios exigem DNS curinga e HTTPS (ver `docs/DEPLOY.md`) | `ROOT_DOMAIN`, Caddy |
 | E-mails de recuperação de senha | 🔑 opcional; sem SMTP o link aparece no log do servidor | `SMTP_*` |
+
+**Imagens nos sites:** fotos da empresa aparecem com "Foto da empresa · fonte"; fotos de banco sempre com "Imagem ilustrativa · Foto: autor · licença"; imagens geradas com "Imagem ilustrativa gerada por IA". Nada de banco ou IA é apresentado como foto do negócio.
 
 **Limites honestos:** a cobertura do OpenStreetMap varia por cidade (muitos comércios não têm telefone ou horário cadastrados). O Google Maps tem cobertura maior, mas é pago. Fotos de contribuidores do Google Maps não são reutilizadas, porque os direitos são dos autores. O modo **Demonstração** gera empresas fictícias, sempre marcadas como DEMO.
 

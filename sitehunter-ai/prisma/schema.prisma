@@ -185,6 +185,7 @@ model Company {
   isDemo        Boolean  @default(false) // dados FICTÍCIOS do modo demonstração
   excludedAt    DateTime?                // lead excluído da lista pelo usuário
   email         String?                  // e-mail comercial público (com fonte em `facts`)
+  whatsapp      String?                  // WhatsApp comercial CONFIRMADO (só dígitos, com DDI); inferências ficam só em facts
   socials       Json?                    // [{ network, url, source }]
   hours         Json?                    // [{ label, value }] horários publicados (fonte em facts.hours)
   images        Json?                    // ImageCandidate[] (origem, licença, status de revisão)

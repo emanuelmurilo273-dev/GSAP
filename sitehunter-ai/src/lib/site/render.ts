@@ -49,11 +49,15 @@ function digits(s: string) {
  * Número para WhatsApp. No Brasil só celulares (DDD + 9 + 8 dígitos): oferecer WhatsApp para um
  * telefone fixo seria supor algo não verificado. O usuário pode informar outro número na aba Empresa.
  */
-export function waNumber(phone: string): string | null {
-  let d = digits(phone);
+export function waNumber(whatsapp: string | null | undefined): string | null {
+  // O campo WhatsApp só guarda números confirmados (publicados como WhatsApp ou confirmados pelo usuário),
+  // então aqui basta normalizar: inclui WhatsApp Business em número fixo.
+  let d = digits(whatsapp ?? "");
+  if (!d) return null;
+  if (d.startsWith("00")) d = d.slice(2);
   if (d.length === 10 || d.length === 11) d = "55" + d;
-  if (d.startsWith("55")) return /^55\d{2}9\d{8}$/.test(d) ? d : null;
-  return /^\d{11,13}$/.test(d) ? d : null;
+  if (d.startsWith("55")) return /^55\d{10,11}$/.test(d) ? d : null;
+  return /^\d{11,15}$/.test(d) ? d : null;
 }
 
 function telHref(phone: string) {
@@ -70,7 +74,7 @@ function mapsHref(c: SiteContent): string {
 function buttonHref(b: SiteButton, c: SiteContent): string {
   switch (b.action) {
     case "whatsapp": {
-      const n = waNumber(c.business.whatsapp || c.business.phone);
+      const n = waNumber(c.business.whatsapp);
       return n ? `https://wa.me/${n}?text=${encodeURIComponent(`Olá! Vim pelo site da ${c.business.name}.`)}` : "#contato";
     }
     case "phone":
@@ -99,12 +103,17 @@ export function imageCaption(i: SiteImage, tag = "figcaption", cls = ""): string
     return all ? ` class="${all}"` : "";
   };
   if (i.origin === "generated") return `<${tag}${c("gen-note")}>Imagem ilustrativa gerada por IA${i.generator ? ` (${esc(i.generator)})` : ""}</${tag}>`;
-  if (i.credit) {
-    // Crédito exigido pela licença: autor + licença (ex.: "CC BY 2.0") ou Unsplash.
-    const lic = !i.license || /unsplash/i.test(i.license) ? " / Unsplash" : ` · ${esc(i.license)}`;
-    return `<${tag}${c("")}>Foto: <a href="${esc(safeUrl(i.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a>${lic}</${tag}>`;
+  if (i.origin === "company") {
+    // Foto da própria empresa (site oficial ou perfil no Google Maps), aprovada no painel.
+    const src = i.sourceUrl ? ` · <a href="${esc(safeUrl(i.sourceUrl))}" target="_blank" rel="noopener noreferrer">fonte</a>` : "";
+    return `<${tag}${c("")}>Foto da empresa${src}</${tag}>`;
   }
-  if (i.origin === "company") return `<${tag}${c("")}>Imagem cedida pela empresa</${tag}>`;
+  if (i.credit) {
+    // Banco de imagens: sempre rotulada como ilustrativa + crédito exigido pela licença.
+    const lic = !i.license || /unsplash/i.test(i.license) ? " / Unsplash" : ` · ${esc(i.license)}`;
+    return `<${tag}${c("")}>Imagem ilustrativa · Foto: <a href="${esc(safeUrl(i.credit.link))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a>${lic}</${tag}>`;
+  }
+  if (i.origin === "stock") return `<${tag}${c("")}>Imagem ilustrativa</${tag}>`;
   return "";
 }
 
@@ -175,6 +184,20 @@ function heroFacts(c: SiteContent) {
     b.email && `<li><span>E-mail</span><a href="mailto:${esc(b.email)}">${esc(b.email)}</a></li>`,
   ].filter(Boolean);
   return items.length ? `<ul class="facts">${items.join("")}</ul>` : "";
+}
+
+/** Faixa de informações logo após a capa: endereço, horários publicados e contato confirmados. */
+function infoStrip(c: SiteContent, visible: Section[]): string {
+  const b = c.business;
+  const hours = visible.find((x) => x.type === "hours") as Extract<Section, { type: "hours" }> | undefined;
+  const lines = hours?.lines.filter((l) => l.value.trim()) ?? [];
+  const wa = waNumber(b.whatsapp);
+  const items = [
+    b.address && `<li><span>Onde</span>${b.mapsUrl ? `<a href="${esc(safeUrl(b.mapsUrl))}" target="_blank" rel="noopener noreferrer">${esc(b.address)}</a>` : `<b>${esc(b.address)}</b>`}</li>`,
+    lines.length && hours && `<li><span>Horários</span><a href="#${esc(hours.id)}">${esc(lines[0]!.label)}: ${esc(lines[0]!.value)}${lines.length > 1 ? " · ver todos" : ""}</a></li>`,
+    wa ? `<li><span>WhatsApp</span><a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">${esc(b.whatsapp)}</a></li>` : b.phone && `<li><span>Telefone</span><a href="${esc(telHref(b.phone))}">${esc(b.phone)}</a></li>`,
+  ].filter(Boolean);
+  return items.length >= 2 ? `<aside class="info-strip" aria-label="Informações rápidas"><ul class="wrap">${items.join("")}</ul></aside>` : "";
 }
 
 function servicesOf(c: SiteContent): string[] {
@@ -326,7 +349,7 @@ function sectionHtml(s: Section, c: SiteContent, style: SiteStyle, alt: boolean)
     case "cta":
       return `<section id="${esc(s.id)}" class="sec cta"><div class="wrap cta-inner"><div><h2>${esc(s.title)}</h2>${s.text ? `<p>${esc(s.text)}</p>` : ""}</div>${button(s.button, c, "btn btn-invert")}</div></section>`;
     case "quote": {
-      const n = waNumber(c.business.whatsapp || c.business.phone);
+      const n = waNumber(c.business.whatsapp);
       if (!n && !c.business.email) return "";
       return `<section id="${esc(s.id)}" ${cls()}><div class="wrap narrow">${head(s.title, s.text)}
 <form class="quote" data-wa="${esc(n ?? "")}" data-email="${esc(c.business.email)}" data-biz="${esc(c.business.name)}">
@@ -338,7 +361,7 @@ function sectionHtml(s: Section, c: SiteContent, style: SiteStyle, alt: boolean)
     }
     case "contact": {
       const b = c.business;
-      const n = waNumber(b.whatsapp || b.phone);
+      const n = waNumber(b.whatsapp);
       const items = [
         b.address && `<li><strong>Endereço</strong><span>${esc(b.address)}</span></li>`,
         b.phone && `<li><strong>Telefone</strong><a href="${esc(telHref(b.phone))}">${esc(b.phone)}</a></li>`,
@@ -400,6 +423,14 @@ p{text-wrap:pretty}
 .topbar .wrap{display:flex;align-items:center;justify-content:space-between;min-height:68px;gap:16px;position:relative}
 .brand{font-family:var(--hf);font-weight:700;font-size:1.25rem;color:var(--tx);text-decoration:none;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nav{display:flex;gap:26px}
+.info-strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 92%,var(--p) 8%)}
+.info-strip ul{margin:0 auto;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:0;padding-top:0;padding-bottom:0}
+.info-strip li{display:flex;flex-direction:column;gap:4px;padding:20px 22px;overflow-wrap:anywhere}
+.info-strip li+li{border-left:1px solid var(--line)}
+.info-strip span{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mu);font-weight:700}
+.info-strip b,.info-strip a{color:var(--tx);font-weight:600;text-decoration:none;font-size:.98rem}
+.info-strip a:hover{text-decoration:underline;text-underline-offset:3px}
+@media (max-width:640px){.info-strip li+li{border-left:0;border-top:1px solid var(--line)}.info-strip li{padding:14px 4px}}
 .nav a{color:var(--tx);text-decoration:none;font-size:.94rem;opacity:.8;transition:opacity .2s}
 .nav a:hover{opacity:1}
 #menu-toggle{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}.burger{display:none}
@@ -785,7 +816,7 @@ export function renderSite(c: SiteContent, opts: { footerCredit?: boolean; previ
       if (useStage && !stageDone && style === "cinema" && s.type === "hero") {
         stageDone = true;
         const intro = `${c.siteName && c.siteName !== s.title ? `<p class="sc-k">${esc(c.siteName)}</p>` : ""}<h1 class="sc-h1">${esc(s.title)}</h1>${s.subtitle ? `<p class="sc-p">${esc(s.subtitle)}</p>` : ""}${heroActions(s, c)}`;
-        return renderScrolly(c, style, { id: s.id, intro, items: stItems, stats: stStats, hero: s });
+        return renderScrolly(c, style, { id: s.id, intro, items: stItems, stats: stStats, hero: s }) + infoStrip(c, visible);
       }
       if (useStage && s.type === "stats") return ""; // números confirmados viram etapas do palco
       if (useStage && (s.type === "services" || s.type === "products") && stageDone) return "";
@@ -797,7 +828,8 @@ export function renderSite(c: SiteContent, opts: { footerCredit?: boolean; previ
         const stage = renderScrolly(c, style, { id: replaces ? s.id : `${s.id}-palco`, intro, items: stItems, stats: stStats, hero: heroSec });
         return replaces ? stage : stage + "\n" + sectionHtml(s, c, style, alt);
       }
-      if (s.type === "hero" || s.type === "cta") return sectionHtml(s, c, style, false);
+      if (s.type === "hero") return sectionHtml(s, c, style, false) + (style === "clinic" ? "" : infoStrip(c, visible));
+      if (s.type === "cta") return sectionHtml(s, c, style, false);
       const html = sectionHtml(s, c, style, alt);
       if (html) alt = !alt;
       return html;
@@ -836,7 +868,7 @@ ${body}
 </main>
 <footer><div class="wrap"><span>© ${year} ${esc(c.business.name)}</span>${opts.footerCredit ? `<span>Site criado com SiteHunter AI</span>` : ""}</div></footer>
 ${(() => {
-  const n = waNumber(c.business.whatsapp || c.business.phone);
+  const n = waNumber(c.business.whatsapp);
   return n
     ? `<a class="wa-float" href="https://wa.me/${n}" target="_blank" rel="noopener noreferrer" aria-label="Falar no WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2c0 1.3 1 2.6 1.1 2.8.1.2 1.9 2.9 4.6 4 1.7.7 2.4.8 3.2.7.5-.1 1.5-.6 1.8-1.2.2-.6.2-1.1.1-1.2l-.5-.3Z"/></svg></a>`
     : "";

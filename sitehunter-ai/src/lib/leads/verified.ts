@@ -21,15 +21,26 @@ export function verifiedCompanyInfo(c: Company): CompanyInfo {
     city: c.city,
     state: c.state,
     phone: v("phone"),
+    // WhatsApp só quando confirmado (publicado como WhatsApp ou confirmado por você); "" = não confirmado.
+    whatsapp: isUsable(facts.whatsapp) ? facts.whatsapp.value : "",
     email: v("email"),
     website: v("website"),
     hoursLines: isUsable(facts.hours) && Array.isArray(c.hours) ? (c.hours as { label: string; value: string }[]) : null,
     hoursSource: facts.hours?.source ?? null,
+    ownDescription: ownDescription(c),
     instagram: socials.find((s) => s.network === "instagram")?.url ?? (c.website && isSocialUrl(c.website) && /instagram/.test(c.website) ? c.website : null),
     mapsUrl: c.mapsUrl,
     lat: c.lat,
     lng: c.lng,
   };
+}
+
+/** Descrição do próprio site da empresa (página inicial lida após o robots.txt). */
+function ownDescription(c: Company): { text: string; source: string } | null {
+  const p = (c.presence ?? null) as PresenceReport | null;
+  if (!p || p.kind !== "site" || !p.reachable || !p.description) return null;
+  const host = (() => { try { return new URL(p.finalUrl ?? p.url ?? "").hostname.replace(/^www\./, ""); } catch { return "site oficial"; } })();
+  return { text: p.description, source: host };
 }
 
 export function leadView(c: Company & { projects?: { id: string; name: string }[] }) {
@@ -42,6 +53,7 @@ export function leadView(c: Company & { projects?: { id: string; name: string }[
     state: c.state,
     phone: c.phone,
     email: c.email,
+    whatsapp: c.whatsapp,
     website: c.website,
     mapsUrl: c.mapsUrl,
     notes: c.notes,

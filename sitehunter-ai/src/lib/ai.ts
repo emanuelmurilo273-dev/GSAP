@@ -64,6 +64,8 @@ ${JSON.stringify(
     cidade: c.city,
     estado: c.state,
     telefone_informado: c.phone ? "sim" : "não",
+    horarios_publicados: c.hoursLines?.length ? c.hoursLines.map((h) => `${h.label}: ${h.value}`) : null,
+    descricao_no_site_oficial: c.ownDescription?.text ?? null,
   },
   null,
   2,
@@ -120,6 +122,7 @@ ${segment.template === "restaurant" ? "Inclua 2 a 4 categorias em menuCategories
 Gere de 3 a 6 itens em services, adequados ao segmento "${segment.label}".
 Sugira cores (hex #RRGGBB) e fontes coerentes com o segmento. A cor "accent" é usada em botões sobre fundo da cor "primary" e precisa de bom contraste com texto escuro.
 heroTitle: curto (até 8 palavras). primaryCta: até 4 palavras.
+Escreva como um estúdio de design faria para esta empresa específica: frases curtas, concretas e com ritmo, nada de "soluções" ou "qualidade e excelência". Se houver descricao_no_site_oficial, baseie o texto "Sobre" nela (sem acrescentar fatos). Não cite horários no texto além dos publicados.
 ${instructions ? `Instruções adicionais do usuário (preferências de estilo; não são fatos sobre a empresa): <instrucoes>${instructions.slice(0, 800)}</instrucoes>` : ""}`;
   const copy = await structured(system, prompt, SITE_COPY_JSON_SCHEMA, SiteCopySchema);
   return { copy, ai: true };

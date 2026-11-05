@@ -155,3 +155,41 @@ Return a subject and a body.`;
     return { ...base, ai: false };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Mensagem curta para WhatsApp. Mesmas regras: só fatos verificados, a prévia é
+// apresentada como sugestão própria (a empresa não pediu), sem promessas, com saída fácil.
+// O sistema só monta o link wa.me; quem abre e toca em enviar é sempre o usuário.
+
+const WA: Record<Language, { greet: (n: string) => string; intro: (s: string) => string; preview: (url: string | null) => string; close: string }> = {
+  "pt-BR": {
+    greet: (n) => (n ? `Olá, pessoal da ${n}! Tudo bem?` : "Olá! Tudo bem?"),
+    intro: (s) => `Aqui é ${s}, trabalho com criação de sites para negócios locais.`,
+    preview: (url) =>
+      url
+        ? `Por conta própria, montei uma sugestão de site para vocês, só como ideia: ${url}`
+        : "Por conta própria, montei uma sugestão de site para vocês. Posso enviar o link para darem uma olhada?",
+    close: "Se não tiver interesse, é só me avisar que não mando mais mensagens.",
+  },
+  en: {
+    greet: (n) => (n ? `Hi ${n} team!` : "Hi there!"),
+    intro: (s) => `This is ${s}, I build websites for local businesses.`,
+    preview: (url) => (url ? `On my own initiative I put together a website suggestion for you, just as an idea: ${url}` : "On my own initiative I put together a website suggestion for you. May I send you the link?"),
+    close: "If you're not interested, just let me know and I won't message again.",
+  },
+  es: {
+    greet: (n) => (n ? `¡Hola, equipo de ${n}!` : "¡Hola!"),
+    intro: (s) => `Soy ${s}, creo sitios web para negocios locales.`,
+    preview: (url) => (url ? `Por iniciativa propia preparé una sugerencia de sitio para ustedes, solo como idea: ${url}` : "Por iniciativa propia preparé una sugerencia de sitio para ustedes. ¿Les puedo enviar el enlace?"),
+    close: "Si no les interesa, avísenme y no vuelvo a escribir.",
+  },
+};
+
+export function templateWhatsapp(input: OutreachInput, lang: Language): OutreachDraftText {
+  const base = templateOutreach(input, lang);
+  const w = WA[lang];
+  const name = base.factsUsed.find((f) => f.field === "name")?.value ?? "";
+  const url = input.hasPreview ? input.previewUrl ?? null : null;
+  const body = [w.greet(name), "", [w.intro(input.senderName), base.observation].filter(Boolean).join(" "), "", w.preview(url), "", w.close].join("\n");
+  return { subject: "WhatsApp", body, factsUsed: base.factsUsed, observation: base.observation };
+}

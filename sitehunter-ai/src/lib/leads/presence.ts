@@ -45,6 +45,8 @@ export function analyzeHtml(html: string, pageUrl: string, now = new Date()): Om
     .filter((e) => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(e) && GENERIC_EMAIL.test(e))
     .slice(0, 3);
   const phones = [...new Set(hrefs.filter((h) => h.toLowerCase().startsWith("tel:")).map((h) => h.slice(4).trim()))].slice(0, 3);
+  // WhatsApp publicado pela empresa no próprio site (wa.me, api.whatsapp.com, whatsapp://).
+  const whatsapp = [...new Set(hrefs.map((h) => h.match(/(?:wa\.me\/|whatsapp\.com\/send\/?\?(?:[^#]*&)?phone=|whatsapp:\/\/send\?(?:[^#]*&)?phone=)\+?(\d{10,15})/i)?.[1]).filter((x): x is string => !!x))].slice(0, 3);
   // Imagens publicadas pela própria empresa: og:image, twitter:image e fotos grandes da página inicial.
   const abs = (u: string) => { try { return new URL(decode(u), pageUrl).toString(); } catch { return null; } };
   const found: { url: string; alt: string; sourceUrl: string }[] = [];
@@ -70,6 +72,7 @@ export function analyzeHtml(html: string, pageUrl: string, now = new Date()): Om
     socials: socials.slice(0, 8),
     emails,
     phones,
+    whatsapp,
     imageCandidates,
   };
 }

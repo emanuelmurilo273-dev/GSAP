@@ -39,7 +39,7 @@ export type Fact = {
   note?: string;
 };
 
-export const FACT_FIELDS = ["name", "category", "address", "phone", "email", "website", "socials", "hours"] as const;
+export const FACT_FIELDS = ["name", "category", "address", "phone", "whatsapp", "email", "website", "socials", "hours"] as const;
 export type FactField = (typeof FACT_FIELDS)[number];
 export type Facts = Partial<Record<FactField, Fact>>;
 
@@ -48,6 +48,7 @@ export const FACT_LABELS: Record<FactField, string> = {
   category: "Categoria",
   address: "Endereço comercial",
   phone: "Telefone comercial",
+  whatsapp: "WhatsApp comercial",
   email: "E-mail comercial",
   website: "Site",
   socials: "Perfis sociais",
@@ -108,6 +109,10 @@ export type RawBusiness = {
   hoursRaw?: string | null;
   /** Perfis sociais publicados pela própria fonte (ex.: tags contact:instagram do OSM). */
   socialLinks?: string[] | null;
+  /** WhatsApp publicado pela própria fonte (ex.: tag contact:whatsapp do OSM). */
+  whatsapp?: string | null;
+  /** Imagens publicadas pela própria empresa na fonte (ex.: fotos do Google enviadas pela empresa). */
+  images?: { url: string; alt: string; source: string; sourceUrl: string | null; note?: string }[] | null;
 };
 
 export type Social = { network: string; url: string; source: string };
@@ -129,6 +134,7 @@ export type PresenceReport = {
   copyrightYear?: number | null;
   generator?: string | null;
   phones?: string[];
+  whatsapp?: string[];
   emails?: string[];
   socials?: Social[];
   imageCandidates?: { url: string; alt: string; sourceUrl: string }[];

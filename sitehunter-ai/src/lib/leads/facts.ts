@@ -1,4 +1,5 @@
 import { isSocialUrl, normalizeDomain, phonesMatch } from "./normalize";
+import { isBrMobile, normalizeWhatsApp } from "../whatsapp";
 import type { Fact, FactField, Facts, PresenceReport, RawBusiness, Social } from "./types";
 
 // Monta a proveniência de cada campo a partir da fonte de descoberta e da
@@ -33,6 +34,19 @@ export function buildFacts(raw: RawBusiness, presence: PresenceReport, at = new 
   } else {
     facts.website = f(null, "inferred", src, srcUrl, 0.5, at, raw.website ? "A fonte informa somente um perfil social, não um site próprio." : `${src} não informa um site. Isso não prova que a empresa não tenha site: confira antes do contato.`);
   }
+
+  // WhatsApp: confirmado só quando publicado como WhatsApp (fonte ou site da empresa).
+  // Celular sem essa indicação é inferência: o usuário precisa confirmar antes de usar.
+  const waSrc = normalizeWhatsApp(raw.whatsapp);
+  const waSite = normalizeWhatsApp(presence.whatsapp?.[0]);
+  const mobile = normalizeWhatsApp(raw.phone);
+  facts.whatsapp = waSrc
+    ? f(waSrc, baseStatus, src, srcUrl, conf, at, demo ? "Dado fictício (modo demonstração)" : `Publicado como WhatsApp no ${src}.`)
+    : waSite
+      ? f(waSite, demo ? "confirmed" : "confirmed", "Site da empresa", presence.finalUrl, demo ? 0 : 0.95, at, "Link de WhatsApp publicado no site da empresa.")
+      : isBrMobile(mobile)
+        ? f(mobile, "inferred", src, srcUrl, 0.4, at, "Celular publicado, mas sem indicação de que usa WhatsApp: confirme antes de usar.")
+        : f(null, "not_found", src, srcUrl, 0, at, "Nenhum WhatsApp comercial publicado nas fontes consultadas.");
 
   // Horários publicados pela fonte
   facts.hours = raw.hours?.length

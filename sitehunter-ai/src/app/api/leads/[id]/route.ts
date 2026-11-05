@@ -7,6 +7,7 @@ import { detectOpportunities } from "@/lib/leads/opportunities";
 import { dedupeKeys } from "@/lib/leads/normalize";
 import { leadView } from "@/lib/leads/verified";
 import { FACT_FIELDS, LanguageSchema, type Facts, type PresenceReport } from "@/lib/leads/types";
+import { normalizeWhatsApp } from "@/lib/whatsapp";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -29,12 +30,15 @@ const Patch = z.object({
       category: nullableText(120),
       address: nullableText(400),
       phone: nullableText(40),
+      whatsapp: z.string().trim().max(30).nullable().or(z.literal("").transform(() => null)),
       email: z.string().trim().max(160).email().nullable().or(z.literal("").transform(() => null)),
       website: z.string().trim().max(500).url().nullable().or(z.literal("").transform(() => null)),
     })
     .partial()
     .optional(),
   notes: z.string().max(2000).optional(),
+  /** Confirma que o celular publicado (inferência) é o WhatsApp comercial da empresa. */
+  confirmWhatsapp: z.boolean().optional(),
   excluded: z.boolean().optional(),
   reviewed: z.boolean().optional(),
   language: LanguageSchema.optional(),
@@ -47,6 +51,17 @@ export const PATCH = route<Ctx>(async (req, { params }) => {
   const b = await parseJson(req, Patch);
   const data: Record<string, unknown> = {};
   let facts = (c.facts ?? {}) as Facts;
+  if (b.fields && "whatsapp" in b.fields && b.fields.whatsapp) {
+    const n = normalizeWhatsApp(b.fields.whatsapp);
+    if (!n) throw new HttpError(400, "Número de WhatsApp inválido: use DDD + número (ou DDI + número).", "validation");
+    b.fields.whatsapp = n;
+  }
+  if (b.confirmWhatsapp) {
+    const f = ((c.facts ?? {}) as Facts).whatsapp;
+    if (!f?.value) throw new HttpError(400, "Não há número para confirmar. Informe o WhatsApp da empresa.", "validation");
+    b.fields = { ...(b.fields ?? {}), whatsapp: f.value };
+    (c as unknown as Record<string, unknown>).whatsapp = null; // força registrar como "revisado por você"
+  }
   if (b.fields) {
     for (const [k, v] of Object.entries(b.fields)) {
       if (!(FACT_FIELDS as readonly string[]).includes(k)) continue;

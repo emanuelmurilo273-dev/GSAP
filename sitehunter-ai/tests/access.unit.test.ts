@@ -121,6 +121,7 @@ describe("Direções visuais", () => {
     const seg = getSegment("salao");
     const copy = fallbackCopy(company, seg);
     expect(copy.services.map((s) => s.title)).not.toContain("Barba");
-    expect(copy.heroSubtitle).toMatch(/^Salão de beleza/);
+    expect(copy.heroSubtitle).toMatch(/^Cabelo, unhas/);
+    expect(copy.aboutText).toMatch(/salão de beleza/);
   });
 });

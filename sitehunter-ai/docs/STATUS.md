@@ -38,7 +38,10 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Descoberta real via Google Places (paginada até 30, com horários) | 🔑 `GOOGLE_PLACES_API_KEY` (testado com respostas simuladas) |
 | Horários normalizados (OSM opening_hours e Google weekdayDescriptions) e usados no site | ✅ testado |
 | Imagens: candidatas do site da empresa (com autorização), banco com licença (Openverse sem chave / Unsplash com chave), revisão por lead | ✅ testado com Openverse real |
-| WhatsApp oferecido só para celulares (fixo → botão de ligar) | ✅ testado |
+| WhatsApp: só número confirmado (wa.me no site oficial, `contact:whatsapp` no OSM ou confirmado por você); celular sem indicação fica como inferência e não gera botão | ✅ testado |
+| Abordagem por WhatsApp: mensagem curta editável, prévia em balão, link `https://wa.me/NÚMERO?text=…` aberto por você; nada é enviado | ✅ testado |
+| Fotos do Google Maps publicadas pelo próprio estabelecimento (filtro por autor, endpoint oficial de mídia) | 🔑 `GOOGLE_PLACES_API_KEY` (testado com respostas simuladas) |
+| Fotos de redes sociais | ❌ não coletadas (login e termos de uso); adicionar manualmente |
 | Importação de CSV do usuário | ✅ testado |
 | Modo demonstração (dados fictícios, sempre identificados, nunca deduplicados contra reais) | ✅ testado |
 | Normalização e deduplicação (domínio, telefone, nome+cidade, perfil social) | ✅ testado |
@@ -57,6 +60,8 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 |---|---|
 | 5 direções visuais por setor (estrutura, tipografia, paleta, composição, CTA), escolha no editor | ✅ revisado em desktop e celular |
 | Contraste automático de botões e textos de destaque; aviso no editor | ✅ testado |
+| Textos por setor (sem afirmações a verificar), "Sobre" a partir da descrição do site oficial quando houver, faixa de informações (endereço, horários, contato) | ✅ testado e revisado em desktop e celular |
+| Legendas: "Foto da empresa · fonte", "Imagem ilustrativa · crédito · licença", "Imagem ilustrativa gerada por IA" | ✅ testado |
 | “Criar site com IA” com 6 modelos (restaurante, barbearia/salão, clínica, oficina, loja, serviços) e 13 segmentos | ✅ (IA real 🔑 `ANTHROPIC_API_KEY`; sem chave usa textos-modelo sinalizados) |
 | Proibição de depoimentos, avaliações, preços e horários inventados (prompt + modelo deixa preços e horários em branco) | ✅ |
 | Imagens de banco autorizado com crédito | 🔑 `UNSPLASH_ACCESS_KEY` (ou URL própria) |

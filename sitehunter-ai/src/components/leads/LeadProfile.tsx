@@ -5,12 +5,13 @@ import { api } from "@/components/api";
 import { Alert, Spinner, toast } from "@/components/ui";
 import { DemoBadge, FACT_CLASS, FactBadge, ScoreMeter, STATUS_LABEL } from "./FactBadge";
 import { LeadImages } from "./LeadImages";
+import { WhatsAppPanel } from "./WhatsAppPanel";
 import { FACT_LABELS, type FactField } from "@/lib/leads/types";
 import type { LeadView } from "./types";
 
 type Draft = { id: string; language: string; subject: string; body: string; ai: boolean; factsUsed: { field: string; value: string; source: string }[]; createdAt: string };
 const LANG_LABEL: Record<string, string> = { "pt-BR": "Português", en: "English", es: "Español" };
-const EDITABLE: FactField[] = ["name", "category", "address", "phone", "email", "website"];
+const EDITABLE: FactField[] = ["name", "category", "address", "phone", "whatsapp", "email", "website"];
 
 const SKIP_LABEL: Record<string, string> = {
   no_website: "Sem site informado: nada a verificar.",
@@ -21,7 +22,7 @@ const SKIP_LABEL: Record<string, string> = {
   blocked_address: "Endereço bloqueado por segurança (rede privada/interna).",
 };
 
-export function LeadProfile({ initialLead, segments, guessedSegment, initialDrafts, ai, premium, senderName, imageQuery }: { initialLead: LeadView; segments: { key: string; label: string }[]; guessedSegment: string; initialDrafts: Draft[]; ai: boolean; premium: boolean; senderName: string; imageQuery: string }) {
+export function LeadProfile({ initialLead, segments, guessedSegment, initialDrafts, ai, premium, senderName, imageQuery, waText, previewUrl }: { waText: string; previewUrl: string | null; initialLead: LeadView; segments: { key: string; label: string }[]; guessedSegment: string; initialDrafts: Draft[]; ai: boolean; premium: boolean; senderName: string; imageQuery: string }) {
   const [lead, setLead] = useState(initialLead);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -174,7 +175,7 @@ export function LeadProfile({ initialLead, segments, guessedSegment, initialDraf
               </div>
             ) : (
               <dl className="mt-5 divide-y divide-white/5">
-                {(["name", "category", "address", "phone", "email", "website", "socials", "hours"] as FactField[]).map((k) => {
+                {(["name", "category", "address", "phone", "whatsapp", "email", "website", "socials", "hours"] as FactField[]).map((k) => {
                   const f = lead.facts[k];
                   const value = k === "socials" ? null : k === "hours" ? (lead.hours?.length ? lead.hours.map((h) => `${h.label}: ${h.value}`).join("\n") : null) : ((lead as unknown as Record<string, string | null>)[k] ?? null);
                   return (
@@ -293,6 +294,9 @@ export function LeadProfile({ initialLead, segments, guessedSegment, initialDraf
 
           {/* ---------- Imagens ---------- */}
           <LeadImages leadId={lead.id} initial={lead.images} defaultQuery={imageQuery} isDemo={lead.isDemo} />
+
+          {/* ---------- WhatsApp ---------- */}
+          <WhatsAppPanel key={lead.whatsapp ?? "none"} whatsapp={lead.whatsapp} fact={lead.facts.whatsapp} initialText={waText} previewUrl={previewUrl} hasPreview={lead.projects.length > 0} isDemo={lead.isDemo} busy={busy === "patch"} onPatch={patch} />
 
           {/* ---------- Abordagem ---------- */}
           <section className="card p-5 sm:p-6">

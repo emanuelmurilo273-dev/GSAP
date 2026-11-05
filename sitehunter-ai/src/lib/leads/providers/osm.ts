@@ -96,6 +96,7 @@ export function mapNominatim(x: NomItem, fallbackCategory: string): RawBusiness 
     hours: parseOsmHours(hoursRaw),
     hoursRaw,
     socialLinks: SOCIAL_KEYS.filter(([k]) => t[k]).map(([k, f]) => f(t[k]!.trim())),
+    whatsapp: t["contact:whatsapp"] ?? t.whatsapp ?? null,
   };
 }
 

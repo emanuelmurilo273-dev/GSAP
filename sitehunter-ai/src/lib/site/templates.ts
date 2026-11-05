@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { placePhrase, sectorCopy, usableOwnDescription } from "./copyLibrary";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
 import { STYLE_INFO, styleForSegment, type SiteStyle } from "./styles";
 import { objectKindFor } from "./stage";
@@ -73,11 +74,15 @@ export type CompanyInfo = {
   city?: string | null;
   state?: string | null;
   phone?: string | null;
+  /** WhatsApp confirmado. undefined = desconhecido (usa celular como sugestão); "" = não confirmado. */
+  whatsapp?: string | null;
   email?: string | null;
   instagram?: string | null;
   website?: string | null;
   /** Horários publicados e confirmados (linhas prontas). */
   hoursLines?: { label: string; value: string }[] | null;
+  /** Descrição publicada no site oficial da empresa (meta description), com a fonte. */
+  ownDescription?: { text: string; source: string } | null;
   hoursSource?: string | null;
   mapsUrl?: string | null;
   lat?: number | null;
@@ -116,7 +121,9 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     isHex(copy.colors.accent) ? copy.colors.accent : segment.theme.accent,
   );
   const hasPhone = !!company.phone;
-  const mobile = isMobilePhone(company.phone);
+  // Com dados de lead, o botão de WhatsApp só aparece com número confirmado; sem essa informação, celular conta como WhatsApp provável.
+  const waConfirmed = company.whatsapp ? company.whatsapp : company.whatsapp === undefined && isMobilePhone(company.phone) ? company.phone ?? "" : "";
+  const mobile = !!waConfirmed;
   const mainAction = mobile ? ("whatsapp" as const) : hasPhone ? ("phone" as const) : ("section" as const);
   const [heroImg, aboutImg, ...galleryImgs] = images;
 
@@ -190,7 +197,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     business: {
       name: company.name,
       phone: company.phone ?? "",
-      whatsapp: mobile ? company.phone ?? "" : "",
+      whatsapp: waConfirmed,
       email: company.email ?? "",
       address: company.address ?? "",
       instagram: company.instagram ?? "",
@@ -203,8 +210,9 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     reviewNotes: [
       "Os serviços/produtos listados são sugestões típicas do segmento — confirme com a empresa.",
       company.hoursLines?.length ? `Horários vieram do ${company.hoursSource ?? "perfil público"}: confirme com a empresa.` : "Preencha os horários de funcionamento e os preços somente com informações confirmadas.",
+      ...(company.ownDescription && usableOwnDescription(company.ownDescription.text) ? [`O texto "Sobre" usa a descrição publicada em ${company.ownDescription.source}: confira se continua atual.`] : []),
       ...(company.phone ? [] : ["A fonte de dados não informou telefone: adicione um contato em 'Dados da empresa'."]),
-      ...(company.phone && !mobile ? ["O telefone informado é fixo: o botão principal liga para ele. Se a empresa usa WhatsApp, informe o número em 'Dados da empresa'."] : []),
+      ...(company.phone && !mobile ? [company.whatsapp === "" && isMobilePhone(company.phone) ? "O celular publicado não foi confirmado como WhatsApp: confirme no lead para ativar o botão de WhatsApp." : "O telefone informado é fixo: o botão principal liga para ele. Se a empresa usa WhatsApp, informe o número no lead."] : []),
     ],
   };
 }
@@ -291,22 +299,25 @@ export function fallbackCopy(company: CompanyInfo, segment: Segment): SiteCopy {
   };
   const seg = SINGULAR[segment.key] ?? segment.label.replace(/s$/, "").toLowerCase();
   const services = SEGMENT_SERVICES[segment.key] ?? typical[segment.template];
+  const lib = sectorCopy(segment.key);
+  const own = usableOwnDescription(company.ownDescription?.text);
+  const hasWa = company.whatsapp ? true : company.whatsapp === undefined && isMobilePhone(company.phone);
   return {
     siteName: company.name,
-    seoTitle: `${company.name}${where ? ` — ${where}` : ""}`.slice(0, 120),
-    seoDescription: `${company.name}${company.category ? `, ${company.category.toLowerCase()}` : ""}${where ? ` em ${where}` : ""}. Entre em contato.`.slice(0, 300),
+    seoTitle: `${company.name}${where ? ` · ${seg} em ${where}` : ""}`.slice(0, 120),
+    seoDescription: (own ?? `${company.name}${company.category ? `, ${company.category.toLowerCase()}` : ""}${where ? ` em ${where}` : ""}. Entre em contato.`).slice(0, 300),
     heroTitle: company.name,
-    heroSubtitle: where ? `${seg[0]!.toUpperCase()}${seg.slice(1)} em ${where}. Fale com a gente!` : "Fale com a gente!",
-    primaryCta: isMobilePhone(company.phone) ? "Chamar no WhatsApp" : company.phone ? "Ligar agora" : "Entrar em contato",
+    heroSubtitle: lib ? `${lib.tagline()}${where ? ` ${where}.` : ""}` : where ? `${seg[0]!.toUpperCase()}${seg.slice(1)} em ${where}.` : "Fale com a gente.",
+    primaryCta: hasWa ? "Chamar no WhatsApp" : company.phone ? "Ligar agora" : "Entrar em contato",
     aboutTitle: "Sobre nós",
-    aboutText: `A ${company.name} atende${where ? ` em ${where}` : ""}. Entre em contato para saber mais sobre o nosso trabalho.`,
+    aboutText: own ?? (lib ? lib.about(company.name, placePhrase(company.neighborhood, company.city)) : `A ${company.name} atende${where ? ` em ${where}` : ""}. Entre em contato para saber mais sobre o nosso trabalho.`),
     servicesTitle: segment.template === "store" ? "Nossos produtos" : segment.template === "clinic" ? "Especialidades" : "Serviços",
-    servicesIntro: `Conheça o que a ${company.name} oferece.`,
+    servicesIntro: lib?.servicesIntro ?? `Conheça o que a ${company.name} oferece.`,
     services,
     menuCategories: segment.template === "restaurant" ? [{ name: "Destaques", items: [{ name: "Item do cardápio", description: "Descreva aqui um item confirmado com a empresa." }] }] : [],
-    ctaTitle: `Procurando ${seg}${where ? ` em ${where}` : ""}?`,
-    ctaText: "Fale com a gente e tire suas dúvidas.",
-    contactText: "Estamos à disposição. Fale com a gente pelos canais abaixo.",
+    ctaTitle: lib ? lib.ctaTitle(where) : `Procurando ${seg}${where ? ` em ${where}` : ""}?`,
+    ctaText: lib?.ctaText ?? "Fale com a gente e tire suas dúvidas.",
+    contactText: company.hoursLines?.length ? "Confira os horários e fale com a gente pelos canais abaixo." : "Fale com a gente pelos canais abaixo.",
     quoteTitle: "Solicite um orçamento",
     quoteText: "Conte o que você precisa e responderemos pelo WhatsApp.",
     colors: { primary: segment.theme.primary, accent: segment.theme.accent },
