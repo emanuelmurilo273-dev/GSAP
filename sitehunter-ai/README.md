@@ -41,7 +41,7 @@ Plataforma SaaS para encontrar empresas brasileiras que possivelmente ainda não
 
 ### Como usar
 
-1. **Estúdio de leads** → aba **OpenStreetMap** (ou **Google Maps**, se configurado) → informe o ramo (ex.: "barbearia", "dentista") e a cidade → **Iniciar busca de leads**. O app busca as empresas, remove duplicadas, verifica o site público de cada uma (respeitando o robots.txt) e registra a fonte e a confiança de cada dado.
+1. **Estúdio de leads** → aba **OpenStreetMap** (ou **Google Maps**, se configurado) → informe o ramo (ex.: "barbearia", "dentista"), escolha o **estado** e a **cidade** (qualquer um dos 5.570 municípios, com autocompletar; também aceita digitar "Chapecó - SC") → **Iniciar busca de leads**. Depois da busca o app mostra a cobertura real da fonte e avisa quando a cidade não retornou resultados. O app busca as empresas, remove duplicadas, verifica o site público de cada uma (respeitando o robots.txt) e registra a fonte e a confiança de cada dado.
 2. **Abrir perfil** de um lead: revise os dados (selos *Confirmado*, *Inferência*, *Não encontrado*, *Revisado por você*), corrija o que precisar e veja as oportunidades.
 3. **Imagens para o site**: aprove imagens publicadas pela própria empresa (só com a sua confirmação de autorização) ou busque e adicione imagens de banco com licença. As aprovadas entram no site; se faltarem, a geração completa com fotos CC0 atuais, sempre com crédito.
 4. Marque **Revisei os dados** → **Gerar prévia do site**. O editor abre com a prévia animada em 3D. A direção visual vem do setor e pode ser trocada na aba Design. Revise as notas em amarelo, os textos, as imagens, os horários e os números.
@@ -53,10 +53,12 @@ Plataforma SaaS para encontrar empresas brasileiras que possivelmente ainda não
 
 | Recurso | Situação | Configuração |
 |---|---|---|
-| Busca real de empresas no **OpenStreetMap** (nome, categoria, endereço, telefone, e-mail, site, redes e horários quando cadastrados) | ✅ funciona sem chave; testado com buscas reais em Curitiba | `OSM_CONTACT_EMAIL` (recomendado). Limite de 1 consulta/s; para volume maior use `NOMINATIM_URL` com instância própria |
+| Lista de **todos os municípios do Brasil** (5.570 + DF, código IBGE, UF, coordenadas e DDD) | ✅ embutida no app (lista "municipios-brasileiros", MIT, derivada do IBGE); não depende de outra API | — |
+| Busca real de empresas no **OpenStreetMap** (nome, categoria, endereço, telefone, e-mail, site, redes e horários quando cadastrados) | ✅ funciona sem chave em qualquer cidade, buscando dentro da área do município; testado com buscas reais em Curitiba/PR, Chapecó/SC, Porto Alegre/RS, Belo Horizonte/MG, São Paulo/SP, Salvador/BA, Natal/RN, Manaus/AM e Santana/AP. A cobertura depende de voluntários e varia muito por cidade | `OSM_CONTACT_EMAIL` (recomendado). Limite de 1 consulta/s; para volume maior use `NOMINATIM_URL` com instância própria |
 | Busca real no **Google Maps (Places API New)**, com horários | 🔑 depende de chave paga do Google | `GOOGLE_PLACES_API_KEY`, com "Places API (New)" ativada no Google Cloud |
 | Verificação do site público de cada lead (HTTPS, celular, ano, contatos, redes, imagens) | ✅ funciona | só a página inicial, após o robots.txt |
 | Imagens com licença: **Openverse** (CC0/CC BY/CC BY-SA, uso comercial e modificação) | ✅ funciona sem chave (limite por IP) | `OPENVERSE_TOKEN` opcional para limite maior |
+| Fotos reais com licença livre do **Wikimedia Commons** (busca pelo nome da empresa e fotos tiradas perto do endereço que citam o nome) | ✅ funciona sem chave; entram como candidatas para você aprovar, com autor e licença | — |
 | Imagens com licença: **Unsplash** | 🔑 chave gratuita | `UNSPLASH_ACCESS_KEY` (quando definida, substitui o Openverse) |
 | Imagens dos canais da própria empresa: site oficial | ✅ coletadas da página inicial (og:image e fotos grandes); só entram com a sua confirmação de autorização | — |
 | Fotos publicadas pela empresa no **Google Maps** (autor = o próprio estabelecimento) | 🔑 depende da chave do Google; fotos de clientes nunca são usadas. O link do Google pode expirar, então para publicar o ideal é pedir o arquivo original | `GOOGLE_PLACES_API_KEY` |
@@ -128,9 +130,30 @@ Cada prévia nasce **privada**: existe só dentro do painel, com a faixa "Prévi
 - **Retirar acesso público** pede confirmação e o link passa a responder 404 na hora. A prévia continua salva e privada.
 - Nada é publicado automaticamente: gerar uma prévia nunca cria um link público.
 
-## Direções visuais dos sites
+## Vitrine 3D sob medida (padrão das novas prévias)
 
-Os sites gerados não usam um template único. `src/lib/site/styles.ts` define 6 direções; cada uma muda a estrutura da capa, a composição das seções, a tipografia, a base de cores, os botões e os ornamentos:
+Cada prévia nova recebe um **conceito próprio** (`src/lib/site/immersive/concept.ts`), montado a partir do que foi pesquisado sobre a empresa:
+
+- **Objeto 3D**: vem do ramo (categoria na fonte) e do nome. Exemplos: "Implantes" vira implante, uma pizzaria vira pizza, e "Barbershop Cafe" ganha tesoura com xícara.
+- **Paleta escura, material, tipografia, composição, movimento e motivo de fundo**: variam com o nome, então duas barbearias não saem iguais (há teste para isso).
+- **Dados da empresa**: bairro e cidade vão para a abertura, horários publicados viram um capítulo com destaque ("Abre aos domingos"), e a descrição do site oficial vira o "Sobre".
+- **Transparência**: o editor mostra **por que** cada escolha foi feita, permite trocar objeto, material, cor e palavra de fundo, e gerar outra variação.
+
+A página (`src/lib/site/immersive/render.ts` + `runtime.ts`) segue a referência do relógio:
+
+- **Objeto e cena**: fundo escuro e um objeto 3D real em three.js (r128, MIT, servido pelo próprio app em `/vendor/three.min.js`), com 32 modelos procedurais e reflexos reais de um estúdio de luz.
+- **Rolagem**: capítulos fixos enquanto o objeto muda de posição, ângulo e escala; objetos secundários entram vindos do fundo; partículas, anéis, grade ou fitas dão profundidade; as fotos aparecem em cartões com perspectiva.
+- **Leitura e acessibilidade**: textos e botões são HTML comum, legíveis sobre faixas escuras, e os títulos encolhem para caber.
+- **Celular**: objeto no alto, texto embaixo.
+- **Movimento reduzido**: poses fixas sem giro.
+- **Sem WebGL**: mostra a arte estática.
+- **Aviso**: o rodapé informa que o objeto 3D é ilustrativo.
+
+Exportação em ZIP leva o three.js junto. As direções clássicas abaixo continuam disponíveis no editor.
+
+## Direções visuais clássicas
+
+Os sites gerados não usam um template único. `src/lib/site/styles.ts` define 6 direções clássicas (além da Vitrine 3D); cada uma muda a estrutura da capa, a composição das seções, a tipografia, a base de cores, os botões e os ornamentos:
 
 | Direção | Para | Capa e composição | 3D |
 |---|---|---|---|

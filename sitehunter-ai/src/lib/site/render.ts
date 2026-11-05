@@ -109,6 +109,10 @@ export function imageCaption(i: SiteImage, tag = "figcaption", cls = ""): string
     const src = i.sourceUrl ? ` · <a href="${esc(safeUrl(i.sourceUrl))}" target="_blank" rel="noopener noreferrer">fonte</a>` : "";
     return `<${tag}${c("")}>Foto da empresa${src}</${tag}>`;
   }
+  if (i.credit && /commons\.wikimedia\.org/.test(i.sourceUrl ?? "")) {
+    // Foto real do local (Wikimedia Commons): não é foto da empresa nem ilustração genérica.
+    return `<${tag}${c("")}>Foto do local · <a href="${esc(safeUrl(i.sourceUrl))}" target="_blank" rel="noopener noreferrer">${esc(i.credit.name)}</a> · ${esc(i.license ?? "Wikimedia Commons")} (Wikimedia Commons)</${tag}>`;
+  }
   if (i.credit) {
     // Banco de imagens: sempre rotulada como ilustrativa + crédito exigido pela licença.
     const lic = !i.license || /unsplash/i.test(i.license) ? " / Unsplash" : ` · ${esc(i.license)}`;

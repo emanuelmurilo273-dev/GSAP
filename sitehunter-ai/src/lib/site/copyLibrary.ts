@@ -48,6 +48,22 @@ export const SECTOR_COPY: Record<string, SectorCopy> = {
     ctaTitle: () => "Bateu a fome?",
     ctaText: "Fale com a casa para reservas, pedidos e cardápio.",
   },
+  cafe: {
+    kicker: "Café",
+    tagline: () => `Café bem tirado, sem pressa.`,
+    about: (n, w) => `O ${n} é um café${at(w)}. Um lugar para uma pausa boa, do espresso ao café coado.`,
+    servicesIntro: "Cafés, bebidas e o que mais estiver no balcão hoje. Pergunte à equipe.",
+    ctaTitle: () => "Passa para um café?",
+    ctaText: "Fale com a casa para saber horários e novidades.",
+  },
+  pizzaria: {
+    kicker: "Pizzaria",
+    tagline: () => `Massa, forno e sabor de pizzaria de verdade.`,
+    about: (n, w) => `A ${n} é uma pizzaria${at(w)}. Pizza para dividir na mesa ou levar para casa.`,
+    servicesIntro: "Sabores, bebidas e pedidos. Confira o cardápio com a casa.",
+    ctaTitle: () => "Hoje é dia de pizza?",
+    ctaText: "Fale com a casa para pedidos e reservas.",
+  },
   padaria: {
     kicker: "Padaria",
     tagline: () => `Pão quente, café e o lanche do bairro.`,
@@ -130,7 +146,13 @@ export const SECTOR_COPY: Record<string, SectorCopy> = {
   },
 };
 
-export function sectorCopy(key: string): SectorCopy | null {
+export function sectorCopy(key: string, hint = ""): SectorCopy | null {
+  // A categoria/nome refinam o segmento: um café ou uma pizzaria não recebem textos genéricos de restaurante.
+  const h = hint.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (["restaurante", "padaria", "servicos", ""].includes(key)) {
+    if (/\b(cafe|cafeteria|coffee)\b/.test(h)) return SECTOR_COPY.cafe!;
+    if (/pizz/.test(h)) return SECTOR_COPY.pizzaria!;
+  }
   return SECTOR_COPY[key] ?? null;
 }
 

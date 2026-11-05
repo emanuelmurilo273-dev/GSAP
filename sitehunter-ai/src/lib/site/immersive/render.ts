@@ -48,6 +48,15 @@ function sideFor(concept: Concept, i: number): Ch["side"] {
   return i % 2 ? (first === "left" ? "right" : "left") : first;
 }
 
+/** Comprimento da palavra mais longa: o título encolhe para caber sem cortar palavras. */
+const longest = (t: string) => Math.max(4, ...t.split(/\s+/).map((w) => w.length));
+/** "IBIO (Instituto Brasileiro ...)" → título "IBIO" e o nome completo em linha menor. */
+function splitName(t: string): [string, string] {
+  const m = t.match(/^(.{2,40}?)\s*\((.{6,})\)\s*$/);
+  return m ? [m[1]!.trim(), m[2]!.trim()] : [t, ""];
+}
+const WIDE: Record<string, number> = { Unbounded: 1.08, "Archivo Black": 0.92, Syne: 0.9, Anton: 0.5, "Bricolage Grotesque": 0.6, "Instrument Serif": 0.46, Fraunces: 0.58, "Cormorant Garamond": 0.5, "Space Grotesk": 0.6, Sora: 0.62 };
+
 function card(i: SiteImage, k: number, cls = ""): string {
   const src = imgSrc(i);
   if (!src) return "";
@@ -73,7 +82,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
       ${heroImg ? `<div class="hero-photo">${card(heroImg, 0, "pc-hero")}</div>` : ""}
       <div class="panel">
         ${k.kicker ? `<p class="kicker rv">${esc(k.kicker)}</p>` : ""}
-        <h1 class="display rv" style="--d:1">${esc(hero?.title || c.siteName)}</h1>
+        ${(() => { const [t, full] = splitName(hero?.title || c.siteName); return `<h1 class="display rv" style="--d:1;--L:${longest(t)}">${esc(t)}</h1>${full ? `<p class="fullname rv" style="--d:1">${esc(full)}</p>` : ""}`; })()}
         ${hero?.subtitle ? `<p class="lede rv" style="--d:2">${esc(hero.subtitle)}</p>` : ""}
         ${hero?.buttons.length ? `<div class="acts rv" style="--d:3">${hero.buttons.map((x, i) => button(x, c, i ? "btn ghost" : "btn")).join("")}</div>` : ""}
         ${k.highlights.length ? `<p class="badge rv" style="--d:4">${esc(k.highlights[0])}</p>` : ""}
@@ -94,7 +103,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
       html: `<div class="panel">
         ${i === 0 && sec ? `<p class="kicker rv">${esc(sec.title)}</p>` : ""}
         <span class="idx rv" aria-hidden="true">${String(i + 1).padStart(2, "0")}<small>/${String(Math.min(4, items.length)).padStart(2, "0")}</small></span>
-        <h2 class="h2 rv" style="--d:1">${esc(it.t)}</h2>
+        <h2 class="h2 rv" style="--d:1;--L:${longest(it.t)}">${esc(it.t)}</h2>
         <p class="body rv" style="--d:2">${esc(it.d)}</p>
       </div>`,
     });
@@ -139,7 +148,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   if (hours && lines.length) {
     chapters.push({
       id: hours.id, nav: "Horários",
-      html: `<div class="panel"><p class="kicker rv">${esc(hours.title)}</p>${k.highlights[0] ? `<h2 class="h2 rv" style="--d:1">${esc(k.highlights[0])}</h2>` : ""}<dl class="hours">${lines
+      html: `<div class="panel"><p class="kicker rv">${esc(hours.title)}</p>${k.highlights[0] ? `<h2 class="h2 rv" style="--d:1;--L:${longest(k.highlights[0])}">${esc(k.highlights[0])}</h2>` : ""}<dl class="hours">${lines
         .map((l, n) => `<div class="rv" style="--d:${n + 2}"><dt>${esc(l.label)}</dt><dd>${esc(l.value)}</dd></div>`)
         .join("")}</dl>${hours.note ? `<p class="note rv">${esc(hours.note)}</p>` : ""}</div>`,
     });
@@ -157,7 +166,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     id: contact?.id ?? "contato", nav: "Contato", cls: "ch-final",
     html: `<div class="panel">
       <p class="kicker rv">${esc(contact?.title || "Contato")}</p>
-      <h2 class="display sm rv" style="--d:1">${esc(cta?.title || b.name)}</h2>
+      <h2 class="display sm rv" style="--d:1;--L:${longest(splitName(cta?.title || b.name)[0])}">${esc(splitName(cta?.title || b.name)[0])}</h2>
       ${cta?.text || contact?.text ? `<p class="lede rv" style="--d:2">${esc(cta?.text || contact?.text)}</p>` : ""}
       ${cta ? `<div class="acts rv" style="--d:3">${button(cta.button, c, "btn")}</div>` : ""}
       ${contacts.length ? `<ul class="contacts rv" style="--d:4">${contacts.join("")}</ul>` : ""}
@@ -172,6 +181,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const threeSrc = opts.threeSrc ?? "/vendor/three.min.js";
   const cfg = { model: k.model, secondary: k.secondary, material: k.material, motif: k.motif, choreo: k.choreo, pal: P, seed: k.seed };
   const up = k.caseStyle === "upper";
+  const kw = (WIDE[k.display] ?? 0.6) * (up ? 1.12 : 1);
 
   return `<!doctype html>
 <html lang="${esc(opts.lang ?? "pt-BR")}">
@@ -185,10 +195,10 @@ ${opts.noindex ? '<meta name="robots" content="noindex, nofollow">' : ""}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${fontsHref([k.display, k.body])}">
 <style>
-:root{--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mu:${P.muted};--ac:${P.accent};--ac2:${P.accent2};--fd:'${k.display}',system-ui,sans-serif;--fb:'${k.body}',system-ui,sans-serif;color-scheme:dark}
+:root{--kw:${kw.toFixed(2)};--pw:min(540px,44vw);--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mu:${P.muted};--ac:${P.accent};--ac2:${P.accent2};--fd:'${k.display}',system-ui,sans-serif;--fb:'${k.body}',system-ui,sans-serif;color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{background:radial-gradient(120% 80% at 70% 0%,var(--bg2),var(--bg) 60%) fixed,var(--bg);color:var(--ink);font:400 17px/1.6 var(--fb);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;overflow-x:clip}
+body{overflow-x:clip;background:radial-gradient(120% 80% at 70% 0%,var(--bg2),var(--bg) 60%) fixed,var(--bg);color:var(--ink);font:400 17px/1.6 var(--fb);-webkit-font-smoothing:antialiased}
 a{color:inherit}
 img{display:block;max-width:100%}
 #stage3d{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
@@ -220,9 +230,11 @@ main{position:relative}
 .bgclip{position:absolute;inset:0 0 auto 0;height:100vh;overflow:hidden;z-index:0;pointer-events:none}
 .bgword{position:absolute;z-index:0;left:50%;top:50%;transform:translate(-50%,-56%);font:800 clamp(90px,21vw,360px)/.85 var(--fd);letter-spacing:-.04em;white-space:nowrap;color:transparent;-webkit-text-stroke:1px color-mix(in srgb,var(--ink) 22%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 16%,transparent),transparent 80%);-webkit-background-clip:text;background-clip:text;pointer-events:none;user-select:none}
 .kicker{font:600 12px/1.3 var(--fb);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin-bottom:18px}
-.display{font:${up ? 800 : 600} clamp(44px,7.4vw,112px)/.92 var(--fd);letter-spacing:${up ? "-.01em" : "-.035em"};text-transform:${up ? "uppercase" : "none"};text-wrap:balance}
-.display.sm{font-size:clamp(38px,5.6vw,84px)}
-.h2{font:${up ? 800 : 600} clamp(34px,4.6vw,68px)/1 var(--fd);letter-spacing:${up ? "0" : "-.03em"};text-transform:${up ? "uppercase" : "none"};text-wrap:balance;margin-bottom:18px}
+.display{font:${up ? 800 : 600} min(clamp(44px,7.4vw,112px),calc(var(--pw) / (var(--L,8) * var(--kw))))/.92 var(--fd);letter-spacing:${up ? "-.01em" : "-.035em"};text-transform:${up ? "uppercase" : "none"};text-wrap:balance}
+.display.sm{font-size:min(clamp(38px,5.6vw,84px),calc(var(--pw) / (var(--L,8) * var(--kw))))}
+.fullname{margin-top:12px;font-size:14px;letter-spacing:.06em;color:var(--mu);max-width:40ch}
+.ch[data-side=center]{--pw:min(760px,90vw)}
+.h2{font:${up ? 800 : 600} min(clamp(34px,4.6vw,68px),calc(var(--pw) / (var(--L,8) * var(--kw))))/1 var(--fd);letter-spacing:${up ? "0" : "-.03em"};text-transform:${up ? "uppercase" : "none"};text-wrap:balance;margin-bottom:18px}
 .lede{font-size:clamp(17px,1.5vw,21px);color:var(--mu);margin-top:22px;max-width:46ch}
 .ch[data-side=center] .lede{margin-inline:auto}
 .body{color:var(--mu);font-size:clamp(16px,1.3vw,19px);max-width:44ch}
@@ -274,8 +286,9 @@ footer a{color:var(--mu)}
   .ch::before,.ch[data-side=left]::before,.ch[data-side=right]::before{background:linear-gradient(180deg,transparent 30%,color-mix(in srgb,var(--bg) 88%,transparent) 62%)}
   .ch[data-side=center]{text-align:left}.ch[data-side=center] .acts{justify-content:flex-start}
   .bgclip{height:100svh}.bgword{top:30%;font-size:28vw}
-  .display{font-size:clamp(40px,12vw,64px)}
-  .h2{font-size:clamp(30px,9vw,44px)}
+  :root,.ch[data-side=center]{--pw:calc(100vw - 36px)}
+  .display{font-size:min(clamp(40px,12vw,64px),calc(var(--pw) / (var(--L,8) * var(--kw))))}
+  .h2{font-size:min(clamp(30px,9vw,44px),calc(var(--pw) / (var(--L,8) * var(--kw))))}
   .idx{font-size:72px}
   .float-photo{max-width:300px;aspect-ratio:16/10;margin-top:20px}
   .hero-photo{display:none}
@@ -294,7 +307,7 @@ footer a{color:var(--mu)}
 </head>
 <body>
 ${opts.previewRibbon ? `<div class="ribbon">${esc(opts.previewRibbon)}</div>` : ""}
-<header class="top"><a class="brand" href="#${esc(all[0]!.id)}">${esc(c.siteName || b.name)}</a><nav>${nav}</nav>${mainBtn ? button(mainBtn, c, "btn") : ""}</header>
+<header class="top"><a class="brand" href="#${esc(all[0]!.id)}">${esc(splitName(c.siteName || b.name)[0])}</a><nav>${nav}</nav>${mainBtn ? button(mainBtn, c, "btn") : ""}</header>
 <canvas id="stage3d" aria-hidden="true"></canvas>
 <div class="fallback" aria-hidden="true">${fallbackArt}</div>
 <main>

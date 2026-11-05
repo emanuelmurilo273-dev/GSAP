@@ -33,3 +33,13 @@ export const MATERIAL_LABEL: Record<Material, string> = {
 export const MOTIFS = ["rings", "particles", "grid", "ribbons"] as const;
 export const LAYOUTS = ["left", "right", "center", "editorial"] as const;
 export const CHOREOS = ["orbit", "drift", "dive"] as const;
+
+/** Busca de imagens ilustrativas coerente com o objeto do conceito (banco com licença, sempre identificadas). */
+export const MODEL_QUERY: Record<ModelKind, string> = {
+  scissors: "barbershop haircut", razor: "barber shave", pole: "barbershop interior", comb: "hair salon", hairdryer: "hair salon styling", bottle: "beauty salon products", polish: "manicure nails",
+  tooth: "dental clinic", implant: "dentist clinic", cup: "coffee shop espresso", bean: "coffee beans roasting", loaf: "bakery bread", croissant: "bakery pastries", cake: "cake pastry shop",
+  plate: "restaurant dish", cloche: "restaurant dining", cutlery: "restaurant table", pizza: "pizza oven", burger: "burger restaurant",
+  dumbbell: "gym weights", kettlebell: "gym training", wheel: "car repair workshop", wrench: "auto mechanic", gear: "workshop tools",
+  hanger: "clothing boutique", tshirt: "clothing store", bone: "pet shop dog", paw: "dog grooming", key: "house keys real estate", house: "house facade",
+  pill: "pharmacy", glasses: "eyeglasses optician",
+};

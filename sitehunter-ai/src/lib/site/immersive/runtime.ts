@@ -485,8 +485,8 @@ export function immersiveRuntime(cfg) {
       o.visible = a > 0.01; if (!o.visible) return;
       // Secundários ficam bem ao fundo, nos cantos do lado do objeto (nunca em cima do texto nem do objeto principal).
       var sdNow = side(Math.min(N - 1, Math.round(f))) || (ud.j % 2 ? -1 : 1);
-      var sx = mobile ? (ud.j % 2 ? -1.3 : 1.3) : sdNow * (4.4 + ud.j * 0.6);
-      var sy = mobile ? 3.3 : (ud.j % 2 ? -2.4 : 2.5), sz = mobile ? -4.5 : -6.5;
+      var sx = mobile ? (ud.j % 2 ? -1.4 : 1.4) : sdNow * (6.9 + ud.j * 0.5);
+      var sy = mobile ? 3.4 : (ud.j % 2 ? -2.9 : 2.7), sz = mobile ? -4.5 : -6.5;
       o.position.set(sx, sy - (f - ud.k) * 0.4, sz - (1 - a) * 16);
       o.scale.setScalar(Math.max(0.001, a));
       o.rotation.set(0.4 + clock * 0.2 * (reduce ? 0 : 1), f * 0.9 + ud.j + clock * 0.25 * (reduce ? 0 : 1), 0.2);

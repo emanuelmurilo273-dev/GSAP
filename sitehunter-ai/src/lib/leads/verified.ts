@@ -28,11 +28,16 @@ export function verifiedCompanyInfo(c: Company): CompanyInfo {
     hoursLines: isUsable(facts.hours) && Array.isArray(c.hours) ? (c.hours as { label: string; value: string }[]) : null,
     hoursSource: facts.hours?.source ?? null,
     ownDescription: ownDescription(c),
-    instagram: socials.find((s) => s.network === "instagram")?.url ?? (c.website && isSocialUrl(c.website) && /instagram/.test(c.website) ? c.website : null),
+    instagram: igProfile(socials.find((s) => s.network === "instagram")?.url ?? (c.website && isSocialUrl(c.website) && /instagram/.test(c.website) ? c.website : null)),
     mapsUrl: c.mapsUrl,
     lat: c.lat,
     lng: c.lng,
   };
+}
+
+/** Links de "stories" expiram: guarda só o perfil. */
+function igProfile(u: string | null): string | null {
+  return u ? u.replace(/instagram\.com\/stories\/([^/?#]+).*/i, "instagram.com/$1/") : null;
 }
 
 /** Descrição do próprio site da empresa (página inicial lida após o robots.txt). */

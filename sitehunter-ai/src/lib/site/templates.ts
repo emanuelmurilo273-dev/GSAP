@@ -309,7 +309,7 @@ export function fallbackCopy(company: CompanyInfo, segment: Segment): SiteCopy {
   };
   const seg = SINGULAR[segment.key] ?? segment.label.replace(/s$/, "").toLowerCase();
   const services = SEGMENT_SERVICES[segment.key] ?? typical[segment.template];
-  const lib = sectorCopy(segment.key);
+  const lib = sectorCopy(segment.key, `${company.category ?? ""} ${company.name}`);
   const own = usableOwnDescription(company.ownDescription?.text);
   const hasWa = company.whatsapp ? true : company.whatsapp === undefined && isMobilePhone(company.phone);
   return {

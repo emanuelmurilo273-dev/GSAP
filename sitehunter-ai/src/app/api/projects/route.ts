@@ -10,6 +10,8 @@ import { searchLicensedImages, trackImageDownload } from "@/lib/images";
 import type { ImageCandidate } from "@/lib/leads/types";
 import type { SiteImage } from "@/lib/site/types";
 import { OBJECT_QUERY } from "@/lib/site/stage";
+import { buildConcept } from "@/lib/site/immersive/concept";
+import { MODEL_QUERY } from "@/lib/site/immersive/kinds";
 import { snapshotVersion } from "@/lib/projects";
 import { audit } from "@/lib/logger";
 import { verifiedCompanyInfo } from "@/lib/leads/verified";
@@ -55,9 +57,12 @@ export const POST = route(async (req) => {
       license: i.license ?? undefined, sourceUrl: i.sourceUrl ?? undefined, credit: i.credit ?? undefined,
     }));
     const need = Math.max(0, 5 - fromLead.length);
+    // Na Vitrine 3D as fotos ilustrativas seguem o objeto do conceito (café → café, não "restaurante").
+    const draftConcept = buildConcept({ name: info.name, category: info.category, segmentKey: segment.key, description: info.ownDescription?.text ?? null });
+    const imageQuery = MODEL_QUERY[draftConcept.model] ?? segment.imageQuery;
     const [{ copy, ai }, stock] = await Promise.all([
       generateSiteCopy(info, segment, b.instructions, language),
-      need && !company.isDemo ? searchLicensedImages(segment.imageQuery, need + 3, { curated: true }).catch(() => []) : Promise.resolve([]),
+      need && !company.isDemo ? searchLicensedImages(imageQuery, need + 3, { curated: true }).catch(() => []) : Promise.resolve([]),
     ]);
     const extra = stock.slice(0, need);
     extra.forEach((i) => i.downloadLocation && void trackImageDownload(i.downloadLocation));
@@ -66,7 +71,7 @@ export const POST = route(async (req) => {
       ...extra.map((i) => ({ url: i.url, alt: i.alt, credit: i.credit, origin: "stock" as const, license: i.license, sourceUrl: i.sourceUrl })),
     ]);
     // Objeto do palco 3D: foto aprovada da empresa (produto real) ou foto do objeto do setor num banco com licença.
-    if (content.stage) {
+    if (content.stage && content.theme.style !== "immersive") {
       const companyPhoto = fromLead.find((i) => i.origin === "company");
       if (companyPhoto) content.stage.image = companyPhoto;
       else if (!company.isDemo) {

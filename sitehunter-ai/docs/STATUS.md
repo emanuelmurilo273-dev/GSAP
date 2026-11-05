@@ -34,7 +34,10 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Item | Status |
 |---|---|
 | Critérios nicho / região / idioma / quantidade; histórico de buscas | ✅ |
-| Descoberta real via OpenStreetMap/Nominatim (nome, categoria, endereço, telefone, e-mail, site, redes, horários) | ✅ sem chave; testado com buscas reais |
+| Descoberta real via OpenStreetMap/Nominatim (nome, categoria, endereço, telefone, e-mail, site, redes, horários) | ✅ sem chave; testado com buscas reais em 9 cidades de 8 estados |
+| Qualquer município do Brasil (lista IBGE embutida, estado + cidade com autocompletar, busca na área do município) com nota de cobertura e aviso de 0 resultados | ✅ testado |
+| Site informado que não é da empresa (ex.: órgão público) não confirma WhatsApp, fotos nem descrição | ✅ testado (caso real em Manaus) |
+| Fotos do Wikimedia Commons com licença livre, filtradas pelo nome | ✅ testado com dados reais |
 | Descoberta real via Google Places (paginada até 30, com horários) | 🔑 `GOOGLE_PLACES_API_KEY` (testado com respostas simuladas) |
 | Horários normalizados (OSM opening_hours e Google weekdayDescriptions) e usados no site | ✅ testado |
 | Imagens: candidatas do site da empresa (com autorização), banco com licença (Openverse sem chave / Unsplash com chave), revisão por lead | ✅ testado com Openverse real |
@@ -59,6 +62,7 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Item | Status |
 |---|---|
 | 5 direções visuais por setor (estrutura, tipografia, paleta, composição, CTA), escolha no editor | ✅ revisado em desktop e celular |
+| Vitrine 3D: conceito por empresa (objeto, paleta, tipografia, composição, movimento) com o porquê de cada escolha; 32 modelos 3D em three.js; rolagem por capítulos; mobile, movimento reduzido e fallback sem WebGL | ✅ testado e revisado com 9 empresas reais em desktop e celular |
 | Contraste automático de botões e textos de destaque; aviso no editor | ✅ testado |
 | Textos por setor (sem afirmações a verificar), "Sobre" a partir da descrição do site oficial quando houver, faixa de informações (endereço, horários, contato) | ✅ testado e revisado em desktop e celular |
 | Legendas: "Foto da empresa · fonte", "Imagem ilustrativa · crédito · licença", "Imagem ilustrativa gerada por IA" | ✅ testado |
