@@ -34,10 +34,11 @@ export function WhatsAppPanel({
 }) {
   const [text, setText] = useState(initialText);
   const [manual, setManual] = useState("");
+  const [editing, setEditing] = useState(false);
   const number = whatsapp ? normalizeWhatsApp(whatsapp) : null;
   const inferred = !number && fact?.status === "inferred" && fact.value ? normalizeWhatsApp(fact.value) : null;
   const manualOk = manual ? normalizeWhatsApp(manual) : null;
-  const link = useMemo(() => (number && text.trim() ? waMeLink(number, text.trim()) : null), [number, text]);
+  const link = useMemo(() => (number && !editing && text.trim() ? waMeLink(number, text.trim()) : null), [number, text, editing]);
   const time = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
   return (
@@ -50,10 +51,11 @@ export function WhatsAppPanel({
         {number && <span className="badge shrink-0 bg-emerald-500/15 text-emerald-300">{pretty(number)}</span>}
       </div>
 
-      {number ? (
+      {number && !editing ? (
         <p className="mt-3 text-xs text-slate-500">
           Número {fact?.status === "user" ? "confirmado por você" : `publicado como WhatsApp${fact?.source ? ` em ${fact.source}` : ""}`}.
           {fact?.sourceUrl ? <> <a className="hover:underline" href={fact.sourceUrl} target="_blank" rel="noopener noreferrer">Ver fonte</a></> : null}
+          {" "}<button className="text-brand-300 hover:underline" onClick={() => { setManual(number); setEditing(true); }}>Corrigir número</button>
         </p>
       ) : inferred ? (
         <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
@@ -64,12 +66,12 @@ export function WhatsAppPanel({
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
-          <p><b>Nenhum WhatsApp comercial público encontrado.</b> Não vamos supor um número. Se você conferiu um (no site, perfil ou cartão da empresa), adicione abaixo.</p>
+          <p>{editing ? <><b>Corrigir o WhatsApp.</b> O número salvo passa a constar como “revisado por você”.</> : <><b>Nenhum WhatsApp comercial público encontrado.</b> Não vamos supor um número. Se você conferiu um (no site, perfil ou cartão da empresa), adicione abaixo.</>}</p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <input className="input" inputMode="tel" placeholder="Ex.: +55 41 99999-0000" value={manual} onChange={(e) => setManual(e.target.value)} aria-label="Número de WhatsApp conferido" />
-            <button className="btn-secondary shrink-0 px-3 py-2 text-sm" disabled={!manualOk || busy} onClick={() => onPatch({ fields: { whatsapp: manual } }, "WhatsApp adicionado como “revisado por você”")}>Salvar número</button>
+            <button className="btn-secondary shrink-0 px-3 py-2 text-sm" disabled={!manualOk || busy} onClick={() => onPatch({ fields: { whatsapp: manual } }, "WhatsApp salvo como “revisado por você”").then(() => setEditing(false))}>Salvar número</button>
           </div>
-          {manual && !manualOk && <p className="mt-1 text-xs text-amber-200">Use o código do país e o DDD (ex.: 55 41 99999 0000).</p>}
+          {manual && !manualOk && <p className="mt-1 text-xs text-amber-200">Número inválido: confira o DDD e os dígitos (celular: 9 + 8 dígitos). Ex.: 55 41 99999 0000.</p>}
         </div>
       )}
 

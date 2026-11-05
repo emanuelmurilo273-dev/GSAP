@@ -4,3 +4,4 @@ process.env.ROOT_DOMAIN = "sitehunter.test";
 process.env.APP_URL = "https://app.sitehunter.test";
 delete process.env.ANTHROPIC_API_KEY;
 delete process.env.SMTP_HOST;
+process.env.COMMONS_SEARCH ??= "off"; // testes não chamam o Wikimedia Commons

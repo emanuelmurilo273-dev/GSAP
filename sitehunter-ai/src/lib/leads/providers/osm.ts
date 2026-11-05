@@ -5,6 +5,7 @@ import { parseOsmHours } from "../hours";
 import { stripAccents } from "../normalize";
 import type { LeadCriteria, RawBusiness } from "../types";
 import type { BusinessSearchProvider } from "./types";
+import { cityById, cityViewbox, fold, resolveCity, type City } from "../../br/cities";
 
 // OpenStreetMap via Nominatim (busca de estabelecimentos por categoria + local).
 // Política de uso: https://operations.osmfoundation.org/policies/nominatim/
@@ -119,6 +120,19 @@ export function nominatimUserAgent() {
   return `SiteHunterAI/1.0 (+${env.appUrl}${contact})`;
 }
 
+async function nominatim(params: URLSearchParams, language: string): Promise<NomItem[]> {
+  const base = (env.nominatimUrl ?? "https://nominatim.openstreetmap.org").replace(/\/$/, "");
+  const res = await throttle(() =>
+    fetch(`${base}/search?${params}`, { headers: { "User-Agent": nominatimUserAgent(), "Accept-Language": language }, cache: "no-store", signal: AbortSignal.timeout(20_000) }),
+  ).catch((e) => {
+    log("error", "osm_search_failed", { error: String(e) });
+    throw new HttpError(502, "O OpenStreetMap (Nominatim) não respondeu. Tente novamente em instantes.", "upstream");
+  });
+  if (res.status === 429 || res.status === 403) throw new HttpError(503, "O Nominatim limitou as consultas (política de uso). Aguarde alguns minutos ou configure NOMINATIM_URL com uma instância própria.", "upstream");
+  if (!res.ok) throw new HttpError(502, "O OpenStreetMap (Nominatim) não respondeu corretamente.", "upstream");
+  return (await res.json()) as NomItem[];
+}
+
 export const osmProvider: BusinessSearchProvider = {
   id: "osm",
   label: "OpenStreetMap",
@@ -127,18 +141,34 @@ export const osmProvider: BusinessSearchProvider = {
   setupHint: "",
   async search(c: LeadCriteria): Promise<RawBusiness[]> {
     const { phrase, label } = phraseFor(c.niche);
-    const base = (env.nominatimUrl ?? "https://nominatim.openstreetmap.org").replace(/\/$/, "");
-    const params = new URLSearchParams({ q: `${phrase} in ${c.location}`, format: "jsonv2", limit: String(Math.min(40, Math.max(c.count * 2, 10))), addressdetails: "1", extratags: "1" });
-    if (env.osmContactEmail) params.set("email", env.osmContactEmail);
-    const res = await throttle(() =>
-      fetch(`${base}/search?${params}`, { headers: { "User-Agent": nominatimUserAgent(), "Accept-Language": c.language }, cache: "no-store", signal: AbortSignal.timeout(20_000) }),
-    ).catch((e) => {
-      log("error", "osm_search_failed", { error: String(e) });
-      throw new HttpError(502, "O OpenStreetMap (Nominatim) não respondeu. Tente novamente em instantes.", "upstream");
-    });
-    if (res.status === 429 || res.status === 403) throw new HttpError(503, "O Nominatim limitou as consultas (política de uso). Aguarde alguns minutos ou configure NOMINATIM_URL com uma instância própria.", "upstream");
-    if (!res.ok) throw new HttpError(502, "O OpenStreetMap (Nominatim) não respondeu corretamente.", "upstream");
-    const items = (await res.json()) as NomItem[];
-    return items.map((x) => mapNominatim(x, label)).filter((x): x is RawBusiness => !!x).slice(0, c.count);
+    // Qualquer município do Brasil: escolhido na lista (código IBGE) ou reconhecido no texto ("Chapecó - SC").
+    const city: City | null = cityById(c.cityIbge) ?? resolveCity(c.location, c.uf).city;
+    const limit = String(Math.min(40, Math.max(c.count * 2, 10)));
+    const queries: URLSearchParams[] = [];
+    if (city) {
+      // 1) categoria dentro da área do município; 2) "categoria em Cidade, UF" (pega o que estiver fora da caixa).
+      queries.push(new URLSearchParams({ q: phrase, viewbox: cityViewbox(city).join(","), bounded: "1", countrycodes: "br", format: "jsonv2", limit, addressdetails: "1", extratags: "1" }));
+      queries.push(new URLSearchParams({ q: `${phrase} in ${city.name}, ${city.uf}, Brasil`, countrycodes: "br", format: "jsonv2", limit, addressdetails: "1", extratags: "1" }));
+      // 3) o termo em português dentro da área (pega estabelecimentos com o ramo no nome, ex.: "Academia Fit").
+      if (fold(c.niche) !== fold(phrase)) queries.push(new URLSearchParams({ q: c.niche, viewbox: cityViewbox(city).join(","), bounded: "1", countrycodes: "br", format: "jsonv2", limit, addressdetails: "1", extratags: "1" }));
+    } else {
+      queries.push(new URLSearchParams({ q: `${phrase} in ${c.location}`, format: "jsonv2", limit, addressdetails: "1", extratags: "1" }));
+    }
+    const seen = new Set<string>();
+    const out: RawBusiness[] = [];
+    for (const params of queries) {
+      if (env.osmContactEmail) params.set("email", env.osmContactEmail);
+      const items = await nominatim(params, c.language);
+      for (const x of items) {
+        const r = mapNominatim(x, label);
+        if (!r || seen.has(r.sourceId)) continue;
+        // Com município escolhido, descarta resultados de outras cidades (a caixa pode encostar em vizinhas).
+        if (city && r.city && fold(r.city) !== fold(city.name)) continue;
+        seen.add(r.sourceId);
+        out.push(city && !r.state ? { ...r, state: city.uf } : r);
+      }
+      if (out.length >= c.count) break;
+    }
+    return out.slice(0, c.count);
   },
 };

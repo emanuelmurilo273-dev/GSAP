@@ -8,6 +8,7 @@ import { Alert, Spinner, StatusBadge, toast } from "@/components/ui";
 import { renderSite } from "@/lib/site/render";
 import { FONTS, IMAGE_ORIGINS, type ImageOrigin, type Section, type SiteButton, type SiteContent, type SiteImage } from "@/lib/site/types";
 import { emptySection, themeForStyle } from "@/lib/site/templates";
+import { ConceptPanel } from "@/components/studio/ConceptPanel";
 import { SITE_STYLES, STYLE_INFO, contrast, type SiteStyle } from "@/lib/site/styles";
 import { OBJECT_KINDS, OBJECT_LABEL, type ObjectKind } from "@/lib/site/stage";
 
@@ -533,7 +534,7 @@ export function Editor(props: {
                       return (
                         <button key={st} type="button" aria-pressed={on} onClick={() => setContent({ ...content, theme: themeForStyle(st as SiteStyle, content.theme.primary, content.theme.accent) })}
                           className={`rounded-xl border p-3 text-left transition duration-300 ${on ? "border-brand-500/60 bg-brand-500/10" : "border-white/10 hover:border-white/25"}`}>
-                          <span className="flex items-center justify-between text-sm font-semibold text-white">{STYLE_INFO[st].label}{STYLE_INFO[st].uses3d && <span className="badge bg-white/5 text-[10px] text-slate-400">3D discreto</span>}</span>
+                          <span className="flex items-center justify-between text-sm font-semibold text-white">{STYLE_INFO[st].label}{STYLE_INFO[st].uses3d && <span className="badge bg-white/5 text-[10px] text-slate-400">{st === "immersive" ? "3D real" : "3D discreto"}</span>}</span>
                           <span className="mt-1 block text-xs text-slate-400">{STYLE_INFO[st].description}</span>
                         </button>
                       );
@@ -541,8 +542,8 @@ export function Editor(props: {
                   </div>
                   <p className="text-xs text-slate-500">Trocar a direção redefine fundo, tipografia e cantos; as cores da marca e os textos são mantidos.</p>
                 </div>
-                <ContrastNote theme={content.theme} />
-                <div className="space-y-2 rounded-xl border border-white/10 p-3">
+                {content.theme.style === "immersive" ? <ConceptPanel content={content} onChange={setContent} /> : <ContrastNote theme={content.theme} />}
+                <div className={`space-y-2 rounded-xl border border-white/10 p-3 ${content.theme.style === "immersive" ? "hidden" : ""}`}>
                   <span className="label">Palco 3D (rolagem)</span>
                   <p className="text-xs text-slate-400">O objeto fica fixo e muda de posição, ângulo e escala conforme a pessoa rola; serviços e números confirmados entram em sequência.</p>
                   <select className="input" aria-label="Modo do palco" value={content.stage?.mode ?? "auto"} onChange={(e) => setContent({ ...content, stage: { kind: content.stage?.kind ?? "gear", ...content.stage, mode: e.target.value as "auto" | "photo" | "illustration" | "off" } })}>

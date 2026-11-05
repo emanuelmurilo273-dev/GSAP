@@ -1,3 +1,4 @@
+import { classicStyleForSegment } from "@/lib/site/styles";
 import { describe, expect, it } from "vitest";
 import { dedupeBatch, dedupeKeys, guessSegmentKey, normalizeName, normalizePhone, phonesMatch } from "@/lib/leads/normalize";
 import { isAllowed, parseRobots } from "@/lib/leads/robots";
@@ -167,7 +168,7 @@ describe("Imagens e prévia", () => {
   });
   it("imagem gerada sempre leva aviso; prévia mostra faixa de não publicada", () => {
     const seg = getSegment("barbearia");
-    const c = buildSiteContent({ name: "X" }, seg, fallbackCopy({ name: "X" }, seg), [{ url: "https://img.example/a.jpg", alt: "a", origin: "generated", generator: "Google Flow" }, { url: "https://img.example/b.jpg", alt: "b", origin: "generated" }]);
+    const c = buildSiteContent({ name: "X" }, seg, fallbackCopy({ name: "X" }, seg), [{ url: "https://img.example/a.jpg", alt: "a", origin: "generated", generator: "Google Flow" }, { url: "https://img.example/b.jpg", alt: "b", origin: "generated" }], classicStyleForSegment(seg.key));
     const html = renderSite(c, { previewRibbon: "Prévia não publicada" });
     expect(html).toContain("Imagem ilustrativa gerada por IA");
     expect(html).toContain('class="preview-ribbon"');

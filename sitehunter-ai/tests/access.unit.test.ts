@@ -1,3 +1,4 @@
+import { classicStyleForSegment } from "@/lib/site/styles";
 import { afterEach, describe, expect, it } from "vitest";
 import { mayAuthenticate, isOwner, isPrivateMode } from "@/lib/owner";
 import { isPublicPath } from "@/lib/publicPaths";
@@ -53,18 +54,19 @@ describe("Direções visuais", () => {
   it("cada segmento gera um site válido na sua direção, com estrutura própria", () => {
     const seen = new Set<string>();
     for (const seg of SEGMENTS) {
-      const c = buildSiteContent(company, seg, fallbackCopy(company, seg));
+      const c = buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key));
       expect(SiteContentSchema.safeParse(c).success).toBe(true);
-      expect(c.theme.style).toBe(styleForSegment(seg.key));
+      expect(c.theme.style).toBe(classicStyleForSegment(seg.key));
+      expect(styleForSegment(seg.key)).toBe("immersive");
       const html = renderSite(c);
       expect(html).toContain(`class="s-${c.theme.style}"`);
       seen.add(c.theme.style!);
     }
-    expect(seen.size).toBe(SITE_STYLES.length);
+    expect(seen.size).toBe(SITE_STYLES.length - 1); // todas as clássicas; a Vitrine 3D é testada à parte
   });
   it("estruturas diferem de verdade entre direções", () => {
     const seg = getSegment("servicos");
-    const base = buildSiteContent(company, seg, fallbackCopy(company, seg));
+    const base = buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key));
     const html = (st: (typeof SITE_STYLES)[number]) => renderSite({ ...base, theme: themeForStyle(st, base.theme.primary, base.theme.accent) });
     expect(html("forge")).toContain('class="band"');
     expect(html("cinema")).toContain(`class="sc-word"`);
@@ -84,7 +86,7 @@ describe("Direções visuais", () => {
   });
   it("números só aparecem quando confirmados e contam até o valor", () => {
     const seg = getSegment("barbearia");
-    const c = buildSiteContent(company, seg, fallbackCopy(company, seg));
+    const c = buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key));
     expect(renderSite(c)).not.toContain('class="stat"'); // vazio por padrão: nada inventado
     const st = c.sections.find((x) => x.type === "stats");
     if (st?.type !== "stats") throw new Error("sem seção de números");
@@ -96,13 +98,13 @@ describe("Direções visuais", () => {
   });
   it("movimento é aprimoramento progressivo e respeita movimento reduzido", () => {
     const seg = getSegment("barbearia");
-    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg)));
+    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key)));
     expect(html).toContain("prefers-reduced-motion: reduce");
     expect(html).not.toMatch(/class="[^"]*\brv\b/); // nada nasce oculto no HTML
   });
   it("imagens animadas (zoom na capa, entrada, parallax) e paradas com movimento reduzido", () => {
     const seg = getSegment("salao");
-    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), [{ url: "https://img.test/a.jpg", alt: "a" }, { url: "https://img.test/b.jpg", alt: "b" }, { url: "https://img.test/c.jpg", alt: "c" }]));
+    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), [{ url: "https://img.test/a.jpg", alt: "a" }, { url: "https://img.test/b.jpg", alt: "b" }, { url: "https://img.test/c.jpg", alt: "c" }], classicStyleForSegment(seg.key)));
     expect(html).toContain("@keyframes kb");
     expect(html).toContain("img-rv");
     expect(html).toContain("--par");
@@ -110,7 +112,7 @@ describe("Direções visuais", () => {
   });
   it("galeria com imagens inválidas não aparece vazia", () => {
     const seg = getSegment("barbearia");
-    const c = buildSiteContent(company, seg, fallbackCopy(company, seg), [{ url: "x", alt: "" }, { url: "y", alt: "" }, { url: "javascript:alert(1)", alt: "" }]);
+    const c = buildSiteContent(company, seg, fallbackCopy(company, seg), [{ url: "x", alt: "" }, { url: "y", alt: "" }, { url: "javascript:alert(1)", alt: "" }], classicStyleForSegment(seg.key));
     expect(renderSite(c)).not.toContain('class="gallery');
   });
   it("Google Fonts só com pesos existentes", () => {

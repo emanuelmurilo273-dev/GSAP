@@ -20,7 +20,7 @@ export default async function LeadsPage() {
         providers={providerStatus()}
         nicheSuggestions={SEGMENTS.map((s) => s.query)}
         initialLeads={companies.map(leadView)}
-        initialSearches={searches.map((s) => ({ ...s, startedAt: s.startedAt.toISOString(), finishedAt: s.finishedAt?.toISOString() ?? null }))}
+        initialSearches={searches.map((s) => ({ ...s, log: (s.log ?? null) as never, startedAt: s.startedAt.toISOString(), finishedAt: s.finishedAt?.toISOString() ?? null }))}
       />
     </>
   );

@@ -3,6 +3,7 @@ import { placePhrase, sectorCopy, usableOwnDescription } from "./copyLibrary";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
 import { STYLE_INFO, styleForSegment, type SiteStyle } from "./styles";
 import { objectKindFor } from "./stage";
+import { buildConcept } from "./immersive/concept";
 
 export type TemplateKey = "restaurant" | "barber" | "clinic" | "mechanic" | "store" | "services";
 
@@ -207,6 +208,15 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
     },
     sections: byTemplate[segment.template],
     stage: { kind: objectKindFor(segment.key, `${company.category ?? ""} ${company.name}`), mode: "auto" },
+    ...(theme.style === "immersive"
+      ? {
+          concept: buildConcept({
+            name: company.name, category: company.category, segmentKey: segment.key, neighborhood: company.neighborhood, city: company.city,
+            hoursLines: company.hoursLines, description: company.ownDescription?.text ?? null, instagram: company.instagram,
+            hasCompanyPhotos: images.some((i) => i.origin === "company"), hasWhatsapp: !!waConfirmed,
+          }),
+        }
+      : {}),
     reviewNotes: [
       "Os serviços/produtos listados são sugestões típicas do segmento — confirme com a empresa.",
       company.hoursLines?.length ? `Horários vieram do ${company.hoursSource ?? "perfil público"}: confirme com a empresa.` : "Preencha os horários de funcionamento e os preços somente com informações confirmadas.",

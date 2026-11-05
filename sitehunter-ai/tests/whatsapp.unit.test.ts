@@ -1,3 +1,4 @@
+import { classicStyleForSegment } from "@/lib/site/styles";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { normalizeWhatsApp, waMeLink, isBrMobile } from "@/lib/whatsapp";
 import { mapNominatim } from "@/lib/leads/providers/osm";
@@ -77,14 +78,14 @@ describe("Site: WhatsApp só confirmado, textos e legendas", () => {
   const company: CompanyInfo = { name: "Barbearia Teste", category: "Barbearia", address: "Rua A, 1", neighborhood: "Centro", city: "Curitiba", state: "PR", phone: "(41) 99876-5432", website: null, mapsUrl: null, lat: null, lng: null, hoursLines: null };
   const seg = getSegment("barbearia");
   it("celular não confirmado como WhatsApp não gera botão wa.me", () => {
-    const html = renderSite(buildSiteContent({ ...company, whatsapp: "" }, seg, fallbackCopy({ ...company, whatsapp: "" }, seg), []));
+    const html = renderSite(buildSiteContent({ ...company, whatsapp: "" }, seg, fallbackCopy({ ...company, whatsapp: "" }, seg), [], classicStyleForSegment(seg.key)));
     expect(html).not.toContain('href="https://wa.me/');
     expect(html).not.toMatch(/data-wa="\d/);
     expect(html).toContain("tel:");
   });
   it("WhatsApp confirmado gera link wa.me e faixa de informações", () => {
     const c = { ...company, whatsapp: "5541998765432", hoursLines: [{ label: "Segunda a sexta", value: "09:00–19:00" }] };
-    const html = renderSite(buildSiteContent(c, seg, fallbackCopy(c, seg), []));
+    const html = renderSite(buildSiteContent(c, seg, fallbackCopy(c, seg), [], classicStyleForSegment(seg.key)));
     expect(html).toContain("wa.me/5541998765432");
     expect(html).toContain('class="info-strip"');
     expect(html).toContain("(41) 99876-5432");
@@ -112,5 +113,19 @@ describe("Google Maps: só fotos publicadas pela empresa", () => {
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ url: "https://lh3.googleusercontent.com/p/abc", source: expect.stringMatching(/publicada pela empresa/) });
     expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("places/1/photos/own/media");
+  });
+});
+
+describe("WhatsApp: formato e DDD", () => {
+  it("rejeita DDD inexistente e celular sem o 9", () => {
+    expect(normalizeWhatsApp("(20) 99876-5432")).toBeNull();
+    expect(normalizeWhatsApp("(41) 8876-54321")).toBeNull();
+    expect(normalizeWhatsApp("041 99876-5432")).toBe("5541998765432");
+    expect(normalizeWhatsApp("(41) 1234-5678")).toBeNull();
+  });
+  it("número escrito como WhatsApp no texto do site é lido", () => {
+    const a = analyzeHtml(`<p>Atendimento pelo WhatsApp: (47) 99123-4567 · Tel. (47) 3333-1111</p>`, "https://x.com.br/");
+    expect(a.whatsapp).toEqual(["47991234567"]);
+    expect(a.whatsappWritten).toBe(true);
   });
 });

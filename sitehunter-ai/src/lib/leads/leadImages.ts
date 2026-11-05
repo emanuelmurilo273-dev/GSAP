@@ -5,6 +5,7 @@ const id = () => randomBytes(6).toString("hex");
 
 /** Imagens encontradas nos canais públicos da empresa: sempre exigem confirmação de autorização. */
 export function companyImageCandidates(presence: PresenceReport): ImageCandidate[] {
+  if (presence.siteMismatch) return []; // site que não é da empresa: as imagens também não são
   return (presence.imageCandidates ?? []).map((c) => ({
     id: id(),
     url: c.url,

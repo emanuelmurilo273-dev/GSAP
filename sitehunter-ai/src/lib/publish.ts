@@ -56,7 +56,8 @@ export async function publishProject(project: Project, userId: string, desiredSl
   }
 
   async function doPublish(db: typeof prisma) {
-    const html = renderSite(parsed.data!);
+    // three.js servido pelo próprio app (URL absoluta: o site publicado roda em origem isolada).
+    const html = renderSite(parsed.data!, { footerCredit: true, threeSrc: `${env.appUrl}/vendor/three.min.js` });
     const now = new Date();
     if (existing) {
       let slug = existing.slug;

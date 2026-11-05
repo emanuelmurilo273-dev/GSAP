@@ -2,6 +2,7 @@
 const PUBLIC_PREFIXES = [
   "/login", "/recuperar-senha", "/redefinir-senha", "/verificar-email", "/cadastro", "/bot", "/termos", "/privacidade",
   "/s/", // sites publicados por link público (somente o snapshot HTML)
+  "/vendor/", // bibliotecas estáticas usadas pelos sites publicados (three.js)
   "/api/auth/login", "/api/auth/logout", "/api/auth/forgot", "/api/auth/reset", "/api/auth/verify", "/api/auth/register",
   "/api/health", "/api/webhooks/", "/api/cron/", "/api/domains/check",
 ];

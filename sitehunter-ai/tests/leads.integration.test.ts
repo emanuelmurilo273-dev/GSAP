@@ -46,7 +46,8 @@ describe("Pipeline de leads", () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       expect(String(url)).toContain("places:searchText");
       const body = JSON.parse(String(init?.body));
-      expect(body.textQuery).toBe("barbearia em Curitiba, PR");
+      expect(body.textQuery).toBe("barbearia em Curitiba - PR");
+      expect(body.locationBias).toBeTruthy();
       return new Response(JSON.stringify({ places: places.slice(0, body.pageSize) }), { status: 200 });
     });
     vi.stubGlobal("fetch", fetchMock);

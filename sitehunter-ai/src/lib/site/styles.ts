@@ -2,7 +2,7 @@
 // a composição das seções, a tipografia, a paleta de base e o desenho dos
 // botões, não só cor e logo. O segmento sugere uma direção; o usuário troca no editor.
 
-export const SITE_STYLES = ["cinema", "atelier", "forge", "clinic", "hearth", "studio"] as const;
+export const SITE_STYLES = ["immersive", "cinema", "atelier", "forge", "clinic", "hearth", "studio"] as const;
 export type SiteStyle = (typeof SITE_STYLES)[number];
 
 export type StyleInfo = {
@@ -19,6 +19,12 @@ export type StyleInfo = {
 };
 
 export const STYLE_INFO: Record<SiteStyle, StyleInfo> = {
+  immersive: {
+    label: "Vitrine 3D sob medida",
+    description: "Objeto 3D real do negócio em fundo escuro, tipografia marcante e capítulos que se transformam ao rolar. Paleta, fontes, objeto e estrutura vêm do conceito criado para esta empresa.",
+    uses3d: true, heading: "Manrope", body: "Inter",
+    background: "#08080a", surface: "#121216", text: "#f5f5f7", muted: "#a1a1aa", radius: "lg",
+  },
   cinema: {
     label: "Palco cinematográfico",
     description: "Palco preto, brilho na cor da marca, palavra gigante ao fundo, cenas que mudam ao rolar e textos que entram desfocados. Para marcas que querem impacto: barbearias, academias, oficinas.",
@@ -65,7 +71,13 @@ const BY_SEGMENT: Record<string, SiteStyle> = {
   imobiliaria: "studio", servicos: "studio", petshop: "studio",
 };
 
-export function styleForSegment(segmentKey: string): SiteStyle {
+/** Novas prévias usam a Vitrine 3D com conceito próprio; as demais direções continuam no editor. */
+export function styleForSegment(_segmentKey: string): SiteStyle {
+  return "immersive";
+}
+
+/** Direção "clássica" do segmento (usada quando a Vitrine 3D é desligada). */
+export function classicStyleForSegment(segmentKey: string): SiteStyle {
   return BY_SEGMENT[segmentKey] ?? "studio";
 }
 

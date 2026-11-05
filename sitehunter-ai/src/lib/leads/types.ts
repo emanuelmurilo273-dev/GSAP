@@ -14,9 +14,13 @@ export const MAX_LEADS_PER_SEARCH = 30;
 
 export const CriteriaSchema = z.object({
   niche: z.string().trim().min(2, "informe o nicho").max(80),
-  location: z.string().trim().min(2, "informe a cidade ou região").max(120),
+  /** Texto livre ("Chapecó - SC"); pode ficar vazio quando o município vem por código IBGE. */
+  location: z.string().trim().max(120).default(""),
   language: LanguageSchema.default("pt-BR"),
   count: z.coerce.number().int().min(1).max(MAX_LEADS_PER_SEARCH).default(10),
+  /** Município escolhido na lista do IBGE (qualquer cidade do Brasil). */
+  cityIbge: z.coerce.number().int().min(1000000).max(9999999).optional(),
+  uf: z.string().trim().length(2).toUpperCase().optional(),
 });
 export type LeadCriteria = z.infer<typeof CriteriaSchema>;
 
@@ -135,6 +139,10 @@ export type PresenceReport = {
   generator?: string | null;
   phones?: string[];
   whatsapp?: string[];
+  /** true quando o número foi lido do texto do site (sem link wa.me). */
+  whatsappWritten?: boolean;
+  /** O site informado não parece ser da empresa (ex.: órgão público): nada lido dele é confirmado. */
+  siteMismatch?: boolean;
   emails?: string[];
   socials?: Social[];
   imageCandidates?: { url: string; alt: string; sourceUrl: string }[];

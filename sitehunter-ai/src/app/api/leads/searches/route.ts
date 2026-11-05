@@ -8,6 +8,7 @@ import { CriteriaSchema } from "@/lib/leads/types";
 import { getProvider } from "@/lib/leads/providers";
 import { csvToRows } from "@/lib/leads/providers/csvImport";
 import { runLeadSearch } from "@/lib/leads/pipeline";
+import { cityById } from "@/lib/br/cities";
 import { audit } from "@/lib/logger";
 
 export const maxDuration = 120;
@@ -29,6 +30,8 @@ export const POST = route(async (req) => {
   // Busca real exige a conta com acesso (no modo privado, só o proprietário chega aqui).
   const user = b.provider === "google_places" || b.provider === "osm" ? await requirePremium() : await requireUser();
   await rateLimit(`leadsearch:${user.id}`, 10, 60);
+  if (b.provider !== "import" && !b.cityIbge && b.location.length < 2) throw new HttpError(400, "Informe a cidade (escolha na lista de municípios ou digite o nome).", "validation");
+  if (b.cityIbge && !cityById(b.cityIbge)) throw new HttpError(400, "Município não encontrado na lista do IBGE.", "validation");
   const provider = getProvider(b.provider);
   if (!provider.configured()) throw new HttpError(503, `${provider.label} não está configurado. ${provider.setupHint}`, "not_configured");
   const rows = b.provider === "import" ? csvToRows(b.csv ?? "") : undefined;
@@ -38,7 +41,7 @@ export const POST = route(async (req) => {
   const paid = provider.id === "google_places";
   if (paid) await consumeUsage(user.id, "searches");
   try {
-    const criteria = { niche: b.niche, location: b.location, language: b.language, count: b.provider === "import" ? Math.min(rows!.length, 200) : b.count };
+    const criteria = { niche: b.niche, location: b.location, cityIbge: b.cityIbge, uf: b.uf, language: b.language, count: b.provider === "import" ? Math.min(rows!.length, 200) : b.count };
     const { search, createdIds } = await runLeadSearch({ userId: user.id, criteria, providerId: b.provider, rows });
     await audit("lead_search", { userId: user.id, meta: { searchId: search.id, provider: b.provider, created: createdIds.length } });
     return json({ search, createdIds, usage: await getUsage(user.id) }, 201);

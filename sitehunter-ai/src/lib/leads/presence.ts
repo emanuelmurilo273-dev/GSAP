@@ -46,7 +46,12 @@ export function analyzeHtml(html: string, pageUrl: string, now = new Date()): Om
     .slice(0, 3);
   const phones = [...new Set(hrefs.filter((h) => h.toLowerCase().startsWith("tel:")).map((h) => h.slice(4).trim()))].slice(0, 3);
   // WhatsApp publicado pela empresa no próprio site (wa.me, api.whatsapp.com, whatsapp://).
-  const whatsapp = [...new Set(hrefs.map((h) => h.match(/(?:wa\.me\/|whatsapp\.com\/send\/?\?(?:[^#]*&)?phone=|whatsapp:\/\/send\?(?:[^#]*&)?phone=)\+?(\d{10,15})/i)?.[1]).filter((x): x is string => !!x))].slice(0, 3);
+const linked = hrefs.map((h) => h.match(/(?:wa\.me\/|whatsapp\.com\/send\/?\?(?:[^#]*&)?phone=|whatsapp:\/\/send\?(?:[^#]*&)?phone=)\+?(\d{10,15})/i)?.[1]).filter((x): x is string => !!x);
+  // Também aceita o número escrito como WhatsApp no texto ("WhatsApp: (41) 99876-5432").
+  const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
+  const written = [...text.matchAll(/(?:whats\s?app|whats|zap)\s*[:\-–]?\s*((?:\+?55\s*)?\(?\d{2}\)?\s*9?\s*\d{4}[\s.-]?\d{4})/gi)].map((m) => m[1]!.replace(/\D/g, ""));
+  const whatsapp = [...new Set([...linked, ...written])].slice(0, 3);
+  const whatsappWritten = !linked.length && written.length > 0;
   // Imagens publicadas pela própria empresa: og:image, twitter:image e fotos grandes da página inicial.
   const abs = (u: string) => { try { return new URL(decode(u), pageUrl).toString(); } catch { return null; } };
   const found: { url: string; alt: string; sourceUrl: string }[] = [];
@@ -73,6 +78,7 @@ export function analyzeHtml(html: string, pageUrl: string, now = new Date()): Om
     emails,
     phones,
     whatsapp,
+    whatsappWritten,
     imageCandidates,
   };
 }
@@ -119,4 +125,25 @@ export async function checkPresence(website: string | null, opts: { demo?: boole
     if (e instanceof BlockedAddressError) return { checkedAt, url: website, kind: "site", skipped: "blocked_address" };
     return { checkedAt, url: website, kind: "site", reachable: false, status: null, error: e instanceof Error && e.name === "TimeoutError" ? "tempo esgotado" : "não foi possível acessar" };
   }
+}
+
+
+const GENERIC = new Set(["academia", "clinica", "odontologia", "odonto", "barbearia", "salao", "padaria", "restaurante", "oficina", "mecanica", "loja", "studio", "estudio", "casa", "centro", "instituto", "cafe", "pizzaria", "otica", "pet", "shop", "beleza", "cabeleireiro", "cabeleireiros", "auto", "center", "ltda", "comercio", "servicos"]);
+const foldTxt = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * O site informado parece ser mesmo da empresa? Bases colaborativas às vezes trazem o site de outra
+ * entidade (ex.: um órgão público). Sites de governo nunca contam; nos demais, ao menos uma palavra
+ * própria do nome precisa aparecer no domínio ou no título. Sem palavra própria no nome, não dá para julgar.
+ */
+export function siteMatchesBusiness(name: string, url: string | null | undefined, title?: string | null): boolean {
+  if (!url) return true;
+  let host = "";
+  try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { return true; }
+  if (/\.(gov|jus|leg|mil|mp)\.br$/.test(host)) return false;
+  const tokens = foldTxt(name).split(/[^a-z0-9]+/).filter((t) => t.length >= 4 && !GENERIC.has(t));
+  if (!tokens.length) return true;
+  const hay = foldTxt(`${host} ${title ?? ""}`).replace(/[^a-z0-9 ]+/g, " ");
+  const compact = hay.replace(/\s+/g, "");
+  return tokens.some((t) => hay.includes(t) || compact.includes(t));
 }

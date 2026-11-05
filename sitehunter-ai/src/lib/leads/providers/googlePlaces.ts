@@ -29,6 +29,7 @@ export async function ownerPhotos(key: string, placeName: string, photos: GPhoto
 }
 import type { LeadCriteria, RawBusiness } from "../types";
 import type { BusinessSearchProvider } from "./types";
+import { cityById } from "../../br/cities";
 
 // Google Places API (New) — Text Search, paginado até a quantidade pedida.
 // Termos: https://cloud.google.com/maps-platform/terms — o place_id pode ser
@@ -68,7 +69,10 @@ export const googlePlacesProvider: BusinessSearchProvider = {
         textQuery: `${c.niche} em ${c.location}`,
         languageCode: c.language,
         pageSize: Math.min(20, c.count - out.length),
+        regionCode: "BR",
       };
+      const city = cityById(c.cityIbge);
+      if (city) body.locationBias = { circle: { center: { latitude: city.lat, longitude: city.lng }, radius: city.capital ? 25000 : 15000 } };
       if (pageToken) body.pageToken = pageToken;
       const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
         method: "POST",

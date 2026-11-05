@@ -1,3 +1,4 @@
+import { classicStyleForSegment } from "@/lib/site/styles";
 import { describe, expect, it } from "vitest";
 import { verifyKiwifySignature, parseKiwifyDate, dedupeKey } from "@/lib/kiwify";
 import { hmacSha1Hex } from "@/lib/crypto";
@@ -70,14 +71,14 @@ describe("Renderização segura dos sites", () => {
   const company = { name: `<script>alert(1)</script> & "Cia"`, city: "Recife", phone: "(81) 99999-1234", address: "Rua X, 10", mapsUrl: "javascript:alert(1)" };
   it("todos os modelos geram conteúdo válido", () => {
     for (const seg of SEGMENTS) {
-      const content = buildSiteContent(company, seg, fallbackCopy(company, seg));
+      const content = buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key));
       expect(SiteContentSchema.safeParse(content).success).toBe(true);
       expect(renderSite(content)).toContain("<!doctype html>");
     }
   });
   it("escapa HTML e bloqueia URLs perigosas", () => {
     const seg = getSegment("barbearia");
-    const c = buildSiteContent(company, seg, fallbackCopy(company, seg));
+    const c = buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key));
     c.sections.push({ id: "x", type: "cta", visible: true, title: "t", text: "", button: { label: "<b>x</b>", action: "link", href: "javascript:alert(2)" } });
     const html = renderSite(c);
     expect(html).not.toContain("<script>alert(1)</script>");
@@ -87,7 +88,7 @@ describe("Renderização segura dos sites", () => {
   });
   it("não inventa horários: seção sem horários fica oculta", () => {
     const seg = getSegment("restaurante");
-    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg)));
+    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key)));
     expect(html).not.toContain('id="horarios"');
   });
   it("safeUrl/esc", () => {

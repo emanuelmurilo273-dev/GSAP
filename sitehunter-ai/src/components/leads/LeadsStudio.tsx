@@ -7,6 +7,9 @@ import { Scene3D } from "@/components/studio/Scene3D";
 import { TiltCard } from "@/components/studio/TiltCard";
 import { DemoBadge, FactBadge, ScoreMeter } from "./FactBadge";
 import type { LeadView, ProviderRow, SearchRow } from "./types";
+import { CityPicker } from "./CityPicker";
+
+const coverageOf = (s: SearchRow) => (s.log ?? []).find((x) => x.step === "coverage")?.detail ?? null;
 
 const LANGS = [
   { code: "pt-BR", label: "Português (BR)" },
@@ -37,7 +40,8 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
   const [leads, setLeads] = useState(initialLeads);
   const [searches, setSearches] = useState(initialSearches);
   const [provider, setProvider] = useState<ProviderRow["id"]>(defaultProvider);
-  const [form, setForm] = useState({ niche: "", location: "", language: "pt-BR", count: 10 });
+  const [form, setForm] = useState<{ niche: string; location: string; language: string; count: number; uf: string; cityIbge?: number }>({ niche: "", location: "", language: "pt-BR", count: 10, uf: "" });
+  const [coverage, setCoverage] = useState<string | null>(null);
   const [csv, setCsv] = useState("");
   const [running, setRunning] = useState(false);
   const [step, setStep] = useState(0);
@@ -80,7 +84,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
     timer.current = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 1600);
     try {
       const r = await api<{ search: SearchRow; createdIds: string[] }>("/api/leads/searches", {
-        body: { ...form, provider, csv: provider === "import" ? csv : undefined, location: form.location || (provider === "import" ? "importação" : form.location), niche: form.niche || (provider === "import" ? "importação" : form.niche) },
+        body: { ...form, uf: form.uf || undefined, provider, csv: provider === "import" ? csv : undefined, location: form.location || (provider === "import" ? "importação" : form.location), niche: form.niche || (provider === "import" ? "importação" : form.niche) },
       });
       await reload();
       setSearchFilter(r.search.id);
@@ -88,7 +92,8 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
       setView("active");
       setDataset("all");
       toast(`${r.createdIds.length} novos leads · ${r.search.duplicates} duplicados ignorados`);
-      if (!r.createdIds.length) setError(r.search.found ? "Todas as empresas encontradas já estavam na sua lista." : "Nenhuma empresa encontrada para esses critérios. Tente ampliar a região ou usar outro termo.");
+      setCoverage(coverageOf(r.search));
+      if (!r.createdIds.length && r.search.found) setError("Todas as empresas encontradas já estavam na sua lista.");
     } catch (err) {
       setError((err as Error).message);
       await reload().catch(() => {});
@@ -147,6 +152,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
               </Alert>
             )}
             {provider === "osm" && (premium ? <Alert kind="info">Busca real em dados abertos do OpenStreetMap (© colaboradores do OSM, licença ODbL). Telefones, sites, redes e horários aparecem quando a comunidade os cadastrou; a cobertura varia por cidade. Limite de 1 consulta por segundo.</Alert> : <Alert kind="warn">A busca real exige a conta proprietária com acesso ativo.</Alert>)}
+            {coverage && <Alert kind={/^Nenhum|não retornou/.test(coverage) ? "warn" : "info"}>{coverage}</Alert>}
             {provider === "demo" && <Alert kind="info">Modo demonstração: as empresas geradas são <b>fictícias</b>, ficam marcadas como DEMO e nunca se misturam com leads reais na deduplicação.</Alert>}
 
             {provider !== "import" ? (
@@ -156,10 +162,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
                   <input className="input" list="niches" required minLength={2} maxLength={80} placeholder="ex.: barbearia, clínica odontológica" value={form.niche} onChange={(e) => setForm({ ...form, niche: e.target.value })} />
                   <datalist id="niches">{nicheSuggestions.map((n) => <option key={n} value={n} />)}</datalist>
                 </label>
-                <label className="block">
-                  <span className="label">Cidade ou região</span>
-                  <input className="input" required minLength={2} maxLength={120} placeholder="ex.: Curitiba, PR · Lisboa · Austin, TX" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-                </label>
+                <CityPicker value={form.location} uf={form.uf} cityIbge={form.cityIbge} onChange={(v) => setForm({ ...form, ...v })} />
                 <label className="block">
                   <span className="label">Idioma</span>
                   <select className="input" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>
@@ -227,7 +230,7 @@ export function LeadsStudio({ initialLeads, initialSearches, providers, premium,
                 {s.status === "FAILED" && <span className="rounded bg-red-500/20 px-1 text-[10px] text-red-200">falhou</span>}
                 {s.status === "PARTIAL" && <span className="rounded bg-amber-500/20 px-1 text-[10px] text-amber-200">parcial</span>}
               </span>
-              <span className="text-slate-500">{new Date(s.startedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {s.created} novos · {s.duplicates} dupl.</span>
+              <span className="text-slate-500" title={coverageOf(s) ?? undefined}>{new Date(s.startedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {s.found === 0 && s.status !== "FAILED" && !s.isDemo ? "0 resultados na fonte" : `${s.created} novos · ${s.duplicates} dupl.`}</span>
             </button>
           ))}
         </section>

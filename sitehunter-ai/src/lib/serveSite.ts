@@ -1,7 +1,8 @@
 import { prisma } from "./db";
 import { computeAccess } from "./access";
 import { getSettings } from "./settings";
-import { PUBLISHED_SITE_CSP, esc } from "./site/render";
+import { publishedSiteCsp, esc } from "./site/render";
+import { env } from "./env";
 import { syncUserSites } from "./subscriptions";
 
 function page(status: number, title: string, message: string) {
@@ -37,7 +38,7 @@ export async function serveSite(lookup: { slug?: string; domain?: string }, meth
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Content-Security-Policy": PUBLISHED_SITE_CSP,
+      "Content-Security-Policy": publishedSiteCsp(new URL(env.appUrl).origin),
       "Cache-Control": "public, max-age=0, must-revalidate",
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "strict-origin-when-cross-origin",

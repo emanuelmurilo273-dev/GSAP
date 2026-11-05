@@ -1,3 +1,4 @@
+import { classicStyleForSegment } from "@/lib/site/styles";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseGoogleHours, parseOsmHours } from "@/lib/leads/hours";
 import { mapNominatim, osmProvider, phraseFor } from "@/lib/leads/providers/osm";
@@ -60,7 +61,7 @@ describe("OpenStreetMap (Nominatim)", () => {
     expect(isMobilePhone("(41) 99876-5432")).toBe(true);
     const seg = getSegment("barbearia");
     const fixed = { name: "X", phone: "+55 41 3434 3170" };
-    const html = renderSite(buildSiteContent(fixed, seg, fallbackCopy(fixed, seg)));
+    const html = renderSite(buildSiteContent(fixed, seg, fallbackCopy(fixed, seg), [], classicStyleForSegment(seg.key)));
     expect(html).not.toContain(`href="https://wa.me`);
     expect(html).toContain("Ligar agora");
   });
@@ -70,7 +71,7 @@ describe("OpenStreetMap (Nominatim)", () => {
   });
   it("faz uma consulta identificada e respeita a quantidade pedida", async () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(url).toContain("q=dentist+in+Curitiba");
+      expect(url).toMatch(/q=dentist(&|\+in\+Curitiba)/);
       expect((init?.headers as Record<string, string>)["User-Agent"]).toMatch(/^SiteHunterAI\/1\.0/);
       return new Response(JSON.stringify([nom, { ...nom, osm_id: 124, name: "Odonto Centro" }, { ...nom, osm_id: 125, name: "Outra" }]), { status: 200 });
     });
@@ -111,7 +112,7 @@ describe("Imagens", () => {
   it("crédito e licença aparecem no site; horários confirmados entram na seção", () => {
     const seg = getSegment("odontologia");
     const company = { name: "CWB Sorriso", city: "Curitiba", hoursLines: [{ label: "Segunda a sexta", value: "09:00–19:30" }], hoursSource: "OpenStreetMap" };
-    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), [{ url: "https://img.test/a.jpg", alt: "a", origin: "stock", license: "CC BY 2.0", credit: { name: "Ana", link: "https://flickr.com/ana" } }, { url: "https://img.test/b.jpg", alt: "b", origin: "company" }]));
+    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), [{ url: "https://img.test/a.jpg", alt: "a", origin: "stock", license: "CC BY 2.0", credit: { name: "Ana", link: "https://flickr.com/ana" } }, { url: "https://img.test/b.jpg", alt: "b", origin: "company" }], classicStyleForSegment(seg.key)));
     expect(html).toContain("Ana</a> · CC BY 2.0");
     expect(html).toContain("09:00–19:30");
   });
@@ -128,7 +129,7 @@ describe("Palco 3D ligado à rolagem", () => {
   it("serviços e números confirmados viram etapas; sem script tudo visível; foto real só emoldurada", () => {
     const seg = getSegment("barbearia");
     const company = { name: "Navalha", city: "Curitiba", phone: "(41) 99876-5432" };
-    const c = buildSiteContent(company, seg, fallbackCopy(company, seg));
+    const c = buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key));
     const st = c.sections.find((x) => x.type === "stats");
     if (st?.type === "stats") st.items = [{ value: "12", unit: "anos", label: "no mesmo endereço", source: "" }];
     c.stage = { kind: "scissors", mode: "auto", image: { url: "https://img.test/obj.jpg", alt: "Tesoura", origin: "stock", license: "CC0 (domínio público)", credit: { name: "Ana", link: "https://x.test" } } };
@@ -147,9 +148,72 @@ describe("Palco 3D ligado à rolagem", () => {
   it("restaurante (sem seção de serviços) também ganha o palco, antes do cardápio", () => {
     const seg = getSegment("restaurante");
     const company = { name: "Cantina", city: "BH" };
-    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg)));
+    const html = renderSite(buildSiteContent(company, seg, fallbackCopy(company, seg), [], classicStyleForSegment(seg.key)));
     expect(html.indexOf("data-scrolly")).toBeGreaterThan(-1);
     expect(html.indexOf("data-scrolly")).toBeLessThan(html.indexOf('id="cardapio"'));
     expect(html).not.toContain("Item do cardápio</h3>");
+  });
+});
+
+import { resolveCity, searchCities, cityById, CITIES } from "@/lib/br/cities";
+import { coverageNote } from "@/lib/leads/pipeline";
+import { mapCommons } from "@/lib/leads/commons";
+
+describe("Municípios do Brasil", () => {
+  it("tem todos os 5.570 municípios + DF e resolve nomes com e sem acento", () => {
+    expect(CITIES.length).toBe(5571);
+    expect(resolveCity("chapeco - sc").city?.ibge).toBe(4204202);
+    expect(resolveCity("Oiapoque").city?.uf).toBe("AP");
+    expect(searchCities("sao jose", "SC")[0]?.name).toMatch(/^São José/);
+  });
+  it("nome repetido em vários estados pede a UF", () => {
+    const r = resolveCity("Bom Jesus");
+    expect(r.city).toBeNull();
+    expect(new Set(r.options.map((c) => c.uf)).size).toBeGreaterThan(2);
+    expect(cityById(4106902)?.name).toBe("Curitiba");
+  });
+  it("busca OSM usa a área do município e descarta outras cidades", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (u: string) => { urls.push(String(u)); return new Response(JSON.stringify([{ ...nom, address: { ...nom.address, city: "Chapecó" } }, { ...nom, osm_id: 5, address: { ...nom.address, city: "Xaxim" } }])); }));
+    const r = await osmProvider.search({ niche: "dentista", location: "Chapecó - SC", cityIbge: 4204202, language: "pt-BR", count: 1 });
+    expect(urls[0]).toContain("bounded=1");
+    expect(r.map((x) => x.city)).toEqual(["Chapecó"]);
+  });
+  it("cidade sem resultados é sinalizada com a cobertura real da fonte", () => {
+    expect(coverageNote("osm", 0, "Oiapoque - AP", "pet shop", true)).toMatch(/^Nenhum resultado no OpenStreetMap/);
+    expect(coverageNote("demo", 5, "x", "y", true)).toMatch(/fictícias/);
+  });
+});
+
+describe("Wikimedia Commons", () => {
+  const page = (lic: string, w = 2000) => ({ title: "File:Fachada.jpg", imageinfo: [{ url: "https://upload.wikimedia.org/a.jpg", thumburl: "https://upload.wikimedia.org/t.jpg", width: w, height: 1200, descriptionurl: "https://commons.wikimedia.org/wiki/File:Fachada.jpg", mime: "image/jpeg", extmetadata: { LicenseShortName: { value: lic }, Artist: { value: "<a>Fulano</a>" } } }] });
+  it("aceita só licenças livres e marca o que a foto mostra", () => {
+    const c = mapCommons(page("CC BY-SA 4.0"), "near", "X")!;
+    expect(c).toMatchObject({ source: "Wikimedia Commons", license: "CC BY-SA 4.0", credit: { name: "Fulano" }, status: "candidate" });
+    expect(c.note).toMatch(/Não é foto da empresa/);
+    expect(mapCommons(page("All rights reserved"), "near", "X")).toBeNull();
+    expect(mapCommons(page("CC0", 400), "near", "X")).toBeNull();
+  });
+});
+
+import { siteMatchesBusiness } from "@/lib/leads/presence";
+import { relevant } from "@/lib/leads/commons";
+
+describe("Site informado é mesmo da empresa?", () => {
+  it("site de órgão público nunca confirma dados; nome precisa aparecer no domínio ou título", () => {
+    expect(siteMatchesBusiness("Academia Live", "https://www.ssp.am.gov.br/", "SSP | Secretaria de Segurança Pública")).toBe(false);
+    expect(siteMatchesBusiness("Café do Mercado", "https://cafedomercado.com.br/", "Café do Mercado - Cafés especiais")).toBe(true);
+    expect(siteMatchesBusiness("Barbearia Navalha", "https://exemplo.com/", "Outro negócio")).toBe(false);
+    expect(siteMatchesBusiness("Academia", "https://qualquer.com/", "")).toBe(true); // nome genérico: não dá para julgar
+  });
+  it("WhatsApp de site que não é da empresa vira inferência", () => {
+    const r = mapNominatim({ ...nom, name: "Academia Live", extratags: { website: "https://www.ssp.am.gov.br/" } }, "Academia")!;
+    const { facts } = buildFacts(r, { checkedAt: "x", url: r.website, kind: "site", reachable: true, whatsapp: ["5592994349304"], siteMismatch: true });
+    expect(facts.whatsapp).toMatchObject({ status: "inferred" });
+    expect(facts.whatsapp?.note).toMatch(/não parece ser da empresa/);
+  });
+  it("foto do Commons perto do endereço só entra se citar o nome", () => {
+    expect(relevant("Café do Mercado", "Mercado Público de Porto Alegre")).toBe(true);
+    expect(relevant("Paraíso Animal", "Editatona Cada Livro em Natal")).toBe(false);
   });
 });

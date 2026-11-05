@@ -38,7 +38,7 @@ export function verifiedCompanyInfo(c: Company): CompanyInfo {
 /** Descrição do próprio site da empresa (página inicial lida após o robots.txt). */
 function ownDescription(c: Company): { text: string; source: string } | null {
   const p = (c.presence ?? null) as PresenceReport | null;
-  if (!p || p.kind !== "site" || !p.reachable || !p.description) return null;
+  if (!p || p.kind !== "site" || !p.reachable || !p.description || p.siteMismatch) return null;
   const host = (() => { try { return new URL(p.finalUrl ?? p.url ?? "").hostname.replace(/^www\./, ""); } catch { return "site oficial"; } })();
   return { text: p.description, source: host };
 }

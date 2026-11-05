@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SITE_STYLES } from "./styles";
 import { OBJECT_KINDS } from "./stage";
+import { CHOREOS, LAYOUTS, MATERIALS, MODEL_KINDS, MOTIFS } from "./immersive/kinds";
 
 export const FONTS = [
   "Inter",
@@ -108,6 +109,28 @@ export const BusinessSchema = z.object({
   lng: z.number().nullable().default(null),
 });
 
+/** Conceito visual próprio da empresa (Vitrine 3D): identidade, objeto 3D e o porquê de cada escolha. */
+export const ConceptSchema = z.object({
+  name: text(120),
+  summary: text(400),
+  reasons: z.array(text(300)).max(14),
+  palette: z.object({ bg: color, bg2: color, ink: color, muted: color, accent: color, accent2: color }),
+  display: text(40),
+  body: text(40),
+  caseStyle: z.enum(["upper", "normal"]),
+  layout: z.enum(LAYOUTS),
+  choreo: z.enum(CHOREOS),
+  model: z.enum(MODEL_KINDS),
+  material: z.enum(MATERIALS),
+  secondary: z.array(z.enum(MODEL_KINDS)).max(3),
+  motif: z.enum(MOTIFS),
+  heroWord: text(24),
+  kicker: text(120),
+  highlights: z.array(text(60)).max(3).default([]),
+  seed: z.number().int().nonnegative(),
+});
+export type Concept = z.infer<typeof ConceptSchema>;
+
 export const SiteContentSchema = z.object({
   version: z.literal(1),
   siteName: text(120),
@@ -124,6 +147,7 @@ export const SiteContentSchema = z.object({
       mode: z.enum(["auto", "photo", "illustration", "off"]).default("auto"),
     })
     .optional(),
+  concept: ConceptSchema.optional(),
 });
 
 export type SiteContent = z.infer<typeof SiteContentSchema>;

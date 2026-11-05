@@ -1,11 +1,14 @@
 import { prisma } from "../db";
 import { log } from "../logger";
+import { cityById, cityLabel, resolveCity } from "../br/cities";
+import { commonsCandidates } from "./commons";
+import { siteMatchesBusiness } from "./presence";
 import { buildFacts } from "./facts";
 import { dedupeBatch, dedupeKeys } from "./normalize";
 import { detectOpportunities } from "./opportunities";
 import { checkPresence } from "./presence";
 import { getProvider, type ImportRow } from "./providers";
-import type { LeadCriteria, RawBusiness } from "./types";
+import type { ImageCandidate, LeadCriteria, PresenceReport, RawBusiness } from "./types";
 import { companyImageCandidates, sourceImageCandidates } from "./leadImages";
 
 // Pipeline: descobrir → normalizar/deduplicar → analisar presença → registrar
@@ -26,11 +29,29 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
   return out;
 }
 
+/** Explica a cobertura real da fonte usada; avisa quando a cidade não retornou nada. */
+export function coverageNote(providerId: string, found: number, location: string, niche: string, cityMatched: boolean): string {
+  if (providerId === "demo") return "Demonstração: empresas fictícias, nenhuma busca real foi feita.";
+  if (providerId === "import") return "Dados importados por você (CSV).";
+  const where = cityMatched ? location : `"${location}" (não reconhecido na lista de municípios do IBGE; busca por texto)`;
+  if (providerId === "osm") {
+    return found
+      ? `OpenStreetMap: ${found} resultado(s) em ${where}. A fonte cobre todo o Brasil, mas o cadastro depende de voluntários: cidades menores costumam ter poucos comércios e muitos sem telefone ou horário.`
+      : `Nenhum resultado no OpenStreetMap para "${niche}" em ${where}. Isso não quer dizer que não existam empresas: o OSM pode não ter esse ramo cadastrado na cidade. Tente outro termo ou o Google Maps (requer chave).`;
+  }
+  return found
+    ? `Google Maps: ${found} resultado(s) em ${where}. Cobertura nacional ampla.`
+    : `O Google Maps não retornou resultados para "${niche}" em ${where}.`;
+}
+
 export type RunInput = { userId: string; criteria: LeadCriteria; providerId: "google_places" | "osm" | "demo" | "import"; rows?: ImportRow[] };
 
 export async function runLeadSearch({ userId, criteria, providerId, rows }: RunInput) {
   const provider = getProvider(providerId);
   const isDemo = provider.kind === "demo";
+  // Município do IBGE: grava o nome canônico ("Chapecó - SC") e usa o código na busca.
+  const city = providerId === "import" ? null : cityById(criteria.cityIbge) ?? resolveCity(criteria.location, criteria.uf).city;
+  if (city) criteria = { ...criteria, cityIbge: city.ibge, uf: city.uf, location: cityLabel(city) };
   const search = await prisma.leadSearch.create({
     data: { userId, provider: provider.id, niche: criteria.niche, location: criteria.location, language: criteria.language, requested: criteria.count, isDemo },
   });
@@ -39,6 +60,7 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
   try {
     step("discover", provider.label);
     const raw = await provider.search(criteria, { rows });
+    step("coverage", coverageNote(providerId, raw.length, criteria.location, criteria.niche, !!city));
     const { unique, duplicates: batchDups } = dedupeBatch(raw);
 
     // Deduplicação contra a lista do usuário (demo só se compara com demo).
@@ -57,18 +79,20 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
     let enrichFailures = 0;
     step("enrich");
     const enriched = await mapLimit(fresh, 4, async ({ r, keys }) => {
-      const presence = await checkPresence(r.website, { demo: isDemo }).catch(() => {
+      const presence: PresenceReport = await checkPresence(r.website, { demo: isDemo }).catch(() => {
         enrichFailures++;
         return { checkedAt: new Date().toISOString(), url: r.website, kind: "site" as const, reachable: undefined, error: "falha na verificação" };
       });
-      return { r, keys, presence };
+      if (presence.reachable && !siteMatchesBusiness(r.name, presence.finalUrl ?? r.website, presence.title)) presence.siteMismatch = true;
+      const commons = isDemo || process.env.IMAGE_SEARCH === "off" || process.env.COMMONS_SEARCH === "off" ? [] : await commonsCandidates(r.name, r.city, r.lat, r.lng);
+      return { r, keys, presence, commons };
     });
 
     const created: string[] = [];
-    for (const { r, keys, presence } of enriched) {
+    for (const { r, keys, presence, commons } of enriched) {
       const { facts, socials, email } = buildFacts(r, presence);
       const opp = detectOpportunities(facts, presence);
-      const images = [...sourceImageCandidates(r), ...companyImageCandidates(presence)];
+      const images = [...sourceImageCandidates(r), ...companyImageCandidates(presence), ...commons];
       const wa = (facts as { whatsapp?: { value: string | null; status: string } }).whatsapp;
       const whatsapp = wa?.value && wa.status !== "inferred" && wa.status !== "not_found" ? wa.value : null;
       const c = await createLead(userId, search.id, r, { keys, presence, facts, socials, email, opp, isDemo, language: criteria.language, images, whatsapp }).catch((e) => {
@@ -133,7 +157,8 @@ async function createLead(
 export async function reanalyzeLead(userId: string, id: string) {
   const c = await prisma.company.findFirst({ where: { id, userId } });
   if (!c) return null;
-  const presence = await checkPresence(c.website, { demo: c.isDemo });
+  const presence: PresenceReport = await checkPresence(c.website, { demo: c.isDemo });
+  if (presence.reachable && !siteMatchesBusiness(c.name, presence.finalUrl ?? c.website, presence.title)) presence.siteMismatch = true;
   const raw: RawBusiness = {
     sourceId: c.sourceId, name: c.name, category: c.category, address: c.address, neighborhood: c.neighborhood, city: c.city, state: c.state,
     phone: c.phone, email: c.email, website: c.website, mapsUrl: c.mapsUrl, lat: c.lat, lng: c.lng, businessStatus: null,
@@ -147,10 +172,13 @@ export async function reanalyzeLead(userId: string, id: string) {
   for (const [k, v] of Object.entries(prev)) if (v?.status === "user") facts[k] = v;
   const opp = detectOpportunities(facts as never, presence);
   // Mantém candidatas já revisadas e acrescenta novas imagens encontradas no site.
-  const prevImgs = ((c.images ?? []) as { url: string }[]);
-  const newImgs = companyImageCandidates(presence).filter((n) => !prevImgs.some((p) => p.url === n.url));
+  const prevImgs = ((c.images ?? []) as ImageCandidate[]);
+  const commons = c.isDemo || process.env.IMAGE_SEARCH === "off" || process.env.COMMONS_SEARCH === "off" ? [] : await commonsCandidates(c.name, c.city, c.lat, c.lng);
+  // Candidatas antigas de sites que não são da empresa ou de fotos sem relação saem; aprovadas ficam.
+  const kept = prevImgs.filter((p) => p.status === "approved" || !(presence.siteMismatch && p.source === "Site da empresa") && !(p.source === "Wikimedia Commons" && !commons.some((n) => n.sourceUrl === p.sourceUrl)));
+  const newImgs = [...companyImageCandidates(presence), ...commons].filter((n) => !kept.some((p) => p.url === n.url || (p.sourceUrl && p.sourceUrl === n.sourceUrl)));
   return prisma.company.update({
     where: { id },
-    data: { images: [...prevImgs, ...newImgs] as never, presence: presence as never, facts: facts as never, socials: built.socials as never, email: c.email ?? built.email, opportunities: opp.list as never, opportunityScore: opp.score, fetchedAt: new Date() },
+    data: { images: [...kept, ...newImgs] as never, presence: presence as never, facts: facts as never, socials: built.socials as never, email: c.email ?? built.email, opportunities: opp.list as never, opportunityScore: opp.score, fetchedAt: new Date() },
   });
 }

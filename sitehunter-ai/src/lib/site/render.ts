@@ -1,4 +1,5 @@
 import type { Section, SiteButton, SiteContent, SiteImage } from "./types";
+import { renderImmersive } from "./immersive/render";
 import { STYLE_INFO, contrast, googleFontsHref, mix, onColor, readableOn, type SiteStyle } from "./styles";
 import { objectKindFor, objectSvg, posesFor } from "./stage";
 
@@ -32,7 +33,7 @@ export function safeUrl(u: string | undefined | null): string {
   return "#";
 }
 
-function nl2p(text: string): string {
+export function nl2p(text: string): string {
   return text
     .split(/\n{2,}/)
     .map((p) => p.trim())
@@ -60,12 +61,12 @@ export function waNumber(whatsapp: string | null | undefined): string | null {
   return /^\d{11,15}$/.test(d) ? d : null;
 }
 
-function telHref(phone: string) {
+export function telHref(phone: string) {
   const d = digits(phone);
   return d ? `tel:+${d.length <= 11 ? "55" + d : d}` : "#contato";
 }
 
-function mapsHref(c: SiteContent): string {
+export function mapsHref(c: SiteContent): string {
   if (c.business.mapsUrl) return safeUrl(c.business.mapsUrl);
   if (c.business.address) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.business.address)}`;
   return "#contato";
@@ -90,7 +91,7 @@ function buttonHref(b: SiteButton, c: SiteContent): string {
   }
 }
 
-function button(b: SiteButton, c: SiteContent, cls = "btn"): string {
+export function button(b: SiteButton, c: SiteContent, cls = "btn"): string {
   const href = buttonHref(b, c);
   const external = /^https?:/.test(href);
   return `<a class="${cls}" href="${esc(href)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${esc(b.label)}</a>`;
@@ -117,7 +118,7 @@ export function imageCaption(i: SiteImage, tag = "figcaption", cls = ""): string
   return "";
 }
 
-function imgSrc(i: SiteImage | undefined): string | null {
+export function imgSrc(i: SiteImage | undefined): string | null {
   if (!i?.url) return null;
   const src = safeUrl(i.url);
   return src === "#" ? null : src;
@@ -157,6 +158,7 @@ function ornament(style: SiteStyle, c: SiteContent): string {
     case "hearth":
       return `<svg class="orn" viewBox="0 0 600 420" aria-hidden="true" focusable="false"><path d="M88 214c-8-96 92-168 196-150 74 13 102 64 168 66 70 2 110 74 76 140-36 70-128 76-196 104-86 36-236 24-244-160Z" fill="${mix(a, "#ffffff", 0.55)}"/><path d="M146 230c6-64 72-104 140-92 50 9 70 40 112 44 44 4 66 50 44 92-24 46-86 50-130 66-60 22-172 2-166-110Z" fill="${mix(p, "#ffffff", 0.2)}" fill-opacity=".9"/><circle cx="470" cy="96" r="18" fill="${p}"/><circle cx="120" cy="352" r="10" fill="${a}"/></svg>`;
     case "studio":
+    case "immersive":
     case "cinema":
       return "";
   }
@@ -230,6 +232,7 @@ function heroHtml(s: Extract<Section, { type: "hero" }>, c: SiteContent, style: 
       return `<section ${id} class="hero"><div class="wrap hero-grid"><div class="hero-copy">${eyebrow}${title}${lead}${heroActions(s, c)}</div><div class="hero-art">${src ? `<figure class="soft"><img src="${esc(src)}" alt="${alt}" decoding="async"></figure>` : ornament(style, c)}${cap}</div></div><div class="wrap">${heroFacts(c)}</div></section>`;
     case "hearth":
       return `<section ${id} class="hero"><div class="wrap hero-center"><div class="hero-art">${ornament(style, c)}${src ? `<figure class="plate"><img src="${esc(src)}" alt="${alt}" decoding="async"></figure>` : ""}</div>${eyebrow}${title}${lead}${heroActions(s, c)}${cap}</div></section>`;
+    case "immersive":
     case "cinema":
       return `<section ${id} class="hero cine-hero"><div class="cine-word" aria-hidden="true" style="--len:${Math.max(4, bigWord(c).length)}">${bigWord(c)}</div><div class="cine-stage"><div class="cine-glow" aria-hidden="true"></div><div class="cine-object"><div class="cine-tilt" data-tilt>${
         src
@@ -617,6 +620,7 @@ ${STYLE_CSS[style]}`;
 }
 
 const STYLE_CSS: Record<SiteStyle, string> = {
+  immersive: "",
   // Palco cinematográfico: preto absoluto, brilho na cor da marca sob o "objeto" central, palavra gigante ao fundo,
   // textos que entram desfocados, números grandes e um seletor de amostras que troca o destaque e a cor do brilho.
   cinema: `
@@ -792,7 +796,10 @@ function jsonLd(c: SiteContent) {
   return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
 }
 
-export function renderSite(c: SiteContent, opts: { footerCredit?: boolean; previewRibbon?: string | null; lang?: string; noindex?: boolean } = { footerCredit: true }): string {
+export type RenderOpts = { footerCredit?: boolean; previewRibbon?: string | null; lang?: string; noindex?: boolean; threeSrc?: string };
+
+export function renderSite(c: SiteContent, opts: RenderOpts = { footerCredit: true }): string {
+  if (resolveStyle(c) === "immersive") return renderImmersive(c, opts);
   const th = c.theme;
   const style = resolveStyle(c);
   const visible = c.sections.filter((s) => s.visible);
@@ -917,7 +924,11 @@ ${uses3d ? `if(!lite&&matchMedia('(pointer: fine)').matches)d.querySelectorAll('
 })();`;
 }
 
-/** Política de segurança de conteúdo aplicada aos sites publicados. */
+/** Política de segurança de conteúdo aplicada aos sites publicados (scriptOrigin: de onde vem o three.js). */
+export function publishedSiteCsp(scriptOrigin?: string) {
+  return PUBLISHED_SITE_CSP.replace("script-src 'unsafe-inline'", `script-src 'unsafe-inline'${scriptOrigin ? " " + scriptOrigin : ""}`);
+}
+
 export const PUBLISHED_SITE_CSP = [
   "default-src 'none'",
   "img-src https: data:",
