@@ -52,22 +52,25 @@ O app volta sozinho sempre que o Docker Desktop estiver aberto. Para atualizar, 
    Com Docker Compose (servidor): `docker compose exec -it app node scripts/owner.mjs voce@seudominio.com.br "Seu nome"`.
 5. Inicie: `npm run build && npm start` (ou `npm run dev` para desenvolvimento) e abra http://localhost:3000. Entre com o e-mail e a senha do passo 4. Não existe cadastro público.
 
-### Como usar
+### Como usar (5 abas)
 
-1. **Estúdio de leads** → aba **OpenStreetMap** (ou **Google Maps**, se configurado) → informe o ramo (ex.: "barbearia", "dentista"), escolha o **estado** e a **cidade** (qualquer um dos 5.570 municípios, com autocompletar; também aceita digitar "Chapecó - SC") → **Iniciar busca de leads**. Depois da busca o app mostra a cobertura real da fonte e avisa quando a cidade não retornou resultados. O app busca as empresas, remove duplicadas, verifica o site público de cada uma (respeitando o robots.txt) e registra a fonte e a confiança de cada dado.
-2. **Abrir perfil** de um lead: revise os dados (selos *Confirmado*, *Inferência*, *Não encontrado*, *Revisado por você*), corrija o que precisar e veja as oportunidades.
-3. **Imagens para o site**: aprove imagens publicadas pela própria empresa (só com a sua confirmação de autorização) ou busque e adicione imagens de banco com licença. As aprovadas entram no site; se faltarem, a geração completa com fotos CC0 atuais, sempre com crédito.
-4. Marque **Revisei os dados** → **Gerar prévia do site**. O editor abre com a prévia animada em 3D. A direção visual vem do setor e pode ser trocada na aba Design. Revise as notas em amarelo, os textos, as imagens, os horários e os números.
-5. **Publicar**: a prévia começa privada. **Liberar link público…** pede confirmação e libera só aquela página (`/s/<endereço>`). **Retirar acesso público** derruba o link na hora.
-6. **Abordagem por WhatsApp** (no perfil do lead): quando a empresa publicou um WhatsApp comercial (link `wa.me` no site oficial ou tag `contact:whatsapp` no OpenStreetMap), o painel mostra uma mensagem curta, editável, montada só com fatos verificados, e a prévia em forma de balão. **Abrir no WhatsApp para revisar** abre `https://wa.me/NÚMERO?text=…` com o texto preenchido; quem toca em enviar é você. Se a prévia estiver publicada, o link entra na mensagem como sugestão; se não, a mensagem só oferece enviar o link. Sem WhatsApp confirmado, não há botão: o painel pede para você **confirmar** o celular publicado (quando há um) ou **adicionar** um número que você conferiu.
-7. **Abordagem comercial** (e-mail): **Gerar rascunho** cria assunto e mensagem em português e no idioma do lead. Edite, copie e envie você mesmo. O app nunca envia nada.
+1. **Buscar empresas:** escolha o ramo, o estado e a cidade (qualquer um dos 5.570 municípios). O app procura no OpenStreetMap (Overpass primeiro, depois Nominatim) ou no Google Maps (com chave). Em seguida verifica cada empresa e **só guarda as que têm WhatsApp comercial confirmado em fonte pública**:
+   - tag de WhatsApp no OpenStreetMap;
+   - link wa.me no site da empresa;
+   - número indicado como WhatsApp no site ou na página de contato.
+
+   As demais ficam de fora e aparecem contadas na nota de cobertura. Telefone fixo, celular sem indicação e número de site que não é da empresa não contam. Quando o DDD não é o da cidade, o app avisa.
+2. **Leads encontrados:** lista com busca, filtros e status (Novo, Prévia em revisão, Prévia liberada, Contatado). Cada card mostra o WhatsApp com código do país e a fonte.
+3. **Prévia dos sites:** uma prévia por empresa, com conceito próprio. Revise em tela cheia (computador/celular), edite e só então libere o link. Todas nascem privadas.
+4. **Abordagens:** mensagem de WhatsApp por lead. Ela começa pelo problema ou oportunidade observada, com um fato verificado, explica em uma frase por que isso pode atrapalhar o cliente e só então oferece a prévia. Você pode editar o texto, ver a prévia em balão e clicar em "Abrir no WhatsApp". **Quem envia é você**; nada sai automaticamente. Depois de enviar, marque como contatado.
+5. **Configurações:** estado real de cada fonte e integração, e como adicionar chaves.
 
 ### O que funciona sem configuração e o que depende de conta ou chave
 
 | Recurso | Situação | Configuração |
 |---|---|---|
 | Lista de **todos os municípios do Brasil** (5.570 + DF, código IBGE, UF, coordenadas e DDD) | ✅ embutida no app (lista "municipios-brasileiros", MIT, derivada do IBGE); não depende de outra API | — |
-| Busca real de empresas no **OpenStreetMap** (nome, categoria, endereço, telefone, e-mail, site, redes e horários quando cadastrados) | ✅ funciona sem chave em qualquer cidade, buscando dentro da área do município; testado com buscas reais em Curitiba/PR, Chapecó/SC, Porto Alegre/RS, Belo Horizonte/MG, São Paulo/SP, Salvador/BA, Natal/RN, Manaus/AM e Santana/AP. A cobertura depende de voluntários e varia muito por cidade | `OSM_CONTACT_EMAIL` (recomendado). Limite de 1 consulta/s; para volume maior use `NOMINATIM_URL` com instância própria |
+| Busca real de empresas no **OpenStreetMap** (Overpass + Nominatim: nome, categoria, endereço, telefone, e-mail, site, redes, horários e WhatsApp quando cadastrados) | ✅ funciona sem chave em qualquer cidade, buscando dentro da área do município (o Overpass pede primeiro quem tem WhatsApp ou site; `OVERPASS_URL` opcional); testado com buscas reais em Curitiba/PR, Chapecó/SC, Porto Alegre/RS, Belo Horizonte/MG, São Paulo/SP, Salvador/BA, Natal/RN, Manaus/AM e Santana/AP. A cobertura depende de voluntários e varia muito por cidade | `OSM_CONTACT_EMAIL` (recomendado). Limite de 1 consulta/s; para volume maior use `NOMINATIM_URL` com instância própria |
 | Busca real no **Google Maps (Places API New)**, com horários | 🔑 depende de chave paga do Google | `GOOGLE_PLACES_API_KEY`, com "Places API (New)" ativada no Google Cloud |
 | Verificação do site público de cada lead (HTTPS, celular, ano, contatos, redes, imagens) | ✅ funciona | só a página inicial, após o robots.txt |
 | Imagens com licença: **Openverse** (CC0/CC BY/CC BY-SA, uso comercial e modificação) | ✅ funciona sem chave (limite por IP) | `OPENVERSE_TOKEN` opcional para limite maior |
@@ -76,7 +79,7 @@ O app volta sozinho sempre que o Docker Desktop estiver aberto. Para atualizar, 
 | Imagens dos canais da própria empresa: site oficial | ✅ coletadas da página inicial (og:image e fotos grandes); só entram com a sua confirmação de autorização | — |
 | Fotos publicadas pela empresa no **Google Maps** (autor = o próprio estabelecimento) | 🔑 depende da chave do Google; fotos de clientes nunca são usadas. O link do Google pode expirar, então para publicar o ideal é pedir o arquivo original | `GOOGLE_PLACES_API_KEY` |
 | Fotos de Instagram/Facebook | ❌ não coletadas: exigem login e os termos dessas redes proíbem coleta automática. Peça as fotos à empresa e adicione-as no editor | — |
-| WhatsApp comercial: detecção (link `wa.me` no site oficial, tag do OSM) e botão com mensagem pronta | ✅ funciona; sem confirmação, o botão não aparece e o app pede para você confirmar ou adicionar | — |
+| Regra do WhatsApp: só entram empresas com WhatsApp confirmado em fonte pública (tag do OSM, wa.me ou indicação no site/página de contato) | ✅ funciona. Na prática, poucas empresas publicam WhatsApp numa fonte legível: em 12 buscas reais (cerca de 400 empresas verificadas), 8 passaram. O app não testa se o número tem conta no WhatsApp, porque isso exigiria enviar mensagens | — |
 | **Google Flow** | ⚠️ sem API pública oficial: fluxo assistido (prompt pronto, você gera no Flow, importa e revisa). Nada é gerado automaticamente | — |
 | Textos do site e da abordagem com **IA (Claude)** | 🔑 opcional; sem chave usa textos-modelo sinalizados | `ANTHROPIC_API_KEY` |
 | Sites com direções visuais, 3D, animações ao rolar, modo leve e movimento reduzido | ✅ funciona | — |

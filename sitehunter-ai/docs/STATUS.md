@@ -30,6 +30,15 @@ Legenda: ✅ implementado e testado · 🔑 implementado, depende de credenciais
 | Salvar empresas, anotações, atualizar dados pela fonte | ✅ / 🔑 |
 | Nenhum dado inventado (sem chave → mensagem clara, a pesquisa não é contada) | ✅ testado |
 
+## Abas do app
+| Item | Status |
+|---|---|
+| Navegação em 5 abas (Buscar empresas, Leads encontrados, Prévia dos sites, Abordagens, Configurações), barra de abas no celular | ✅ revisado em desktop e celular |
+| Só leads com WhatsApp comercial confirmado em fonte pública; os demais são excluídos e contados | ✅ testado (unidade + 12 buscas reais) |
+| Abordagens pelo problema/oportunidade observável, texto editável salvo por lead, link wa.me, marcar como contatado | ✅ testado; envio sempre manual |
+| Configurações com estado real das fontes e integrações | ✅ |
+| Overpass (OSM) | 🚧 implementado e testado com respostas simuladas; o servidor desta sessão de desenvolvimento não alcança o Overpass, então as buscas reais caíram no fallback Nominatim |
+
 ## Estúdio de leads
 | Item | Status |
 |---|---|

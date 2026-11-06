@@ -28,12 +28,12 @@ type Dict = {
 };
 
 const PT: Dict = {
-  subject: (n) => `Uma ideia de site para a ${n}`,
-  greet: (n) => `Olá, equipe da ${n}.`,
+  subject: (n) => `Uma ideia de site para ${n}`,
+  greet: (n) => `Olá, equipe ${n}.`,
   intro: (s) => `Meu nome é ${s} e trabalho com criação de sites para negócios locais.`,
   obs: {
-    no_website: (p) => `Procurei a ${p.name} no ${p.source} e não encontrei um site informado no perfil.`,
-    social_only: (p) => `Vi que o canal online informado no ${p.source} para a ${p.name} é um perfil em rede social.`,
+    no_website: (p) => `Procurei ${p.name} no ${p.source} e não encontrei um site informado no perfil.`,
+    social_only: (p) => `Vi que o canal online informado no ${p.source} para ${p.name} é um perfil em rede social.`,
     site_unreachable: (p) => `Tentei acessar o site ${p.url} em ${p.date} e ele não carregou.`,
     not_mobile: (p) => `Notei que a página inicial de ${p.url} não está configurada para telas de celular.`,
     outdated: (p) => `Notei que o rodapé de ${p.url} ainda indica © ${p.year}.`,
@@ -41,7 +41,7 @@ const PT: Dict = {
     inconsistent_phone: (p) => `Notei que o telefone publicado no site (${p.sitePhone}) é diferente do informado no ${p.source} (${p.phone}).`,
     missing_seo: (p) => `Notei que a página inicial de ${p.url} não tem título e descrição para buscadores.`,
   },
-  fallbackObs: (n, s) => `Encontrei a ${n} no ${s}.`,
+  fallbackObs: (n, s) => `Encontrei ${n} no ${s}.`,
   preview: (url, has) =>
     has
       ? `Por iniciativa própria, preparei uma demonstração de como poderia ser um site para vocês${url ? `: ${url}` : ""}. É apenas uma ideia inicial, sem compromisso, e qualquer informação pode ser ajustada.`
@@ -172,10 +172,10 @@ type WaDict = {
 };
 
 const WA_PT: WaDict = {
-  greet: (n) => (n ? `Olá, pessoal da ${n}! Tudo bem?` : "Olá! Tudo bem?"),
+  greet: (n) => (n ? `Olá, tudo bem? Falo com ${n}?` : "Olá! Tudo bem?"),
   problem: {
-    no_website: (p) => [`Procurei a ${p.name} no ${p.source} e não encontrei um site informado.`, `Quem procura ${p.category || "o serviço"}${p.city ? ` em ${p.city}` : ""} pela internet costuma conferir serviços, horários e como chegar antes de chamar, e sem um site essas informações ficam mais difíceis de achar.`],
-    social_only: (p) => [`Vi que o canal online da ${p.name} no ${p.source} é um perfil em rede social.`, "O perfil ajuda, mas quem não usa a rede ou chega pelo Google pode ter mais dificuldade para encontrar serviços, horários e contato num só lugar."],
+    no_website: (p) => [`Procurei ${p.name} no ${p.source} e não encontrei um site informado.`, `Quem procura ${p.category || "o serviço"}${p.city ? ` ${/^rio de janeiro$/i.test(p.city) ? "no" : "em"} ${p.city}` : ""} pela internet costuma conferir serviços, horários e como chegar antes de chamar, e sem um site essas informações ficam mais difíceis de achar.`],
+    social_only: (p) => [`Vi que o canal online de ${p.name} no ${p.source} é um perfil em rede social.`, "O perfil ajuda, mas quem não usa a rede ou chega pelo Google pode ter mais dificuldade para encontrar serviços, horários e contato num só lugar."],
     site_unreachable: (p) => [`Tentei abrir o site ${p.url} e ele não carregou.`, "Quem tenta acessar nesse momento não consegue ver os serviços nem o contato de vocês."],
     not_mobile: (p) => [`Notei que a página inicial de ${p.url} não está configurada para telas de celular.`, "Quem acessa pelo celular pode ter dificuldade para ler a página e encontrar o contato."],
     outdated: (p) => [`Notei que o rodapé de ${p.url} ainda mostra © ${p.year}.`, "Isso pode passar a impressão de que as informações do site não estão atualizadas."],
@@ -183,7 +183,7 @@ const WA_PT: WaDict = {
     inconsistent_phone: (p) => [`Notei que o telefone do site (${p.sitePhone}) é diferente do que aparece no ${p.source} (${p.phone}).`, "Isso pode confundir quem tenta ligar para vocês."],
     missing_seo: (p) => [`Notei que a página inicial de ${p.url} não tem título e descrição para o Google.`, "Isso pode dificultar que a página apareça bem para quem procura pelos serviços de vocês."],
   },
-  opportunity: (p) => `Encontrei a ${p.name} no ${p.source} e pensei numa forma de apresentar os serviços de vocês de um jeito mais completo na internet.`,
+  opportunity: (p) => `Encontrei ${p.name} no ${p.source} e pensei numa forma de apresentar os serviços de vocês de um jeito mais completo na internet.`,
   offer: (url, s) => (url ? `Aqui é ${s}, crio sites para negócios locais. Por conta própria, montei uma sugestão de site que resolve isso, só como ideia: ${url}` : `Aqui é ${s}, crio sites para negócios locais. Por conta própria, montei uma sugestão de site que resolve isso. Posso te enviar o link para dar uma olhada?`),
   close: "Se não fizer sentido para vocês, é só me avisar que não mando mais mensagens.",
 };
@@ -228,7 +228,9 @@ export type WhatsappDraft = OutreachDraftText & { basis: "problem" | "opportunit
 
 export function templateWhatsapp(input: OutreachInput & { category?: string | null; city?: string | null }, lang: Language): WhatsappDraft {
   const d = WA_DICTS[lang];
-  const name = isUsable(input.facts.name) ? input.facts.name.value! : "";
+  const fullName = isUsable(input.facts.name) ? input.facts.name.value! : "";
+  // Nome curto para conversa: sem "(...)" nem complementos depois de " - " (ex.: "- CRO 170844 SP").
+  const name = fullName.replace(/\s*\(.*\)\s*$/, "").replace(/\s+[-–—|]\s+.*$/, "").trim() || fullName;
   const publicSource = input.facts.name?.status === "confirmed" ? input.facts.name.source : null;
   const obs = pickObservation(input.opportunities, !!publicSource);
   const site = input.facts.website?.value ?? "";
@@ -238,7 +240,7 @@ export function templateWhatsapp(input: OutreachInput & { category?: string | nu
     category: (input.category ?? "").toLowerCase(), city: input.city ?? "",
   };
   const used: OutreachDraftText["factsUsed"] = [];
-  if (name) used.push({ field: "name", value: name, source: input.facts.name!.source });
+  if (fullName) used.push({ field: "name", value: fullName, source: input.facts.name!.source });
   const pair = obs && d.problem[obs.code] ? d.problem[obs.code]!(params) : null;
   if (obs?.evidence && obs.code !== "no_website") used.push({ field: obs.code, value: obs.evidence, source: obs.code === "social_only" ? params.source : "Verificação do site" });
   const url = input.hasPreview ? input.previewUrl ?? null : null;
