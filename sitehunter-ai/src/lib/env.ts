@@ -28,6 +28,7 @@ export const env = {
   get openverseToken() { return opt("OPENVERSE_TOKEN"); },
   get imageSearchDisabled() { return opt("IMAGE_SEARCH") === "off"; },
   get nominatimUrl() { return opt("NOMINATIM_URL"); },
+  get overpassUrl() { return opt("OVERPASS_URL"); },
   get osmContactEmail() { return opt("OSM_CONTACT_EMAIL"); },
   get kiwifyWebhookTokens() {
     return [opt("KIWIFY_WEBHOOK_TOKEN"), opt("KIWIFY_WEBHOOK_TOKEN_PREVIOUS")].filter(Boolean) as string[];

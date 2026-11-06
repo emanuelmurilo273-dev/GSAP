@@ -176,7 +176,8 @@ describe("Municípios do Brasil", () => {
     const urls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (u: string) => { urls.push(String(u)); return new Response(JSON.stringify([{ ...nom, address: { ...nom.address, city: "Chapecó" } }, { ...nom, osm_id: 5, address: { ...nom.address, city: "Xaxim" } }])); }));
     const r = await osmProvider.search({ niche: "dentista", location: "Chapecó - SC", cityIbge: 4204202, language: "pt-BR", count: 1 });
-    expect(urls[0]).toContain("bounded=1");
+    expect(urls[0]).toContain("overpass"); // 1º: Overpass (WhatsApp ou site cadastrados)
+    expect(urls[1]).toContain("bounded=1"); // depois: Nominatim na área do município
     expect(r.map((x) => x.city)).toEqual(["Chapecó"]);
   });
   it("cidade sem resultados é sinalizada com a cobertura real da fonte", () => {
@@ -215,5 +216,35 @@ describe("Site informado é mesmo da empresa?", () => {
   it("foto do Commons perto do endereço só entra se citar o nome", () => {
     expect(relevant("Café do Mercado", "Mercado Público de Porto Alegre")).toBe(true);
     expect(relevant("Paraíso Animal", "Editatona Cada Livro em Natal")).toBe(false);
+  });
+});
+
+
+import { overpassToNom } from "@/lib/leads/providers/osm";
+import { contactLink } from "@/lib/leads/presence";
+
+describe("Overpass e página de contato", () => {
+  it("Overpass filtra por WhatsApp/site na área do município e prioriza quem tem WhatsApp", async () => {
+    const bodies: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (u: string, init?: RequestInit) => {
+      if (String(u).includes("overpass")) {
+        bodies.push(String(init?.body));
+        return new Response(JSON.stringify({ elements: [
+          { type: "node", id: 10, lat: -27.1, lon: -52.6, tags: { name: "Barbearia Site", shop: "barber", website: "https://barbeariasite.com.br" } },
+          { type: "way", id: 11, center: { lat: -27.1, lon: -52.6 }, tags: { name: "Barbearia Zap", shop: "hairdresser", "contact:whatsapp": "+55 49 99123-4567", "addr:street": "Rua X" } },
+        ] }));
+      }
+      return new Response("[]");
+    }));
+    const r = await osmProvider.search({ niche: "barbearia", location: "Chapecó - SC", cityIbge: 4204202, language: "pt-BR", count: 5 });
+    expect(decodeURIComponent(bodies[0]!)).toMatch(/contact:whatsapp\|whatsapp/);
+    expect(r.map((x) => x.name)).toEqual(["Barbearia Zap", "Barbearia Site"]);
+    expect(r[0]).toMatchObject({ whatsapp: "+55 49 99123-4567", city: "Chapecó", mapsUrl: "https://www.openstreetmap.org/way/11" });
+  });
+  it("converte elemento do Overpass e acha a página de contato do mesmo site", () => {
+    expect(overpassToNom({ type: "node", id: 1, tags: {} }, { ibge: 1, name: "X", uf: "SC", lat: 0, lng: 0, ddd: 49, capital: false })).toBeNull();
+    const html = '<a href="https://instagram.com/x">Insta</a><a href="/fale-conosco">Fale conosco</a><a href="https://outro.com/contato">x</a>';
+    expect(contactLink(html, "https://loja.com.br/")).toBe("https://loja.com.br/fale-conosco");
+    expect(contactLink('<a href="https://outro.com/contato">Contato</a>', "https://loja.com.br/")).toBeNull();
   });
 });

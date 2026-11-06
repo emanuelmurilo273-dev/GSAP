@@ -65,7 +65,7 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
   try {
     step("discover", provider.label);
     // Só entram empresas com WhatsApp comercial confirmado: busca um conjunto maior e filtra depois da verificação.
-    const pool = providerId === "import" || isDemo ? criteria.count : Math.min(40, Math.max(criteria.count * 3, 20));
+    const pool = providerId === "import" || isDemo ? criteria.count : Math.min(80, Math.max(criteria.count * 6, 40));
     const raw = await provider.search({ ...criteria, count: pool }, { rows });
     const { unique, duplicates: batchDups } = dedupeBatch(raw);
 

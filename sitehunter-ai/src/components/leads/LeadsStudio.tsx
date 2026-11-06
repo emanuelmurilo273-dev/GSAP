@@ -63,7 +63,8 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [opp, setOpp] = useState<(typeof OPP_FILTERS)[number]["key"]>("all");
-  const [dataset, setDataset] = useState<"all" | "real" | "demo">("all");
+  // Leads reais por padrão; os fictícios (demonstração) só aparecem quando escolhidos.
+  const [dataset, setDataset] = useState<"all" | "real" | "demo">(() => (initialLeads.some((l) => !l.isDemo && l.waConfirmed) ? "real" : "all"));
   const [view, setView] = useState<"active" | "excluded">("active");
   const [searchFilter, setSearchFilter] = useState<string>(initialSearchId);
   const [stage, setStage] = useState<(typeof STAGES)[number]["key"]>("all");
@@ -324,6 +325,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-emerald-200">{l.isDemo ? "WhatsApp fictício (demonstração)" : prettyWa(l.whatsapp)}</p>
                     <p className="truncate text-[11px] text-emerald-200/60">{l.isDemo ? "Lead de demonstração" : `WhatsApp confirmado · fonte: ${l.facts.whatsapp?.source ?? "—"}`}</p>
+                    {/Atenção: o DDD/.test(l.facts.whatsapp?.note ?? "") && <p className="text-[11px] text-amber-200">DDD diferente da cidade: confira</p>}
                   </div>
                   {!l.isDemo && l.facts.whatsapp?.sourceUrl && <a href={l.facts.whatsapp.sourceUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[11px] text-emerald-200/80 underline">ver fonte</a>}
                 </div>

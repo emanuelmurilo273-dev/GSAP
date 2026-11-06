@@ -7,7 +7,7 @@ import { waMeLink } from "@/lib/whatsapp";
 
 export type WaItem = {
   id: string; name: string; city: string | null; category: string | null; isDemo: boolean;
-  whatsapp: string; waSource: string; waSourceUrl: string | null;
+  whatsapp: string; waSource: string; waSourceUrl: string | null; waWarning: string | null;
   stage: "new" | "review" | "published" | "contacted";
   suggested: string; saved: string | null; basis: "problem" | "opportunity"; needsEdit: boolean; observation: string | null;
   hasPreview: boolean; previewUrl: string | null; projectId: string | null;
@@ -69,6 +69,7 @@ export function AbordagensClient({ items }: { items: WaItem[] }) {
                 <div className="grid gap-4 border-t border-white/5 p-4 lg:grid-cols-2">
                   <div className="space-y-3">
                     <p className="text-xs text-slate-500">WhatsApp confirmado · fonte: {i.waSourceUrl ? <a href={i.waSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">{i.waSource}</a> : i.waSource}</p>
+                    {i.waWarning && <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-2 text-xs text-amber-100">{i.waWarning}</p>}
                     {i.observation && <p className="rounded-lg bg-white/[0.03] p-2 text-xs text-slate-400"><b className="text-slate-300">Fato usado:</b> {i.observation}</p>}
                     <label className="block">
                       <span className="label">Mensagem (editável)</span>

@@ -10,7 +10,7 @@ import { searchLicensedImages, trackImageDownload } from "@/lib/images";
 import type { ImageCandidate } from "@/lib/leads/types";
 import type { SiteImage } from "@/lib/site/types";
 import { OBJECT_QUERY } from "@/lib/site/stage";
-import { buildConcept } from "@/lib/site/immersive/concept";
+import { buildConcept, varyConcept } from "@/lib/site/immersive/concept";
 import { MODEL_QUERY } from "@/lib/site/immersive/kinds";
 import { snapshotVersion } from "@/lib/projects";
 import { audit } from "@/lib/logger";
@@ -70,6 +70,14 @@ export const POST = route(async (req) => {
       ...fromLead,
       ...extra.map((i) => ({ url: i.url, alt: i.alt, credit: i.credit, origin: "stock" as const, license: i.license, sourceUrl: i.sourceUrl })),
     ]);
+    // Nunca repetir a mesma combinação (objeto + paleta + composição) de outra prévia do usuário.
+    if (content.concept) {
+      const others = await prisma.project.findMany({ where: { userId: user.id, companyId: { not: company.id } }, select: { content: true }, take: 200 });
+      const sig = (k: { model: string; palette: { accent: string }; layout: string }) => `${k.model}|${k.palette.accent}|${k.layout}`;
+      const used = new Set(others.map((o) => (o.content as { concept?: Parameters<typeof sig>[0] } | null)?.concept).filter((k): k is Parameters<typeof sig>[0] => !!k).map(sig));
+      const usedPal = new Set(others.map((o) => (o.content as { concept?: { model: string; palette: { accent: string } } } | null)?.concept).filter(Boolean).map((k) => `${k!.model}|${k!.palette.accent}`));
+      for (let n = 0; n < 6 && (used.has(sig(content.concept)) || usedPal.has(`${content.concept.model}|${content.concept.palette.accent}`)); n++) content.concept = varyConcept(content.concept);
+    }
     // Objeto do palco 3D: foto aprovada da empresa (produto real) ou foto do objeto do setor num banco com licença.
     if (content.stage && content.theme.style !== "immersive") {
       const companyPhoto = fromLead.find((i) => i.origin === "company");

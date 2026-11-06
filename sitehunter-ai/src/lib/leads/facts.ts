@@ -1,5 +1,8 @@
 import { isSocialUrl, normalizeDomain, phonesMatch } from "./normalize";
 import { isBrMobile, normalizeWhatsApp } from "../whatsapp";
+import { resolveCity, UFS } from "../br/cities";
+
+const ufFromState = (st: string | null | undefined) => (st ? (Object.entries(UFS).find(([k, n]) => k === st.toUpperCase() || n.toLowerCase() === st.toLowerCase())?.[0] ?? null) : null);
 import type { Fact, FactField, Facts, PresenceReport, RawBusiness, Social } from "./types";
 
 // Monta a proveniência de cada campo a partir da fonte de descoberta e da
@@ -44,12 +47,20 @@ export function buildFacts(raw: RawBusiness, presence: PresenceReport, at = new 
   facts.whatsapp = waSrc
     ? f(waSrc, baseStatus, src, srcUrl, conf, at, demo ? "Dado fictício (modo demonstração)" : `Publicado como WhatsApp no ${src}.`)
     : waSite
-      ? f(waSite, "confirmed", "Site da empresa", presence.finalUrl, demo ? 0 : presence.whatsappWritten ? 0.85 : 0.95, at, presence.whatsappWritten ? "Número indicado como WhatsApp no texto do site da empresa." : "Link de WhatsApp publicado no site da empresa.")
+      ? f(waSite, "confirmed", "Site da empresa", presence.whatsappPage ?? presence.finalUrl, demo ? 0 : presence.whatsappWritten ? 0.85 : 0.95, at, presence.whatsappWritten ? "Número indicado como WhatsApp no texto do site da empresa." : "Link de WhatsApp publicado no site da empresa.")
       : waOther
         ? f(waOther, "inferred", "Site informado na fonte", presence.finalUrl, 0.2, at, "O site informado na fonte não parece ser da empresa; este WhatsApp pode ser de outra entidade. Confirme antes de usar.")
       : isBrMobile(mobile)
         ? f(mobile, "inferred", src, srcUrl, 0.4, at, "Celular publicado, mas sem indicação de que usa WhatsApp: confirme antes de usar.")
         : f(null, "not_found", src, srcUrl, 0, at, "Nenhum WhatsApp comercial publicado nas fontes consultadas.");
+
+  // DDD do WhatsApp diferente do DDD da cidade: avisa (pode ser o número central de uma rede ou franquia).
+  const wf = facts.whatsapp;
+  if (wf?.value && wf.status === "confirmed" && raw.city && wf.value.startsWith("55")) {
+    const city = resolveCity(raw.city, ufFromState(raw.state)).city;
+    const ddd = Number(wf.value.slice(2, 4));
+    if (city && city.ddd !== ddd) wf.note = `${wf.note ?? ""} Atenção: o DDD ${ddd} não é o da cidade (${city.name}, DDD ${city.ddd}); pode ser o número central de uma rede. Confira antes de enviar.`.trim();
+  }
 
   // Horários publicados pela fonte
   facts.hours = raw.hours?.length

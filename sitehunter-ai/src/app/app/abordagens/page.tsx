@@ -26,7 +26,7 @@ export default async function AbordagensPage() {
       const draft = templateWhatsapp({ facts, opportunities: (c.opportunities ?? []) as Opportunity[], senderName: sender, previewUrl, hasPreview: c.projects.length > 0, category: c.category, city: c.city }, lang);
       return {
         id: c.id, name: c.name, city: c.city, category: c.category, isDemo: c.isDemo,
-        whatsapp: c.whatsapp!, waSource: facts.whatsapp?.source ?? "", waSourceUrl: facts.whatsapp?.sourceUrl ?? null,
+        whatsapp: c.whatsapp!, waSource: facts.whatsapp?.source ?? "", waSourceUrl: facts.whatsapp?.sourceUrl ?? null, waWarning: facts.whatsapp?.note?.match(/Atenção:.*$/)?.[0] ?? null,
         stage: leadStage(c), suggested: draft.body, saved: c.waMessage, basis: draft.basis, needsEdit: draft.needsEdit,
         observation: draft.observation, hasPreview: c.projects.length > 0, previewUrl, projectId: c.projects[0]?.id ?? null,
       };

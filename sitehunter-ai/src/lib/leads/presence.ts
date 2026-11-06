@@ -83,6 +83,20 @@ const linked = hrefs.map((h) => h.match(/(?:wa\.me\/|whatsapp\.com\/send\/?\?(?:
   };
 }
 
+/** Link para a página de contato do mesmo site (contato, fale conosco, atendimento...). */
+export function contactLink(html: string, pageUrl: string): string | null {
+  const base = new URL(pageUrl);
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,120}?)<\/a>/gi)) {
+    const href = decode(m[1]!), label = m[2]!.replace(/<[^>]+>/g, " ");
+    if (!/contat|contact|fale|atendimento|onde-estamos|localiza/i.test(`${href} ${label}`)) continue;
+    try {
+      const u = new URL(href, base);
+      if (u.hostname.replace(/^www\./, "") === base.hostname.replace(/^www\./, "") && /^https?:$/.test(u.protocol) && u.href !== base.href) return u.href;
+    } catch {}
+  }
+  return null;
+}
+
 export async function checkPresence(website: string | null, opts: { demo?: boolean } = {}): Promise<PresenceReport> {
   const checkedAt = new Date().toISOString();
   if (!website) return { checkedAt, url: null, kind: "none", skipped: "no_website" };
@@ -110,7 +124,8 @@ export async function checkPresence(website: string | null, opts: { demo?: boole
     }
     const r = await safeFetch(url.toString(), { userAgent: ua, timeoutMs: 7000 });
     const ok = r.status >= 200 && r.status < 400;
-    return {
+    const analysis = ok && /html/i.test(r.contentType || "text/html") ? analyzeHtml(r.body, r.finalUrl) : {};
+    const report: PresenceReport = {
       checkedAt,
       url: website,
       kind: "site",
@@ -119,8 +134,26 @@ export async function checkPresence(website: string | null, opts: { demo?: boole
       finalUrl: r.finalUrl,
       https: r.finalUrl.startsWith("https://"),
       responseMs: r.ms,
-      ...(ok && /html/i.test(r.contentType || "text/html") ? analyzeHtml(r.body, r.finalUrl) : {}),
+      ...analysis,
     };
+    // Sem WhatsApp na página inicial: lê também UMA página de contato do mesmo site (se o robots.txt permitir).
+    if (ok && !report.whatsapp?.length) {
+      const contact = contactLink(r.body, r.finalUrl);
+      const rules = robots.status === 200 && !/text\/html/i.test(robots.contentType) ? parseRobots(robots.body) : null;
+      if (contact && (!rules || isAllowed(rules, new URL(contact).pathname))) {
+        try {
+          const c = await safeFetch(contact, { userAgent: ua, timeoutMs: 6000 });
+          if (c.status >= 200 && c.status < 400 && /html/i.test(c.contentType || "text/html")) {
+            const a = analyzeHtml(c.body, c.finalUrl);
+            if (a.whatsapp?.length) { report.whatsapp = a.whatsapp; report.whatsappWritten = a.whatsappWritten; report.whatsappPage = c.finalUrl; }
+            for (const sc of a.socials ?? []) if (!report.socials?.some((x) => x.url === sc.url)) (report.socials ??= []).push(sc);
+          }
+        } catch {
+          /* página de contato indisponível: segue só com a inicial */
+        }
+      }
+    }
+    return report;
   } catch (e) {
     if (e instanceof BlockedAddressError) return { checkedAt, url: website, kind: "site", skipped: "blocked_address" };
     return { checkedAt, url: website, kind: "site", reachable: false, status: null, error: e instanceof Error && e.name === "TimeoutError" ? "tempo esgotado" : "não foi possível acessar" };

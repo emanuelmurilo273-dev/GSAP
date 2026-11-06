@@ -68,3 +68,12 @@ describe("Vitrine 3D: página", () => {
     expect(html).toContain("var __name=function(f){return f}");
   });
 });
+
+import { usableOwnDescription } from "@/lib/site/copyLibrary";
+describe("Texto do site oficial", () => {
+  it("descarta avaliações e superlativos não verificáveis", () => {
+    expect(usableOwnDescription("Dentista na Mooca, SP — 5,0★ no Google (mais de 100 avaliações). Facetas em resina, clareamento e implantes.")).toBeNull();
+    expect(usableOwnDescription("De segunda a sábado, buffet de sabores italianos com ingredientes frescos. O melhor restaurante de Floripa.")).toBeNull();
+    expect(usableOwnDescription("Pizzas artesanais, burratas feitas por nós e uma experiência italiana completa no bairro.")).toMatch(/Pizzas artesanais/);
+  });
+});

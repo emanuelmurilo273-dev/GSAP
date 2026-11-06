@@ -141,6 +141,8 @@ export type PresenceReport = {
   whatsapp?: string[];
   /** true quando o número foi lido do texto do site (sem link wa.me). */
   whatsappWritten?: boolean;
+  /** Página do site onde o WhatsApp foi encontrado (quando não foi a inicial). */
+  whatsappPage?: string | null;
   /** O site informado não parece ser da empresa (ex.: órgão público): nada lido dele é confirmado. */
   siteMismatch?: boolean;
   emails?: string[];

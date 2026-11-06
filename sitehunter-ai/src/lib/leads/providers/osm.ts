@@ -45,6 +45,50 @@ const TYPE_LABEL: Record<string, string> = {
   optician: "Ótica", florist: "Floricultura", laundry: "Lavanderia", hardware: "Materiais de construção", pizzeria: "Pizzaria",
 };
 
+/** Frase do Nominatim → filtro de tags do OSM para o Overpass. */
+const OSM_TAGS: Record<string, string[]> = {
+  hairdresser: ['["shop"="hairdresser"]', '["shop"="barber"]'], "beauty shop": ['["shop"="beauty"]'], dentist: ['["amenity"="dentist"]', '["healthcare"="dentist"]'],
+  clinic: ['["amenity"="clinic"]', '["amenity"="doctors"]'], veterinary: ['["amenity"="veterinary"]'], "pet shop": ['["shop"="pet"]', '["shop"="pet_grooming"]'],
+  bakery: ['["shop"="bakery"]', '["shop"="pastry"]'], restaurant: ['["amenity"="restaurant"]'], pizzeria: ['["amenity"="restaurant"]["cuisine"~"pizza"]', '["amenity"="fast_food"]["cuisine"~"pizza"]'],
+  cafe: ['["amenity"="cafe"]'], "fast food": ['["amenity"="fast_food"]'], gym: ['["leisure"="fitness_centre"]', '["leisure"="sports_centre"]["sport"="fitness"]'],
+  "car repair": ['["shop"="car_repair"]', '["shop"="tyres"]'], "clothes shop": ['["shop"="clothes"]', '["shop"="boutique"]'], "estate agent": ['["office"="estate_agent"]'],
+  pharmacy: ['["amenity"="pharmacy"]'], optician: ['["shop"="optician"]'], florist: ['["shop"="florist"]'], laundry: ['["shop"="laundry"]', '["shop"="dry_cleaning"]'],
+  "hardware store": ['["shop"="hardware"]', '["shop"="doityourself"]'],
+};
+
+type OverpassEl = { type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
+
+/** Elemento do Overpass no mesmo formato que o Nominatim devolve (para reaproveitar o mapeamento). */
+export function overpassToNom(e: OverpassEl, city: City): NomItem | null {
+  const t = e.tags ?? {};
+  if (!t.name) return null;
+  const lat = e.lat ?? e.center?.lat, lon = e.lon ?? e.center?.lon;
+  const cat = ["shop", "amenity", "leisure", "office", "healthcare"].find((k) => t[k]) ?? "shop";
+  return {
+    osm_type: e.type, osm_id: e.id, lat: lat != null ? String(lat) : undefined, lon: lon != null ? String(lon) : undefined, name: t.name, category: cat, type: t[cat],
+    address: { road: t["addr:street"], house_number: t["addr:housenumber"], suburb: t["addr:suburb"] ?? t["addr:neighbourhood"], city: t["addr:city"] ?? city.name, state: t["addr:state"] ?? city.uf },
+    extratags: t,
+  };
+}
+
+/**
+ * Overpass: na área do município, só estabelecimentos do ramo que tenham WhatsApp cadastrado ou site
+ * (onde o WhatsApp costuma estar publicado). Muito mais eficiente que listar tudo e descartar depois.
+ */
+async function overpassSearch(phrase: string, city: City): Promise<NomItem[]> {
+  const filters = OSM_TAGS[phrase];
+  if (!filters) return [];
+  const [w, n, e2, s2] = cityViewbox(city);
+  const bbox = `${s2},${w},${n},${e2}`;
+  const parts = filters.flatMap((f) => [`nwr${f}["name"][~"^(contact:whatsapp|whatsapp)$"~"."](${bbox});`, `nwr${f}["name"]["website"](${bbox});`, `nwr${f}["name"]["contact:website"](${bbox});`]);
+  const q = `[out:json][timeout:25];(${parts.join("")});out center tags 120;`;
+  const base = env.overpassUrl ?? "https://overpass-api.de/api/interpreter";
+  const res = await throttle(() => fetch(base, { method: "POST", body: new URLSearchParams({ data: q }), headers: { "User-Agent": nominatimUserAgent() }, cache: "no-store", signal: AbortSignal.timeout(30_000) }));
+  if (!res.ok) throw new Error(`overpass ${res.status}`);
+  const j = (await res.json()) as { elements?: OverpassEl[] };
+  return (j.elements ?? []).map((el) => overpassToNom(el, city)).filter((x): x is NomItem => !!x);
+}
+
 export function phraseFor(niche: string): { phrase: string; label: string } {
   const t = stripAccents(niche.toLowerCase());
   const hit = PHRASES.find(([r]) => r.test(t));
@@ -156,6 +200,19 @@ export const osmProvider: BusinessSearchProvider = {
     }
     const seen = new Set<string>();
     const out: RawBusiness[] = [];
+    // 0) Overpass primeiro: empresas do ramo com WhatsApp ou site cadastrados (fallback silencioso para o Nominatim).
+    if (city) {
+      try {
+        for (const x of await overpassSearch(phrase, city)) {
+          const r = mapNominatim(x, label);
+          if (!r || seen.has(r.sourceId)) continue;
+          seen.add(r.sourceId);
+          out.push(r);
+        }
+      } catch (e) {
+        log("warn", "overpass_failed", { error: String(e) });
+      }
+    }
     for (const params of queries) {
       if (env.osmContactEmail) params.set("email", env.osmContactEmail);
       const items = await nominatim(params, c.language);
@@ -167,8 +224,10 @@ export const osmProvider: BusinessSearchProvider = {
         seen.add(r.sourceId);
         out.push(city && !r.state ? { ...r, state: city.uf } : r);
       }
-      if (out.length >= c.count) break;
+      if (out.filter((r) => r.whatsapp || r.website).length >= c.count) break;
     }
-    return out.slice(0, c.count);
+    // Prioriza quem tem WhatsApp cadastrado, depois quem tem site (onde o WhatsApp costuma estar publicado).
+    const rank = (r: RawBusiness) => (r.whatsapp ? 0 : r.website ? 1 : 2);
+    return out.sort((a, b) => rank(a) - rank(b)).slice(0, c.count);
   },
 };

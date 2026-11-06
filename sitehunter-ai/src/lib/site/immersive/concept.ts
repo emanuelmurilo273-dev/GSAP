@@ -28,13 +28,15 @@ export function seedOf(s: string) {
   for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   return h >>> 0;
 }
-const pick = <T,>(arr: readonly T[], seed: number, salt = 0) => arr[(seed + salt * 7919) % arr.length]!;
+// Cada escolha usa um hash independente (antes, todas dependiam do mesmo resto e coincidiam juntas).
+const pick = <T,>(arr: readonly T[], seed: number, salt = 0) => arr[seedOf(`${seed}:${salt}`) % arr.length]!;
 
 // ---------- objeto ----------
 type Family = { main: ModelKind[]; secondary: ModelKind[]; why: string };
 const RULES: [RegExp, Family][] = [
+  [/colonial|confeit|doceria|\bbolo/, { main: ["cake"], secondary: ["cup", "croissant"], why: "o nome indica café colonial ou confeitaria" }],
   [/\b(cafe|coffee|cafeteria|espresso)\b/, { main: ["cup"], secondary: ["bean", "croissant"], why: "o nome/ramo fala de café" }],
-  [/pizz/, { main: ["pizza"], secondary: ["cutlery", "plate"], why: "é uma pizzaria" }],
+  [/pizz|forneria|\bforno\b|napolet/, { main: ["pizza"], secondary: ["cutlery", "plate"], why: "é uma pizzaria (forno a lenha)" }],
   [/burger|hamburg|lanch|smash/, { main: ["burger"], secondary: ["cutlery"], why: "o ramo é lanche/hambúrguer" }],
   [/confeit|doce|bolo|cake|brigad/, { main: ["cake"], secondary: ["cup", "plate"], why: "o ramo é confeitaria" }],
   [/padar|pao|panific|bakery|boulanger/, { main: ["loaf", "croissant"], secondary: ["croissant", "cup", "loaf"], why: "é uma padaria" }],
@@ -149,9 +151,11 @@ export function buildConcept(input: ConceptInput): Concept {
   const byText = RULES.find(([re]) => re.test(text))?.[1];
   // Variante mais específica do mesmo ramo no nome (implante dentro de odontologia, pizzaria dentro de restaurante).
   const specific = byName && byCat && byName !== byCat && SAME_TRADE(byName, byCat) ? byName : null;
-  const fam: Family = specific ?? byCat ?? byName ?? byText ?? { main: ["gear"], secondary: ["key"], why: "serviço sem objeto típico" };
+  // Nome muito específico (café colonial, forneria, implantes) manda mais que a categoria genérica da fonte.
+  const strongName = byName && /colonial|confeit|forneria|pizz|implant/.test(fold(input.name)) ? byName : null;
+  const fam: Family = strongName ?? specific ?? byCat ?? byName ?? byText ?? { main: ["gear"], secondary: ["key"], why: "serviço sem objeto típico" };
   const model = pick(fam.main, seed);
-  reasons.push(`Objeto 3D principal: ${MODEL_LABEL[model]}, porque ${fam.why}${fam === byName || specific ? " (indicado no nome da empresa)" : input.category ? ` (categoria "${input.category}" na fonte)` : ""}.`);
+  reasons.push(`Objeto 3D principal: ${MODEL_LABEL[model]}, porque ${fam.why}${fam === byName || specific || strongName ? " (indicado no nome da empresa)" : input.category ? ` (categoria "${input.category}" na fonte)` : ""}.`);
   const secondary: ModelKind[] = [];
   const other = byName && byName !== fam && !SAME_TRADE(byName, fam) ? byName : null;
   if (other) {

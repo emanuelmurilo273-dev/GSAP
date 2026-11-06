@@ -163,5 +163,7 @@ export function usableOwnDescription(text: string | null | undefined): string | 
   if (t.length < 60 || t.length > 400) return null;
   if ((t.match(/,/g)?.length ?? 0) > 8 || /\|/.test(t)) return null; // lista de palavras-chave
   if (!/[.!?]$/.test(t) && t.split(" ").length < 12) return null;
+  // Avaliações, notas e superlativos não verificáveis não entram no site (mesmo vindo do site da empresa).
+  if (/★|☆|\bestrelas?\b|avalia[cç][oõ]es|\bnota\b|\b[0-5][.,]\d\b|\bo melhor\b|\ba melhor\b|\bos melhores\b|n[ºo°]\s?1\b|número 1|\blíder\b|\bpremiad/i.test(t)) return null;
   return t;
 }

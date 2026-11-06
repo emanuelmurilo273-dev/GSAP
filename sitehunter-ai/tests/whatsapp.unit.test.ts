@@ -149,3 +149,12 @@ describe("Abordagem sem problema verificável", () => {
     expect(a.body + b.body).not.toMatch(/perdendo|vendas|garant/i);
   });
 });
+
+describe("WhatsApp com DDD de outra cidade", () => {
+  it("avisa quando o DDD não é o da cidade (número central de rede)", () => {
+    const r = mapNominatim({ ...base, address: { ...base.address, city: "São Paulo", state: "São Paulo" }, extratags: { "contact:whatsapp": "+55 51 99243-3297" } }, "Academia")!;
+    const { facts } = buildFacts(r, pres());
+    expect(facts.whatsapp?.status).toBe("confirmed");
+    expect(facts.whatsapp?.note).toMatch(/DDD 51 não é o da cidade \(São Paulo, DDD 11\)/);
+  });
+});

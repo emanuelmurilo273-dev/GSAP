@@ -48,12 +48,17 @@ function sideFor(concept: Concept, i: number): Ch["side"] {
   return i % 2 ? (first === "left" ? "right" : "left") : first;
 }
 
+const prettyPhone = (n: string) => { const m = n.match(/^55(\d{2})(\d{4,5})(\d{4})$/); return m ? `+55 (${m[1]}) ${m[2]}-${m[3]}` : `+${n}`; };
+
 /** Comprimento da palavra mais longa: o título encolhe para caber sem cortar palavras. */
 const longest = (t: string) => Math.max(4, ...t.split(/\s+/).map((w) => w.length));
 /** "IBIO (Instituto Brasileiro ...)" → título "IBIO" e o nome completo em linha menor. */
 function splitName(t: string): [string, string] {
   const m = t.match(/^(.{2,40}?)\s*\((.{6,})\)\s*$/);
-  return m ? [m[1]!.trim(), m[2]!.trim()] : [t, ""];
+  if (m) return [m[1]!.trim(), m[2]!.trim()];
+  // "Nome - complemento" (ex.: "É da Pam - Restaurante e Café Colonial", "Dra. Cleo - CRO 170844 SP")
+  const d = t.match(/^(.{3,40}?)\s+[-–—|]\s+(.{4,})$/);
+  return d ? [d[1]!.trim(), d[2]!.trim()] : [t, ""];
 }
 const WIDE: Record<string, number> = { Unbounded: 1.15, "Archivo Black": 1.0, Syne: 1.12, Anton: 0.5, "Bricolage Grotesque": 0.6, "Instrument Serif": 0.46, Fraunces: 0.58, "Cormorant Garamond": 0.5, "Space Grotesk": 0.6, Sora: 0.62 };
 
@@ -176,7 +181,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   // Final: contato confirmado
   const contacts = [
     b.address && `<li><span>Endereço</span><a href="${esc(mapsHref(c))}" target="_blank" rel="noopener noreferrer">${esc(b.address)}</a></li>`,
-    wa && `<li><span>WhatsApp</span><a href="https://wa.me/${wa}?text=${encodeURIComponent(`Olá! Vim pelo site da ${b.name}.`)}" target="_blank" rel="noopener noreferrer">${esc(b.whatsapp)}</a></li>`,
+    wa && `<li><span>WhatsApp</span><a href="https://wa.me/${wa}?text=${encodeURIComponent(`Olá! Vim pelo site da ${b.name}.`)}" target="_blank" rel="noopener noreferrer">${esc(prettyPhone(wa))}</a></li>`,
     b.phone && `<li><span>Telefone</span><a href="${esc(telHref(b.phone))}">${esc(b.phone)}</a></li>`,
     b.email && `<li><span>E-mail</span><a href="mailto:${esc(b.email)}">${esc(b.email)}</a></li>`,
     b.instagram && `<li><span>Instagram</span><a href="${esc(safeUrl(b.instagram))}" target="_blank" rel="noopener noreferrer">${esc(b.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, "@").replace(/\/$/, ""))}</a></li>`,
