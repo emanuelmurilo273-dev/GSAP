@@ -22,7 +22,8 @@ const LANGS = [
 
 const STEPS = ["Descobrindo empresas na fonte", "Removendo duplicadas", "Verificando sites públicos (robots.txt respeitado)", "Conferindo telefone, e-mail, site e WhatsApp (quando houver)", "Lendo horários e registrando fontes"];
 /** Atalhos de ramo da busca, com a cor de cada ramo (mesma linguagem visual dos sites gerados). */
-const NICHE_CHIPS: { q: string; h: number }[] = [{ q: "barbearia", h: 28 }, { q: "pizzaria", h: 18 }, { q: "restaurante", h: 24 }, { q: "hamburgueria", h: 12 }, { q: "salão de beleza", h: 320 }, { q: "oficina mecânica", h: 205 }, { q: "clínica odontológica", h: 165 }, { q: "academia", h: 85 }, { q: "pet shop", h: 38 }, { q: "padaria", h: 42 }];
+const NICHE_CHIPS: { q: string; h: number }[] = [{ q: "barbearia", h: 28 }, { q: "pizzaria", h: 18 }, { q: "restaurante", h: 24 }, { q: "hamburgueria", h: 12 }, { q: "salão de beleza", h: 320 }, { q: "clínica odontológica", h: 165 }, { q: "academia", h: 85 }, { q: "pet shop", h: 38 }, { q: "padaria", h: 42 }];
+const AUTO_CHIPS: { q: string; h: number }[] = [{ q: "concessionária de veículos", h: 42 }, { q: "revenda de carros", h: 48 }, { q: "oficina mecânica", h: 205 }, { q: "autopeças", h: 215 }, { q: "pneus", h: 52 }, { q: "funilaria e pintura automotiva", h: 8 }, { q: "lava-rápido", h: 190 }, { q: "estética automotiva", h: 195 }, { q: "vistoria veicular", h: 170 }];
 const GLOW_HUE: Record<string, number> = { fire: 18, gold: 42, neon: 28, sparks: 205, halo: 290, pulse: 85 };
 
 const OPP_FILTERS = [
@@ -217,11 +218,17 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
                   <span className="label">Nicho</span>
                   <input className="input" list="niches" required minLength={2} maxLength={80} placeholder="ex.: barbearia, clínica odontológica" value={form.niche} onChange={(e) => setForm({ ...form, niche: e.target.value })} />
                   <datalist id="niches">{nicheSuggestions.map((n) => <option key={n} value={n} />)}</datalist>
+                </label>
+                <CityPicker value={form.location} uf={form.uf} cityIbge={form.cityIbge} onChange={(v) => setForm({ ...form, ...v })} />
+                <div className="space-y-1 sm:col-span-2">
+                  <div className="niche-chips" role="group" aria-label="Atalhos de ramo automotivo">
+                    <span className="niche-chips-label">Automotivo</span>
+                    {AUTO_CHIPS.map((c) => <button key={c.q} type="button" className="niche-chip" style={{ ["--h" as string]: c.h }} aria-pressed={form.niche.trim().toLowerCase() === c.q} onClick={() => setForm({ ...form, niche: c.q })}><i aria-hidden="true" />{c.q}</button>)}
+                  </div>
                   <div className="niche-chips" role="group" aria-label="Atalhos de ramo">
                     {NICHE_CHIPS.map((c) => <button key={c.q} type="button" className="niche-chip" style={{ ["--h" as string]: c.h }} aria-pressed={form.niche.trim().toLowerCase() === c.q} onClick={() => setForm({ ...form, niche: c.q })}><i aria-hidden="true" />{c.q}</button>)}
                   </div>
-                </label>
-                <CityPicker value={form.location} uf={form.uf} cityIbge={form.cityIbge} onChange={(v) => setForm({ ...form, ...v })} />
+                </div>
                 <label className="block">
                   <span className="label">Idioma</span>
                   <select className="input" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>

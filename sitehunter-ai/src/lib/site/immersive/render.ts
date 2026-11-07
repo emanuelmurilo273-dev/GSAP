@@ -3,7 +3,7 @@ import { button, esc, imageCaption, imgSrc, mapsHref, nl2p, safeUrl, telHref, wa
 import { buildConcept, withMood } from "./concept";
 import { realRuntime } from "./realRuntime";
 import { arcRuntime } from "./arcRuntime";
-import { nicheOf } from "../nicheProfile";
+import { isAutoRetailText, nicheOf } from "../nicheProfile";
 import { SPLINE_VIEWER_SRC, isSplineUrl, splineRuntime } from "../spline";
 import { GLTF_ASSETS, assetForModel } from "./kinds";
 import { libraryMetaBySrc } from "../photoLibrary";
@@ -39,6 +39,8 @@ function fontsHref(fams: string[]) {
 /** Fontes largas ou condensadas precisam de outro corpo para o título ocupar a mesma área. */
 const TITLE_SCALE: Record<string, number> = { Unbounded: 0.74, Syne: 0.84, "Archivo Black": 0.82, Anton: 1.08, "Instrument Serif": 1.12, "Cormorant Garamond": 1.1, Fraunces: 0.96, "Bricolage Grotesque": 0.95, "Space Grotesk": 0.92, Sora: 0.9 };
 
+/** Telefone publicado no formato brasileiro, quando o número tem DDI 55 (senão mostra como veio). */
+const showPhone = (p: string) => { const d = p.replace(/\D/g, ""); return /^55\d{10,11}$/.test(d) ? prettyPhone(d) : p.trim(); };
 const prettyPhone = (n: string) => { const m = n.match(/^55(\d{2})(\d{4,5})(\d{4})$/); return m ? `(${m[1]}) ${m[2]}-${m[3]}` : `+${n}`; };
 /** "IBIO (Instituto ...)" → ["IBIO", "Instituto ..."]; "Nome - complemento" → ["Nome", "complemento"]. */
 function splitName(t: string): [string, string] {
@@ -108,7 +110,8 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const isLarge = (i: Img | null) => !!i && (i.w == null ? i.origin === "company" : i.w >= 1800);
 
   // ---------- 3D realista (só com modelo escaneado) ----------
-  const asset = assetForModel(k.model, seed);
+  // O conceito guarda se há modelo escaneado para o ramo (concessionária, pneus, lavagem etc. usam fotografia).
+  const asset = isAutoRetailText(`${c.business.name} ${c.siteName} ${c.seo.description}`) ? null : assetForModel(k.model, seed);
   const threeSrc = opts.threeSrc ?? "/vendor/three.min.js";
   const base = opts.assetBase ?? threeSrc.replace(/vendor\/three\.min\.js$/, "models/");
   const res = (p: string) => (opts.assetUrl ? opts.assetUrl(`models/${p}`) : base + p);
@@ -156,7 +159,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const sideList = (svcItems.length ? svcItems.map((i) => i.title) : niche.chips).slice(0, 4);
   const contactLines = [
     wa ? { t: "WhatsApp", v: prettyPhone(wa) } : null,
-    b.phone ? { t: "Telefone", v: b.phone } : null,
+    b.phone ? { t: "Telefone", v: showPhone(b.phone) } : null,
     !wa && !b.phone && b.email ? { t: "E-mail", v: b.email } : null,
   ].filter((x): x is { t: string; v: string } => !!x).slice(0, 2);
   const hotAction = mainBtn ? { ...mainBtn, label: mainBtn.action === "whatsapp" || mainBtn.action === "section" ? niche.panelCta : mainBtn.action === "phone" ? "Ligar agora" : mainBtn.label } : null;
@@ -234,6 +237,10 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
       ? `<section id="${esc(svc.id)}" class="rail" aria-labelledby="h-svc" data-rail style="--n:${Math.min(svcItems.length, 6)}"><div class="rail-sticky">${head}<ol class="rail-track" data-rail-track>${cards}</ol><div class="rail-bar" aria-hidden="true"><i data-rail-bar></i></div></div></section>`
       : `<section id="${esc(svc.id)}" class="sec" aria-labelledby="h-svc">${head}<ol class="cards">${cards}</ol></section>`);
   }
+  // ---------- frase de destaque: as palavras acendem conforme a rolagem (sem texto novo: usa a frase do ramo e o nome) ----------
+  const stmt = `${niche.tagline.replace(/[.!?]+$/, "")}. ${brand}.`;
+  parts.push(`<section class="stmt" data-stmt aria-label="${esc(stmt)}"><p class="stmt-text" aria-hidden="true">${stmt.split(/\s+/).filter(Boolean).map((w) => `<span class="sw">${esc(w)}</span>`).join(" ")}</p></section>`);
+
   if (menu && menuCats.length) {
     navItems.push({ id: menu.id, label: menu.title || "Cardápio" });
     parts.push(`<section id="${esc(menu.id)}" class="sec" aria-labelledby="h-menu">
@@ -277,7 +284,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   // ---------- visita: horário com status ao vivo + localização e contatos ----------
   const contacts = [
     wa && `<li><span>WhatsApp</span><a href="https://wa.me/${wa}?text=${encodeURIComponent(`Olá! Vim pelo site da ${b.name}.`)}" target="_blank" rel="noopener noreferrer">${esc(prettyPhone(wa))}</a></li>`,
-    b.phone && `<li><span>Telefone</span><a href="${esc(telHref(b.phone))}">${esc(b.phone)}</a></li>`,
+    b.phone && `<li><span>Telefone</span><a href="${esc(telHref(b.phone))}">${esc(showPhone(b.phone))}</a></li>`,
     b.email && `<li><span>E-mail</span><a href="mailto:${esc(b.email)}">${esc(b.email)}</a></li>`,
     b.instagram && `<li><span>Instagram</span><a href="${esc(safeUrl(b.instagram))}" target="_blank" rel="noopener noreferrer">${esc(b.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, "@").replace(/\/$/, ""))}</a></li>`,
   ].filter(Boolean);
@@ -379,6 +386,11 @@ a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var
 .h1{font:${dw} calc(clamp(42px,5.6vw,88px) * var(--ts))/1.0 var(--fd);letter-spacing:-.03em;text-wrap:balance;overflow-wrap:break-word}
 .h2{font:${dw} calc(clamp(30px,3.6vw,54px) * var(--ts))/1.06 var(--fd);letter-spacing:-.02em;text-wrap:balance;overflow-wrap:break-word}
 .h2.xl{font-size:calc(clamp(36px,5vw,76px) * var(--ts))}
+.stmt{padding:clamp(72px,14vh,160px) var(--gut,5vw);display:grid;place-items:center;min-height:60vh}
+.stmt-text{max-width:20ch;margin:0 auto;text-align:center;font:${dw} calc(clamp(38px,7.2vw,116px) * var(--ts))/1.02 var(--fd);letter-spacing:-.035em;text-wrap:balance;${up ? "text-transform:uppercase;" : ""}overflow-wrap:break-word}
+.stmt-js .sw{opacity:.16;transition:opacity .35s linear,color .35s linear}
+.stmt-js .sw.on{opacity:1}
+.stmt-js .sw.on:last-child,.stmt-js .sw.on:nth-last-child(2){color:var(--ac)}
 .split .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.08em;margin-bottom:-.08em}
 .split .w>span{display:inline-block;transform:translateY(105%);transition:transform 1s var(--ease);transition-delay:calc(var(--i) * 70ms + 120ms)}
 .ready .split .w>span{transform:none}
@@ -684,6 +696,16 @@ export function motionRuntime(cfg: { amp: number }) {
   var parIn = Array.prototype.slice.call(d.querySelectorAll("[data-par-inner]")) as HTMLElement[];
   var depth = Array.prototype.slice.call(d.querySelectorAll("[data-depth]")) as HTMLElement[];
   var rail = d.querySelector("[data-rail]") as HTMLElement | null, track = d.querySelector("[data-rail-track]") as HTMLElement | null, rbar = d.querySelector("[data-rail-bar]") as HTMLElement | null;
+  // frase de destaque: acende uma palavra por vez com a rolagem (tudo aceso sem JS ou com movimento reduzido)
+  var stm = d.querySelector("[data-stmt]") as HTMLElement | null, sws = stm ? Array.prototype.slice.call(stm.querySelectorAll(".sw")) as HTMLElement[] : [];
+  function stmtUpdate() {
+    if (!stm) return;
+    var r = stm.getBoundingClientRect(), vh = w.innerHeight, p = (vh * 0.85 - r.top) / (vh * 0.55 + r.height * 0.3);
+    p = Math.max(0, Math.min(1, p));
+    var n = Math.round(p * sws.length);
+    sws.forEach(function (s, i) { s.classList.toggle("on", i < n); });
+  }
+  if (stm && !reduce) { stm.classList.add("stmt-js"); stmtUpdate(); w.addEventListener("scroll", stmtUpdate, { passive: true }); w.addEventListener("resize", stmtUpdate, { passive: true }); }
   var mx = 0, my = 0, tx = 0, ty = 0, raf = 0;
   if (!reduce && !touch && hero) hero.addEventListener("pointermove", function (e) { var r = hero!.getBoundingClientRect(); tx = (e.clientX - r.left) / r.width - 0.5; ty = (e.clientY - r.top) / r.height - 0.5; kick(); }, { passive: true });
   if (hero) hero.addEventListener("pointerleave", function () { tx = 0; ty = 0; kick(); });

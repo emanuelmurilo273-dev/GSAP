@@ -17,6 +17,14 @@ import { cityById, cityViewbox, fold, resolveCity, type City } from "../../br/ci
 
 /** Nicho em português → frase especial do Nominatim (categorias OSM). */
 const PHRASES: [RegExp, string, string][] = [
+  // Automotivo primeiro: "estética automotiva" não pode cair em salão de beleza, nem "pneus" em oficina.
+  [/concession|revenda|multimarca|seminovo|veiculos? (novos?|usados?)|loja de (carros?|veiculos?)|automoveis|car dealer|used cars?/, "car dealer", "Concessionária / revenda de veículos"],
+  [/moto(s|cicleta)?\b.*(loja|concession)|concessionaria de motos?|loja de motos?/, "motorcycle dealer", "Concessionária de motos"],
+  [/autope[cç]a|auto ?pecas|pecas automotiv|acessorios automotiv|car parts/, "car parts", "Autopeças"],
+  [/pneu|borracharia|tyres?|\btires?\b/, "tyres", "Pneus e borracharia"],
+  [/funilar|lanternag|pintura automotiv|body ?shop|car body/, "car body", "Funilaria e pintura automotiva"],
+  [/lava[ -]?(rapido|jato|car)|car ?wash|estetica automotiv|detailing|polimento automotiv|higieniza[cç]ao automotiv/, "car wash", "Lava-rápido / estética automotiva"],
+  [/vistoria|inspe[cç]ao veicular|inspe[cç]ao automotiv|centro de inspe/, "vehicle inspection", "Vistoria / inspeção veicular"],
   [/barbe|barber/, "hairdresser", "Barbearia / cabeleireiro"],
   [/salao|cabelei|beleza|estetic|manicure|nail|spa/, "beauty shop", "Salão de beleza"],
   [/odonto|dentist|dental/, "dentist", "Dentista"],
@@ -43,6 +51,7 @@ const TYPE_LABEL: Record<string, string> = {
   hairdresser: "Cabeleireiro / barbearia", beauty: "Salão de beleza", dentist: "Dentista", clinic: "Clínica", doctors: "Consultório médico",
   veterinary: "Veterinário", pet: "Pet shop", bakery: "Padaria", restaurant: "Restaurante", cafe: "Café", fast_food: "Lanchonete",
   fitness_centre: "Academia", car_repair: "Oficina mecânica", clothes: "Loja de roupas", estate_agent: "Imobiliária", pharmacy: "Farmácia",
+  car: "Concessionária / revenda de veículos", motorcycle: "Concessionária de motos", car_parts: "Autopeças", tyres: "Pneus e borracharia", car_wash: "Lava-rápido / estética automotiva", vehicle_inspection: "Vistoria / inspeção veicular",
   optician: "Ótica", florist: "Floricultura", laundry: "Lavanderia", hardware: "Materiais de construção", pizzeria: "Pizzaria",
 };
 
@@ -55,7 +64,13 @@ const OSM_TAGS: Record<string, string[]> = {
   "car repair": ['["shop"="car_repair"]', '["shop"="tyres"]'], "clothes shop": ['["shop"="clothes"]', '["shop"="boutique"]'], "estate agent": ['["office"="estate_agent"]'],
   pharmacy: ['["amenity"="pharmacy"]'], optician: ['["shop"="optician"]'], florist: ['["shop"="florist"]'], laundry: ['["shop"="laundry"]', '["shop"="dry_cleaning"]'],
   "hardware store": ['["shop"="hardware"]', '["shop"="doityourself"]'],
+  "car dealer": ['["shop"="car"]'], "motorcycle dealer": ['["shop"="motorcycle"]'], "car parts": ['["shop"="car_parts"]'], tyres: ['["shop"="tyres"]'],
+  "car body": ['["shop"="car_repair"]["service:vehicle:body_repair"="yes"]', '["shop"="car_repair"]["service:vehicle:painting"="yes"]', '["craft"="car_painter"]', '["shop"="car_repair"]["name"~"funilaria|lanternagem|pintura",i]'],
+  "car wash": ['["amenity"="car_wash"]', '["shop"="car_repair"]["service:vehicle:car_wash"="yes"]', '["shop"="car_repair"]["name"~"est[eé]tica automotiva|detail",i]'], "vehicle inspection": ['["amenity"="vehicle_inspection"]'],
 };
+
+/** Rótulos de ramos específicos que não devem ser trocados pelo tipo genérico da tag (ex.: funilaria usa shop=car_repair). */
+const SPECIAL_LABELS = new Set(["Funilaria e pintura automotiva", "Lava-rápido / estética automotiva"]);
 
 type OverpassEl = { type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
 
@@ -64,7 +79,7 @@ export function overpassToNom(e: OverpassEl, city: City): NomItem | null {
   const t = e.tags ?? {};
   if (!t.name) return null;
   const lat = e.lat ?? e.center?.lat, lon = e.lon ?? e.center?.lon;
-  const cat = ["shop", "amenity", "leisure", "office", "healthcare"].find((k) => t[k]) ?? "shop";
+  const cat = ["shop", "amenity", "leisure", "office", "healthcare", "craft"].find((k) => t[k]) ?? "shop";
   return {
     osm_type: e.type, osm_id: e.id, lat: lat != null ? String(lat) : undefined, lon: lon != null ? String(lon) : undefined, name: t.name, category: cat, type: t[cat],
     address: { road: t["addr:street"], house_number: t["addr:housenumber"], suburb: t["addr:suburb"] ?? t["addr:neighbourhood"], city: t["addr:city"] ?? city.name, state: t["addr:state"] ?? city.uf },
@@ -158,7 +173,7 @@ export function mapNominatim(x: NomItem, fallbackCategory: string): RawBusiness 
   return {
     sourceId: `${x.osm_type}/${x.osm_id}`,
     name: x.name,
-    category: TYPE_LABEL[x.type ?? ""] ?? fallbackCategory,
+    category: SPECIAL_LABELS.has(fallbackCategory) ? fallbackCategory : TYPE_LABEL[x.type ?? ""] ?? fallbackCategory,
     address,
     neighborhood: a.suburb ?? a.neighbourhood ?? null,
     city,

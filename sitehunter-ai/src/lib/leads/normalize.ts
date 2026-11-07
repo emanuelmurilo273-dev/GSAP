@@ -109,6 +109,12 @@ export function dedupeBatch<T extends Pick<RawBusiness, "name" | "city" | "phone
 export function guessSegmentKey(niche: string, category?: string | null): string {
   const t = stripAccents(`${niche} ${category ?? ""}`.toLowerCase());
   const rules: [RegExp, string][] = [
+    [/concession|revenda|multimarca|seminovo|loja de carro|automoveis|car dealer|loja de veiculos|veiculos (novos|usados)/, "concessionaria"],
+    [/autope[cç]a|auto ?pecas|car parts|acessorios automotiv/, "autopecas"],
+    [/pneu|borracharia|tyre/, "pneus"],
+    [/funilar|lanternag|pintura automotiv|body ?shop/, "funilaria"],
+    [/lava[ -]?(rapido|jato)|car ?wash|estetica automotiv|detailing/, "lavagem"],
+    [/vistoria|inspecao veicular|inspecao automotiv/, "vistoria"],
     [/barbe|barber/, "barbearia"],
     [/salao|beleza|beauty|cabelei|estetic|manicure|nail/, "salao"],
     [/padaria|bakery|panader|confeitar/, "padaria"],

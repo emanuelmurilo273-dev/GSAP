@@ -3,6 +3,7 @@ import path from "node:path";
 import { renderSite } from "./site/render";
 import type { SiteContent } from "./site/types";
 import { assetForModel } from "./site/immersive/kinds";
+import { isAutoRetailText } from "./site/nicheProfile";
 import { conceptOf } from "./site/immersive/render";
 import { prepareContent } from "./site/render";
 
@@ -20,7 +21,7 @@ export async function assetFilesFor(content: SiteContent): Promise<string[]> {
   const files = [...photos, ...(photos.length ? ["photos/LICENSES.md"] : [])];
   if (content.theme.style !== "immersive") return files;
   const k = conceptOf(content);
-  const asset = assetForModel(k.model, k.seed);
+  const asset = isAutoRetailText(`${content.business.name} ${content.siteName} ${content.seo.description}`) ? null : assetForModel(k.model, k.seed);
   if (!asset) return files;
   files.push("vendor/three.min.js", "vendor/three.LICENSE.txt", "vendor/GLTFLoader.js", "vendor/RGBELoader.js", "models/LICENSES.md", "models/hdri/studio_small_09_1k.hdr");
   const dir = path.join(process.cwd(), "public", "models", asset);

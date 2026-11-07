@@ -42,6 +42,7 @@ const RULES: [RegExp, Family][] = [
   [/padar|pao|panific|bakery|boulanger/, { main: ["loaf", "croissant"], secondary: ["croissant", "cup", "loaf"], why: "é uma padaria" }],
   [/restaur|bistro|cantina|cozinha|grill|churras|sushi/, { main: ["cloche", "plate"], secondary: ["cutlery", "plate"], why: "é um restaurante" }],
   [/barb/, { main: ["scissors", "razor"], secondary: ["pole", "comb", "razor"], why: "é uma barbearia" }],
+  [/lava[ -]?(rapido|jato)|car ?wash|estetica automotiv|detailing|polimento automotiv/, { main: ["wheel"], secondary: ["wrench", "gear"], why: "é lava-rápido ou estética automotiva" }],
   [/manicure|unha|nail|esmalt/, { main: ["polish"], secondary: ["bottle"], why: "o foco é unhas" }],
   [/salao|cabelei|beleza|hair|estetic|studio de beleza/, { main: ["hairdryer", "comb", "bottle"], secondary: ["comb", "bottle", "scissors"], why: "é um salão de beleza" }],
   [/implant/, { main: ["implant"], secondary: ["tooth"], why: "o nome cita implantes" }],
@@ -65,6 +66,7 @@ const INTRINSIC = new Set<ModelKind>(["loaf", "croissant", "cake", "pizza", "bur
 const SEGMENT_FALLBACK: Record<string, string> = {
   barbearia: "barb", salao: "salao", restaurante: "restaur", padaria: "padar", odontologia: "odonto", clinica: "clinic", academia: "academ",
   oficina: "oficina", roupas: "roupa", petshop: "pet", imobiliaria: "imobili", construcao: "oficina", servicos: "",
+  concessionaria: "oficina", autopecas: "oficina", pneus: "oficina", funilaria: "oficina", lavagem: "oficina", vistoria: "oficina",
 };
 
 // ---------- paletas escuras (fundo, fundo 2, texto, texto suave, destaque, destaque 2) ----------

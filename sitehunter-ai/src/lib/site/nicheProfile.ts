@@ -7,7 +7,7 @@ import type { ModelKind } from "./immersive/kinds";
 export type Glow = "fire" | "gold" | "neon" | "sparks" | "halo" | "pulse";
 export type NicheKey =
   | "barbearia" | "pizzaria" | "hamburgueria" | "restaurante" | "cafe" | "padaria" | "confeitaria" | "salao" | "estetica"
-  | "odonto" | "clinica" | "academia" | "oficina" | "roupas" | "pet" | "imobiliaria" | "otica" | "construcao" | "generico";
+  | "odonto" | "clinica" | "academia" | "oficina" | "roupas" | "pet" | "imobiliaria" | "otica" | "construcao" | "concessionaria" | "autopecas" | "pneus" | "funilaria" | "lavagem" | "vistoria" | "generico";
 
 export type Niche = {
   key: NicheKey;
@@ -48,6 +48,12 @@ export const NICHES: Record<NicheKey, Niche> = {
   imobiliaria: { key: "imobiliaria", label: "imobiliária", glow: "gold", tagline: "O imóvel certo, com orientação", chips: ["Venda", "Aluguel", "Avaliação de imóvel", "Documentação"], panelTitle: "Imóveis e serviços", panelCta: "Falar com um corretor", offer: "serviços, destaques de imóveis e contato direto com o corretor", why: "Quem busca imóvel pesquisa muito online antes de falar com alguém." },
   otica: { key: "otica", label: "ótica", glow: "halo", tagline: "Ver bem, com estilo", chips: ["Óculos de grau", "Óculos de sol", "Lentes", "Exame de vista"], panelTitle: "Na vitrine", panelCta: "Chamar no WhatsApp", offer: "vitrine de armações, horário e contato rápido", why: "Quem escolhe óculos gosta de ver modelos antes de ir à loja." },
   construcao: { key: "construcao", label: "empresa de construção", glow: "sparks", tagline: "Obra com planejamento", chips: ["Materiais", "Ferramentas", "Obras e reformas", "Orçamento"], panelTitle: "Serviços e orçamento", panelCta: "Pedir orçamento", offer: "serviços, fotos de obras e pedido de orçamento", why: "Quem contrata obra quer ver trabalhos e pedir orçamento com facilidade.", accent: "stripe" },
+  concessionaria: { key: "concessionaria", label: "concessionária / revenda", glow: "gold", tagline: "Veículos para cada rotina", chips: ["Novos", "Seminovos", "Financiamento", "Avaliação do seu usado"], panelTitle: "Veículos e condições", panelCta: "Falar com um vendedor", offer: "vitrine de veículos com fotos reais, horário ao vivo e contato direto com o vendedor", why: "Quem procura carro compara estoque, condições e confere se a loja está aberta antes de visitar." },
+  autopecas: { key: "autopecas", label: "autopeças", glow: "sparks", tagline: "A peça certa para o seu veículo", chips: ["Peças de reposição", "Filtros e óleos", "Freios e suspensão", "Acessórios"], panelTitle: "Peças e consulta", panelCta: "Consultar uma peça", offer: "consulta de peças pelo telefone, horário ao vivo e categorias do que a loja trabalha", why: "O cliente quer saber se a peça existe e até que horas a loja atende." },
+  pneus: { key: "pneus", label: "pneus e borracharia", glow: "sparks", tagline: "Pneus, rodas e alinhamento", chips: ["Pneus", "Alinhamento e balanceamento", "Rodas", "Borracharia"], panelTitle: "Pneus e serviços", panelCta: "Pedir orçamento", offer: "serviços, horário ao vivo e pedido de orçamento de pneus", why: "Quem precisa de pneu quer preço e prazo rápido, e confere se a loja está aberta." },
+  funilaria: { key: "funilaria", label: "funilaria e pintura", glow: "sparks", tagline: "Reparo e pintura com acabamento", chips: ["Funilaria", "Pintura", "Polimento", "Orçamento para seguradora"], panelTitle: "Reparo e pintura", panelCta: "Pedir orçamento", offer: "serviços, fotos de trabalhos e pedido de orçamento", why: "Quem bateu o carro precisa de orçamento rápido e quer ver o acabamento do serviço." },
+  lavagem: { key: "lavagem", label: "lava-rápido e estética automotiva", glow: "neon", tagline: "Brilho e cuidado para o seu carro", chips: ["Lavagem", "Polimento", "Higienização interna", "Vitrificação"], panelTitle: "Lavagem e estética", panelCta: "Agendar horário", offer: "serviços, fotos do antes e depois e agendamento pelo telefone", why: "Estética automotiva se decide por foto de resultado e por conseguir um horário." },
+  vistoria: { key: "vistoria", label: "vistoria e inspeção veicular", glow: "pulse", tagline: "Inspeção com hora marcada", chips: ["Vistoria veicular", "Laudo cautelar", "Transferência", "Agendamento"], panelTitle: "Serviços e agendamento", panelCta: "Agendar vistoria", offer: "serviços, documentos necessários e agendamento", why: "Quem precisa de vistoria quer saber o que levar e quando consegue horário." },
   generico: { key: "generico", label: "negócio local", glow: "halo", tagline: "Atendimento de confiança", chips: [], panelTitle: "Atendimento", panelCta: "Falar com a gente", offer: "serviços, horário ao vivo e contato rápido", why: "O cliente procura serviços, horário e contato num só lugar." },
 };
 
@@ -57,6 +63,9 @@ const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 export function nicheFromText(text: string): Niche {
   const t = fold(text);
   const rules: [RegExp, NicheKey][] = [
+    [/concession|revenda|multimarca|seminovo|loja de carro|automoveis|car dealer|loja de veiculos|veiculos (novos|usados)/, "concessionaria"], [/autope[cç]a|auto ?pecas|car parts/, "autopecas"],
+    [/pneu|borracharia|tyre/, "pneus"], [/funilar|lanternag|pintura automotiv|body ?shop/, "funilaria"],
+    [/lava[ -]?(rapido|jato)|car ?wash|estetica automotiv|detailing/, "lavagem"], [/vistoria|inspecao veicular|inspecao/, "vistoria"],
     [/barbe|barber/, "barbearia"], [/pizz|forneria/, "pizzaria"], [/hamburg|burger|lanchon/, "hamburgueria"],
     [/cafe|cafeteria|coffee/, "cafe"], [/padaria|panificad|bakery/, "padaria"], [/confeit|doceria|bolo/, "confeitaria"],
     [/restaur|churrasc|bistro|cantina|comida/, "restaurante"], [/salao|cabelei|beleza|hair/, "salao"], [/estetic|spa|depila|manicure/, "estetica"],
@@ -68,9 +77,19 @@ export function nicheFromText(text: string): Niche {
   return NICHES[hit ?? "generico"];
 }
 
+const AUTO_KEYS = new Set<NicheKey>(["concessionaria", "autopecas", "pneus", "funilaria", "lavagem", "vistoria"]);
+
+/** Concessionária, autopeças, pneus, funilaria, lavagem e vistoria: usam fotografia, nunca a chave inglesa 3D da oficina. */
+export function isAutoRetailText(text: string): boolean {
+  const k = nicheFromText(text).key;
+  return AUTO_KEYS.has(k);
+}
+
 /** Ramo do site a partir do objeto do conceito, refinado pelo texto da empresa. */
 export function nicheOf(model: ModelKind | undefined, text: string): Niche {
   const byText = nicheFromText(text);
+  // Ramo automotivo vem do texto: a estética automotiva não vira clínica de estética pelo objeto do conceito.
+  if (AUTO_KEYS.has(byText.key)) return byText;
   switch (model) {
     case "pizza": return NICHES.pizzaria;
     case "burger": return NICHES.hamburgueria;
@@ -85,7 +104,7 @@ export function nicheOf(model: ModelKind | undefined, text: string): Niche {
     case "pill": return NICHES.clinica;
     case "glasses": return NICHES.otica;
     case "dumbbell": case "kettlebell": return NICHES.academia;
-    case "wheel": case "wrench": case "gear": return byText.key === "construcao" ? NICHES.construcao : NICHES.oficina;
+    case "wheel": case "wrench": case "gear": return AUTO_KEYS.has(byText.key) || byText.key === "construcao" ? byText : NICHES.oficina;
     case "hanger": case "tshirt": return NICHES.roupas;
     case "bone": case "paw": return NICHES.pet;
     case "key": case "house": return NICHES.imobiliaria;

@@ -65,6 +65,7 @@ export const STYLE_INFO: Record<SiteStyle, StyleInfo> = {
 
 const BY_SEGMENT: Record<string, SiteStyle> = {
   barbearia: "cinema", academia: "cinema", oficina: "cinema", construcao: "forge",
+  concessionaria: "cinema", autopecas: "cinema", pneus: "cinema", funilaria: "cinema", lavagem: "cinema", vistoria: "studio",
   salao: "atelier", roupas: "atelier",
   odontologia: "clinic", clinica: "clinic",
   restaurante: "hearth", padaria: "hearth",

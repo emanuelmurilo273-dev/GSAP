@@ -34,6 +34,12 @@ export const SEGMENTS: Segment[] = [
   { key: "oficina", label: "Oficinas mecânicas", query: "oficina mecânica", placesType: "car_repair", template: "mechanic", imageQuery: "car mechanic workshop", theme: t("#2563eb", "#f97316", "Oswald", "Roboto", true) },
   { key: "roupas", label: "Lojas de roupas", query: "loja de roupas", placesType: "clothing_store", template: "store", imageQuery: "clothing store", theme: t("#111827", "#d946ef", "Montserrat", "DM Sans") },
   { key: "imobiliaria", label: "Imobiliárias", query: "imobiliária", placesType: "real_estate_agency", template: "services", imageQuery: "house real estate", theme: t("#1e3a8a", "#0ea5e9", "Montserrat", "Open Sans") },
+  { key: "concessionaria", label: "Concessionárias e revendas", query: "concessionária de veículos", placesType: "car_dealer", template: "store", imageQuery: "car dealership", theme: t("#0f172a", "#f59e0b", "Oswald", "Inter", true) },
+  { key: "autopecas", label: "Autopeças", query: "autopeças", placesType: "car_parts", template: "store", imageQuery: "auto parts", theme: t("#1d4ed8", "#f97316", "Oswald", "Roboto", true) },
+  { key: "pneus", label: "Pneus e borracharias", query: "pneus", placesType: "tyres", template: "mechanic", imageQuery: "tire shop", theme: t("#111827", "#facc15", "Oswald", "Roboto", true) },
+  { key: "funilaria", label: "Funilarias e pintura", query: "funilaria e pintura automotiva", placesType: "car_repair", template: "mechanic", imageQuery: "car body shop", theme: t("#7f1d1d", "#f97316", "Oswald", "Roboto", true) },
+  { key: "lavagem", label: "Lava-rápidos e estética automotiva", query: "lava-rápido", placesType: "car_wash", template: "services", imageQuery: "car wash detailing", theme: t("#0369a1", "#22d3ee", "Poppins", "Inter", true) },
+  { key: "vistoria", label: "Vistoria e inspeção veicular", query: "vistoria veicular", template: "services", imageQuery: "vehicle inspection", theme: t("#0f766e", "#facc15", "Montserrat", "Inter") },
   { key: "servicos", label: "Prestadores de serviços", query: "prestador de serviços", template: "services", imageQuery: "professional service", theme: t("#1d4ed8", "#06b6d4", "DM Sans", "Inter") },
   { key: "petshop", label: "Pet shops", query: "pet shop", placesType: "pet_store", template: "store", imageQuery: "pet shop dog", theme: t("#0d9488", "#f59e0b", "Nunito", "Nunito") },
   { key: "padaria", label: "Padarias", query: "padaria", placesType: "bakery", template: "restaurant", imageQuery: "bakery bread", theme: t("#92400e", "#f59e0b", "Lora", "Lato") },
@@ -242,10 +248,46 @@ const SINGULAR: Record<string, string> = {
   barbearia: "barbearia", salao: "salão de beleza", restaurante: "restaurante", odontologia: "clínica odontológica", clinica: "clínica",
   academia: "academia", oficina: "oficina mecânica", roupas: "loja de roupas", imobiliaria: "imobiliária", servicos: "prestação de serviços",
   petshop: "pet shop", padaria: "padaria", construcao: "construtora",
+  concessionaria: "concessionária", autopecas: "loja de autopeças", pneus: "loja de pneus", funilaria: "funilaria e pintura", lavagem: "lava-rápido", vistoria: "centro de vistoria",
 };
 
 /** Serviços típicos por segmento (sugestões genéricas, sempre sinalizadas para confirmação). */
 const SEGMENT_SERVICES: Record<string, { title: string; description: string }[]> = {
+  concessionaria: [
+    { title: "Veículos novos e seminovos", description: "Confirme com a loja o estoque disponível no momento." },
+    { title: "Avaliação do seu usado", description: "Fale com a equipe para avaliar o seu veículo na troca." },
+    { title: "Financiamento", description: "Pergunte pelas condições de pagamento e financiamento." },
+    { title: "Agende uma visita", description: "Combine um horário para ver os veículos de perto." },
+  ],
+  autopecas: [
+    { title: "Peças de reposição", description: "Informe o modelo e o ano do veículo e consulte a peça." },
+    { title: "Filtros, óleos e fluidos", description: "Itens de manutenção periódica para o seu veículo." },
+    { title: "Freios e suspensão", description: "Consulte a disponibilidade e o prazo de entrega." },
+    { title: "Acessórios", description: "Pergunte pelos acessórios disponíveis na loja." },
+  ],
+  pneus: [
+    { title: "Pneus para o seu veículo", description: "Informe a medida ou o modelo do veículo e peça um orçamento." },
+    { title: "Alinhamento e balanceamento", description: "Consulte a disponibilidade do serviço." },
+    { title: "Rodas", description: "Pergunte pelas opções de rodas disponíveis." },
+    { title: "Borracharia", description: "Conserto de pneus: fale com a equipe para saber o prazo." },
+  ],
+  funilaria: [
+    { title: "Funilaria", description: "Reparo de lataria. Envie fotos do dano para uma avaliação." },
+    { title: "Pintura automotiva", description: "Pintura e retoques. Peça um orçamento." },
+    { title: "Polimento", description: "Pergunte pelos serviços de acabamento disponíveis." },
+    { title: "Orçamento", description: "Conte o que aconteceu com o veículo e receba um orçamento." },
+  ],
+  lavagem: [
+    { title: "Lavagem", description: "Consulte os tipos de lavagem e os valores." },
+    { title: "Polimento e cristalização", description: "Pergunte pelos serviços de estética disponíveis." },
+    { title: "Higienização interna", description: "Limpeza do interior do veículo: confirme com a equipe." },
+    { title: "Agendamento", description: "Combine um horário para levar o seu carro." },
+  ],
+  vistoria: [
+    { title: "Vistoria veicular", description: "Confirme com o local o tipo de vistoria atendido." },
+    { title: "Documentos necessários", description: "Pergunte quais documentos levar." },
+    { title: "Agendamento", description: "Combine o seu horário de atendimento." },
+  ],
   salao: [
     { title: "Corte e escova", description: "Corte e finalização de acordo com o seu estilo." },
     { title: "Coloração", description: "Tons e técnicas combinados com a profissional." },

@@ -61,6 +61,8 @@ export const GLTF_ASSETS: Record<string, { label: string; authors: string; url: 
 /** Modelo escaneado para cada objeto do conceito (ausente = página com fotografia). */
 export function assetForModel(model: string, seed: number, segmentKey?: string): string | null {
   if (segmentKey === "construcao") return "cross_pein_hammer";
+  // Concessionária, pneus, lavagem etc.: uma chave inglesa não representa o negócio, então usa fotografia.
+  if (segmentKey && ["concessionaria", "autopecas", "pneus", "funilaria", "lavagem", "vistoria"].includes(segmentKey)) return null;
   if (model === "croissant") return "croissant";
   if (model === "cake") return seed % 2 ? "strawberry_chocolate_cake" : "carrot_cake";
   if (model === "loaf") return "hamburger_buns";

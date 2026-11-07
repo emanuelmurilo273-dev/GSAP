@@ -18,7 +18,7 @@ const ALT: Record<string, string> = {
   estetica: "Tratamento de estética e bem-estar", cafe: "Café especial", padaria: "Pães artesanais", confeitaria: "Doces e bolos de confeitaria",
   odonto: "Consultório odontológico", clinica: "Atendimento em clínica", academia: "Equipamentos de academia", oficina: "Serviço em oficina mecânica",
   roupas: "Loja de roupas", pet: "Cuidado com pets", imobiliaria: "Ambiente de imóvel", hamburguer: "Hambúrguer artesanal", otica: "Óculos de grau",
-  construcao: "Ferramentas e obra",
+  construcao: "Ferramentas e obra", carros: "Veículos em concessionária", autopecas: "Peças e componentes automotivos", funilaria: "Funilaria e pintura automotiva", lavagem: "Lavagem e estética automotiva",
 };
 
 const BY_MODEL: Record<ModelKind, string> = {
@@ -29,10 +29,12 @@ const BY_MODEL: Record<ModelKind, string> = {
   hanger: "roupas", tshirt: "roupas", bone: "pet", paw: "pet", key: "imobiliaria", house: "imobiliaria", pill: "clinica", glasses: "otica",
 };
 /** Ramos com poucas fotos completam com um ramo vizinho (sem repetir foto). */
-const NEIGHBOR: Record<string, string> = { salao: "estetica", estetica: "salao", clinica: "odonto", hamburguer: "restaurante", pizza: "restaurante", cafe: "confeitaria", confeitaria: "padaria", padaria: "confeitaria", construcao: "oficina" };
+const NEIGHBOR: Record<string, string> = { salao: "estetica", estetica: "salao", clinica: "odonto", hamburguer: "restaurante", pizza: "restaurante", cafe: "confeitaria", confeitaria: "padaria", padaria: "confeitaria", construcao: "oficina", carros: "autopecas", autopecas: "oficina", funilaria: "oficina", lavagem: "autopecas" };
+
+const SEGMENT_PHOTO: Record<string, string> = { construcao: "construcao", concessionaria: "carros", autopecas: "autopecas", pneus: "autopecas", funilaria: "funilaria", lavagem: "lavagem", vistoria: "oficina" };
 
 export function libraryKey(model: ModelKind | undefined, segmentKey?: string): string {
-  if (segmentKey === "construcao") return "construcao";
+  if (segmentKey && SEGMENT_PHOTO[segmentKey]) return SEGMENT_PHOTO[segmentKey]!;
   return (model && BY_MODEL[model]) || (segmentKey && CATALOG[segmentKey] ? segmentKey : "restaurante");
 }
 
