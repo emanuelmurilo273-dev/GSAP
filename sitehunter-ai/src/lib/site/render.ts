@@ -951,13 +951,20 @@ ${uses3d ? `if(!lite&&matchMedia('(pointer: fine)').matches)d.querySelectorAll('
 })();`;
 }
 
-/** Política de segurança de conteúdo aplicada aos sites publicados (scriptOrigin: de onde vem o three.js). */
-export function publishedSiteCsp(scriptOrigin?: string) {
+/**
+ * Política de segurança de conteúdo aplicada aos sites publicados (scriptOrigin: de onde vem o three.js).
+ * Só os sites que usam uma cena do Spline recebem as permissões extras: o script do viewer (unpkg, versão
+ * fixa), a origem das cenas (prod.spline.design) e 'unsafe-eval', que o motor do Spline exige (confirmado em teste).
+ * Essas páginas continuam em sandbox de origem opaca: sem cookies, sem acesso às APIs do painel, conexões só para as origens listadas.
+ */
+export function publishedSiteCsp(scriptOrigin?: string, opts: { spline?: boolean } = {}) {
   const o = scriptOrigin ? " " + scriptOrigin : "";
+  const sp = opts.spline;
+  const connect = [scriptOrigin, ...(sp ? ["https://prod.spline.design", "https://unpkg.com"] : [])].filter(Boolean).join(" ") || "'none'";
   return PUBLISHED_SITE_CSP
-    .replace("script-src 'unsafe-inline'", `script-src 'unsafe-inline'${o}`)
+    .replace("script-src 'unsafe-inline'", `script-src 'unsafe-inline'${o}${sp ? " https://unpkg.com 'unsafe-eval'" : ""}`)
     .replace("img-src https: data:", `img-src https: data:${o}`)
-    .replace("form-action 'none'", `connect-src${o || " 'none'"}; form-action 'none'`);
+    .replace("form-action 'none'", `connect-src ${connect}; ${sp ? "worker-src blob:; " : ""}form-action 'none'`);
 }
 
 export const PUBLISHED_SITE_CSP = [

@@ -2,12 +2,13 @@
 import { useRef } from "react";
 
 /** Cartão com profundidade: inclina levemente seguindo o ponteiro (desligado com reduced-motion via CSS). */
-export function TiltCard({ children, className = "", as: Tag = "div" }: { children: React.ReactNode; className?: string; as?: "div" | "article" }) {
+export function TiltCard({ children, className = "", as: Tag = "div", style }: { children: React.ReactNode; className?: string; as?: "div" | "article"; style?: React.CSSProperties }) {
   const ref = useRef<HTMLElement>(null);
   return (
     <Tag
       ref={ref as never}
       className={`tilt ${className}`}
+      style={style}
       onPointerMove={(e) => {
         const el = ref.current;
         if (!el || e.pointerType !== "mouse") return;

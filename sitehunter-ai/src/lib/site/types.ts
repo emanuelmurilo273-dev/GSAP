@@ -144,6 +144,8 @@ export const ConceptSchema = z.object({
   /** Foto real de prato (CC0) usada como superfície do prato/pizza/café em 3D. */
   dish: z.string().max(20).optional(),
   seed: z.number().int().nonnegative(),
+  /** Cena 3D do Spline (endereço .splinecode publicado). Opcional: sem ela, o site usa foto em profundidade ou modelo escaneado. */
+  spline: z.object({ url: z.string().max(200) }).optional(),
 });
 export type Concept = z.infer<typeof ConceptSchema>;
 

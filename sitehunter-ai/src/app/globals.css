@@ -40,6 +40,73 @@
 html { color-scheme: dark; }
 body { background: var(--color-ink-950); color: #e2e8f0; -webkit-font-smoothing: antialiased; }
 
+/* ---------- Fundo ambiente (só CSS) ---------- */
+.ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.ambient .amb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .5; will-change: transform; }
+.ambient .a1 { width: 640px; height: 640px; left: -140px; top: -220px; background: radial-gradient(circle, rgba(37,99,235,.55), transparent 65%); animation: amb-drift 26s ease-in-out infinite alternate; }
+.ambient .a2 { width: 520px; height: 520px; right: -120px; top: 12%; background: radial-gradient(circle, rgba(34,211,238,.28), transparent 65%); animation: amb-drift 32s ease-in-out -8s infinite alternate-reverse; }
+.ambient .a3 { width: 560px; height: 560px; left: 30%; bottom: -320px; background: radial-gradient(circle, rgba(196,240,74,.14), transparent 65%); animation: amb-drift 38s ease-in-out -14s infinite alternate; }
+.ambient .amb-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(96,165,250,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,.045) 1px, transparent 1px); background-size: 56px 56px; mask-image: radial-gradient(ellipse at 50% 0%, #000 10%, transparent 72%); }
+@keyframes amb-drift { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(60px,40px,0) scale(1.12); } }
+.app-layer { position: relative; z-index: 1; }
+
+/* ---------- Luz que segue o mouse nos cartões ---------- */
+.card { position: relative; }
+.card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .35s; background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 0%), rgba(96,165,250,.13), transparent 62%); }
+@media (hover: hover) { .card:hover::before { opacity: 1; } }
+
+/* ---------- Faixa de abertura da busca ---------- */
+.hunter-hero { position: relative; overflow: hidden; margin-bottom: 1.75rem; border-radius: 1.5rem; border: 1px solid rgba(255,255,255,.07); background: radial-gradient(120% 140% at 50% 120%, rgba(37,99,235,.28), transparent 60%), var(--color-ink-900); min-height: 232px; display: flex; align-items: flex-end; }
+.hunter-hero-fx { position: absolute; inset: 0; pointer-events: none; }
+.hunter-hero-fx canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hunter-hero-copy { position: relative; z-index: 1; width: 100%; padding: clamp(18px, 3vw, 32px); text-align: center; background: linear-gradient(180deg, transparent, rgba(4,6,11,.55) 55%); }
+.hunter-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-brand-300); }
+.hunter-eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--color-signal); box-shadow: 0 0 0 0 rgba(196,240,74,.6); animation: vis-pulse 2.4s ease-in-out infinite; }
+.hunter-hero h2 { margin: 10px auto 0; max-width: 46ch; font-size: clamp(20px, 2.6vw, 30px); line-height: 1.18; font-weight: 700; letter-spacing: -.02em; background: linear-gradient(180deg, #fff 35%, #9db8e8); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-wrap: balance; }
+.hunter-points { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 16px; }
+.hunter-points li { display: flex; flex-direction: column; padding: 8px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.09); background: rgba(10,16,29,.6); backdrop-filter: blur(8px); text-align: left; }
+.hunter-points b { font-size: 13px; color: #e2e8f0; } .hunter-points span { font-size: 11.5px; color: #94a3b8; }
+@media (max-width: 640px) { .hunter-hero { min-height: 250px; } .hunter-points li { flex: 1 1 100%; } }
+
+/* ---------- Painel de busca com borda luminosa ---------- */
+.glow-panel { position: relative; border-radius: 1.25rem; }
+.glow-panel::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; background: conic-gradient(from var(--ang, 0deg), rgba(96,165,250,.0), rgba(96,165,250,.55), rgba(196,240,74,.35), rgba(96,165,250,0) 70%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: .55; transition: opacity .4s; pointer-events: none; animation: ang-spin 9s linear infinite; }
+.glow-panel:focus-within::before { opacity: 1; }
+@property --ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes ang-spin { to { --ang: 360deg; } }
+
+/* ---------- Atalhos de ramo ---------- */
+.niche-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.niche-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 12px; color: #cbd5e1; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); transition: transform .25s var(--studio-ease), border-color .25s, background .25s, color .25s; cursor: pointer; }
+.niche-chip:hover { transform: translateY(-1px); border-color: rgba(96,165,250,.5); background: rgba(59,130,246,.12); color: #fff; }
+.niche-chip[aria-pressed="true"] { border-color: var(--color-signal); color: #0a101d; background: var(--color-signal); font-weight: 600; }
+.niche-chip i { width: 7px; height: 7px; border-radius: 50%; background: hsl(var(--h, 210) 90% 62%); box-shadow: 0 0 10px hsl(var(--h, 210) 90% 62% / .8); }
+
+/* ---------- Cartão de lead: acento do ramo ---------- */
+.lead-card { overflow: hidden; }
+.lead-card::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: linear-gradient(90deg, transparent, hsl(var(--h, 210) 90% 62% / .9), transparent); opacity: .75; }
+.lead-card { transition: transform .35s var(--studio-ease), box-shadow .35s, border-color .3s; }
+@media (hover: hover) { .lead-card:hover { transform: translateY(-3px); box-shadow: 0 24px 50px -28px hsl(var(--h, 210) 90% 55% / .55); border-color: hsl(var(--h, 210) 90% 62% / .35); } }
+
+/* ---------- Navegação ---------- */
+.nav-item { position: relative; }
+.nav-item[aria-current="page"]::before { content: ""; position: absolute; left: -12px; top: 18%; bottom: 18%; width: 3px; border-radius: 3px; background: linear-gradient(var(--color-brand-400), var(--color-signal)); box-shadow: 0 0 14px rgba(96,165,250,.8); }
+.nav-step { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 6px; font-size: 10px; font-weight: 700; color: #64748b; background: rgba(255,255,255,.05); transition: color .25s, background .25s; }
+.nav-item[aria-current="page"] .nav-step, .nav-item:hover .nav-step { color: #0a101d; background: var(--color-signal); }
+.logo-glow { filter: drop-shadow(0 0 14px rgba(59,130,246,.55)); }
+
+/* ---------- Título das páginas ---------- */
+.h-grad { background: linear-gradient(180deg, #fff 40%, #a9c2ee); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* ---------- Etapas da busca ---------- */
+.pipe-list { position: relative; display: grid; gap: 10px; }
+.pipe-list::before { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(rgba(255,255,255,.08), rgba(255,255,255,.02)); }
+.pipe-step { position: relative; }
+
+/* ---------- Carregamento (formato de cartões) ---------- */
+.skeleton-card { height: 190px; border-radius: 1rem; border: 1px solid rgba(255,255,255,.05); background: linear-gradient(160deg, rgba(14,22,38,.9), rgba(10,16,29,.9)); position: relative; overflow: hidden; }
+.skeleton-card::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(96,165,250,.09), transparent); animation: shimmer 1.6s ease-in-out infinite; }
+
 @utility card { @apply rounded-2xl border border-white/[0.06] bg-ink-850/80 backdrop-blur-sm shadow-[0_0_0_1px_rgba(59,130,246,0.03),0_20px_40px_-24px_rgba(0,0,0,0.8)]; }
 @utility card-hover { @apply transition duration-300 hover:-translate-y-0.5 hover:border-brand-500/30 hover:shadow-[0_0_0_1px_rgba(59,130,246,0.15),0_20px_50px_-20px_rgba(37,99,235,0.35)]; }
 @utility btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400; }
@@ -145,6 +212,7 @@ body { background: var(--color-ink-950); color: #e2e8f0; -webkit-font-smoothing:
 .pipe-step.is-active .pipe-dot { animation: pulse-glow 1.2s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
+  .ambient .amb, .glow-panel::before { animation: none !important; }
   .tilt { transform: none !important; }
   .route-enter { animation: none !important; }
   *, *::before, *::after { animation: none !important; transition: none !important; }

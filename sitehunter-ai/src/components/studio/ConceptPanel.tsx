@@ -1,6 +1,7 @@
 "use client";
 import type { Concept, SiteContent } from "@/lib/site/types";
 import { MATERIALS, MATERIAL_LABEL, MODEL_KINDS, MODEL_LABEL, type Material, type ModelKind } from "@/lib/site/immersive/kinds";
+import { isSplineUrl } from "@/lib/site/spline";
 import { buildConcept, relabelModel, varyConcept } from "@/lib/site/immersive/concept";
 
 /** Conceito da Vitrine 3D: o que foi escolhido para esta empresa e por quê. */
@@ -35,6 +36,12 @@ export function ConceptPanel({ content, onChange }: { content: SiteContent; onCh
           <input className="input" maxLength={14} value={k.heroWord} onChange={(e) => set({ ...k, heroWord: e.target.value.toUpperCase() })} />
         </label>
       </div>
+      <label className="block"><span className="label">Cena 3D do Spline (opcional)</span>
+        <input className="input" inputMode="url" placeholder="https://prod.spline.design/…/scene.splinecode" value={k.spline?.url ?? ""} onChange={(e) => { const v = e.target.value.trim(); set({ ...k, spline: v ? { url: v } : undefined }); }} />
+        <span className={`mt-1 block text-[11px] ${k.spline?.url ? (isSplineUrl(k.spline.url) ? "text-emerald-300" : "text-amber-300") : "text-slate-500"}`}>
+          {k.spline?.url ? (isSplineUrl(k.spline.url) ? "Endereço válido: a cena entra no painel da abertura em computador e tablet; no celular, com economia de dados ou movimento reduzido, a página usa a foto." : "Endereço não reconhecido: só valem endereços https://prod.spline.design/…/scene.splinecode (Spline → Export → Viewer). Enquanto isso, o site usa a foto.") : "Crie a cena no Spline (spline.design), publique em Export → Viewer e cole o endereço .splinecode aqui. Sem cena, o site usa a foto em profundidade ou o modelo escaneado."}
+        </span>
+      </label>
       <button type="button" className="btn-secondary w-full py-2 text-sm" onClick={() => set(varyConcept(k))}>Outra variação (paleta, fontes, movimento)</button>
       <p className="text-[11px] text-slate-500">O objeto 3D é ilustrativo e o site informa isso no rodapé. Fotos reais da empresa entram na galeria e no “Sobre”.</p>
     </div>

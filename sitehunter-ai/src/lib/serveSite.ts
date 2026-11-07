@@ -38,7 +38,7 @@ export async function serveSite(lookup: { slug?: string; domain?: string }, meth
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Content-Security-Policy": publishedSiteCsp(new URL(env.appUrl).origin),
+      "Content-Security-Policy": publishedSiteCsp(new URL(env.appUrl).origin, { spline: pub.html.includes('class="spl" data-spline') }),
       "Cache-Control": "public, max-age=0, must-revalidate",
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "strict-origin-when-cross-origin",

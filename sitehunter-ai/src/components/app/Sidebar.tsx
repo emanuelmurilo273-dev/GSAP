@@ -34,14 +34,15 @@ function NavList({ items, onNavigate }: { items: Item[]; onNavigate?: () => void
               href={i.href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+              className={`nav-item group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                 active ? "bg-gradient-to-r from-brand-600/25 to-brand-500/5 text-white ring-1 ring-brand-500/30" : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
               }`}
             >
               <svg viewBox="0 0 24 24" className={`h-[18px] w-[18px] ${active ? "text-brand-400" : "text-slate-500 group-hover:text-brand-400"}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d={i.icon} />
               </svg>
-              {i.label}
+              <span className="flex-1">{i.label}</span>
+              {"step" in i && i.step ? <span className="nav-step" aria-hidden="true">{i.step as string}</span> : null}
             </Link>
           </li>
         );
@@ -58,7 +59,7 @@ export function Sidebar({ name, email, isAdmin, privateMode = false }: { name: s
   }
   const content = (
     <div className="flex h-full flex-col">
-      <div className="px-4 py-5"><Logo href="/app/buscar" /></div>
+      <div className="logo-glow px-4 py-5"><Logo href="/app/buscar" /></div>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3">
         <NavList items={MAIN} onNavigate={() => setOpen(false)} />
         {isAdmin && (

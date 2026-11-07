@@ -8,6 +8,8 @@ import { generateSiteCopy } from "@/lib/ai";
 import { buildSiteContent, getSegment } from "@/lib/site/templates";
 import { searchLicensedImages, trackImageDownload } from "@/lib/images";
 import { libraryImages, libraryKey } from "@/lib/site/photoLibrary";
+import { nicheOf } from "@/lib/site/nicheProfile";
+import { env } from "@/lib/env";
 import { probeImage } from "@/lib/site/imageProbe";
 import type { ImageCandidate } from "@/lib/leads/types";
 import type { SiteImage } from "@/lib/site/types";
@@ -74,6 +76,11 @@ export const POST = route(async (req) => {
     const { copy, ai } = await generateSiteCopy(info, segment, b.instructions, language);
     const content = buildSiteContent(info, segment, copy, [...usable, ...extra]);
     content.libraryVersion = 1;
+    // Cena do Spline configurada para o ramo (SPLINE_SCENES): só entra se o ramo tiver uma cena válida.
+    if (content.concept) {
+      const sceneUrl = env.splineScenes[nicheOf(content.concept.model, `${info.name} ${info.category ?? ""} ${segment.key}`).key];
+      if (sceneUrl) content.concept = { ...content.concept, spline: { url: sceneUrl } };
+    }
     if (rejected) content.reviewNotes.push(`${rejected} foto(s) aprovada(s) da empresa não abriram ou são pequenas demais para o site (menos de 700 px): continuam no lead, mas ficaram fora da página.`);
     // Nunca repetir a mesma combinação (objeto + paleta + composição) de outra prévia do usuário.
     if (content.concept) {

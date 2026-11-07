@@ -10,7 +10,7 @@ export function PageSkeleton({ variant = "list" }: { variant?: "list" | "profile
       {variant === "list" && (
         <>
           <Sk className="h-56 w-full rounded-2xl" />
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <Sk key={i} className="h-60 rounded-2xl" />)}</div>
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton-card" style={{ animationDelay: `${i * 80}ms` }} aria-hidden />)}</div>
         </>
       )}
       {variant === "profile" && (

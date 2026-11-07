@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "./Sidebar";
 import { Toaster } from "@/components/ui";
+import { AmbientBackdrop, Spotlight } from "@/components/hunter/Ambient";
 import { env } from "@/lib/env";
 import { getUsage } from "@/lib/usage";
 import { isPrivateMode } from "@/lib/owner";
@@ -21,6 +22,9 @@ export async function Shell({ children, admin = false }: { children: React.React
 
   return (
     <div className="min-h-screen">
+      <AmbientBackdrop />
+      <Spotlight />
+      <div className="app-layer">
       <Sidebar name={user.name} email={user.email} isAdmin={user.role === "ADMIN"} privateMode={isPrivateMode()} />
       <div className="lg:pl-64">
         <div className="space-y-2 px-4 pt-4 sm:px-8">
@@ -48,6 +52,7 @@ export async function Shell({ children, admin = false }: { children: React.React
         <main className="px-4 pb-28 pt-6 sm:px-8 sm:py-8 lg:pb-8">{children}</main>
       </div>
       <Toaster />
+      </div>
     </div>
   );
 }
@@ -56,7 +61,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between animate-fade-up">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{title}</h1>
+        <h1 className="h-grad text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}

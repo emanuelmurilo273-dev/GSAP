@@ -8,12 +8,13 @@
 //  - leve: camadas estáticas pré-desenhadas, chamas por sprite, 30 quadros/s, pausa fora da tela.
 //  - sempre há um gradiente estático em CSS por baixo (sem canvas, ou com "reduzir movimento": um quadro só).
 export function arcRuntime(cfg) {
-  var cv = document.querySelector("[data-arc]");
-  if (!cv) return;
+  // Reutilizável (sites e interface do Hunter): seletores e posição do arco podem ser informados; devolve a limpeza.
+  var cv = document.querySelector(cfg.canvas || "[data-arc]");
+  if (!cv) return function () {};
   var ctx = cv.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return function () {};
   var host = cv.parentElement;
-  var panel = document.querySelector("[data-arc-panel]");
+  var panel = cfg.panel === null ? null : document.querySelector(cfg.panel || "[data-arc-panel]");
   var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var dark = cfg.dark, kind = cfg.kind, C = cfg.c;
   var W = 0, H = 0, cx = 0, cy = 0, R = 0, apex = 0, dpr = 1, small = false;
@@ -41,9 +42,9 @@ export function arcRuntime(cfg) {
     dpr = small ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    var top = panel ? panel.offsetTop : H * 0.5;
+    var top = panel ? panel.offsetTop : H * (cfg.apexRatio || 0.5);
     R = Math.min(W * (small ? 1.05 : 0.74), 1400);
-    apex = top - (small ? 14 : 30);
+    apex = top - (panel ? (small ? 14 : 30) : 0);
     cx = W / 2; cy = apex + R;
     // camada do brilho largo (estática)
     var L = layer(), g = L[1];
@@ -133,15 +134,24 @@ export function arcRuntime(cfg) {
   if (reduce) { frame(performance.now() + 100); }
   else start();
   var rt = 0;
-  window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { size(); if (reduce) frame(performance.now() + 100); }, 150); }, { passive: true });
-  if ("IntersectionObserver" in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; if (visible) start(); else if (raf) { cancelAnimationFrame(raf); raf = 0; } }).observe(host);
-  var hero = host.closest(".hero") || host;
-  hero.addEventListener("pointermove", function (e) {
+  var onResize = function () { clearTimeout(rt); rt = setTimeout(function () { size(); if (reduce) frame(performance.now() + 100); }, 150); };
+  window.addEventListener("resize", onResize, { passive: true });
+  var io = null;
+  if ("IntersectionObserver" in window) { io = new IntersectionObserver(function (e) { visible = e[0].isIntersecting; if (visible) start(); else if (raf) { cancelAnimationFrame(raf); raf = 0; } }); io.observe(host); }
+  var hero = host.closest(cfg.hero || ".hero") || host;
+  var onMove = function (e) {
     if (e.pointerType === "touch") return;
     var r = host.getBoundingClientRect(); auto = false;
     mx = (e.clientX - r.left) / r.width;
     tgt = Math.max(0.15, 1 - Math.abs(e.clientY - r.top - apex) / (r.height * 0.45)); start();
-  }, { passive: true });
-  hero.addEventListener("pointerleave", function () { auto = true; });
+  };
+  var onLeave = function () { auto = true; };
+  hero.addEventListener("pointermove", onMove, { passive: true });
+  hero.addEventListener("pointerleave", onLeave);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { size(); if (reduce) frame(performance.now() + 100); });
+  return function () {
+    visible = false; if (raf) cancelAnimationFrame(raf); raf = 0; clearTimeout(rt);
+    window.removeEventListener("resize", onResize); if (io) io.disconnect();
+    hero.removeEventListener("pointermove", onMove); hero.removeEventListener("pointerleave", onLeave);
+  };
 }

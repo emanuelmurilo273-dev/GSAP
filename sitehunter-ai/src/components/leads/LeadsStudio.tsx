@@ -9,6 +9,7 @@ import { DemoBadge, FactBadge, ScoreMeter } from "./FactBadge";
 import type { LeadView, ProviderRow, SearchRow } from "./types";
 import { CityPicker } from "./CityPicker";
 import { formatBrPhone, validBrPhone } from "@/lib/whatsapp";
+import { nicheFromText } from "@/lib/site/nicheProfile";
 import { parseSchedule, statusAt, statusText, timezoneFor, timezoneFromAddress } from "@/lib/site/openHours";
 
 const coverageOf = (s: SearchRow) => (s.log ?? []).find((x) => x.step === "coverage")?.detail ?? null;
@@ -19,7 +20,10 @@ const LANGS = [
   { code: "es", label: "Español" },
 ] as const;
 
-const STEPS = ["Descobrindo empresas na fonte", "Removendo duplicadas", "Verificando sites públicos (robots.txt respeitado)", "Confirmando WhatsApp comercial em fonte pública", "Registrando fontes e oportunidades"];
+const STEPS = ["Descobrindo empresas na fonte", "Removendo duplicadas", "Verificando sites públicos (robots.txt respeitado)", "Conferindo telefone, e-mail, site e WhatsApp (quando houver)", "Lendo horários e registrando fontes"];
+/** Atalhos de ramo da busca, com a cor de cada ramo (mesma linguagem visual dos sites gerados). */
+const NICHE_CHIPS: { q: string; h: number }[] = [{ q: "barbearia", h: 28 }, { q: "pizzaria", h: 18 }, { q: "restaurante", h: 24 }, { q: "hamburgueria", h: 12 }, { q: "salão de beleza", h: 320 }, { q: "oficina mecânica", h: 205 }, { q: "clínica odontológica", h: 165 }, { q: "academia", h: 85 }, { q: "pet shop", h: 38 }, { q: "padaria", h: 42 }];
+const GLOW_HUE: Record<string, number> = { fire: 18, gold: 42, neon: 28, sparks: 205, halo: 290, pulse: 85 };
 
 const OPP_FILTERS = [
   { key: "all", label: "Todas" },
@@ -173,7 +177,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
   return (
     <div className="space-y-6">
       {/* ---------- Configuração da busca ---------- */}
-      {mode === "search" && <section className="card relative overflow-hidden">
+      {mode === "search" && <section className="card glow-panel relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 grid-bg opacity-50 [mask-image:radial-gradient(ellipse_at_top_right,black_10%,transparent_65%)]" />
         <div className="relative grid gap-0 xl:grid-cols-[1.15fr_1fr]">
           <form onSubmit={start} className="space-y-5 p-5 sm:p-7">
@@ -213,6 +217,9 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
                   <span className="label">Nicho</span>
                   <input className="input" list="niches" required minLength={2} maxLength={80} placeholder="ex.: barbearia, clínica odontológica" value={form.niche} onChange={(e) => setForm({ ...form, niche: e.target.value })} />
                   <datalist id="niches">{nicheSuggestions.map((n) => <option key={n} value={n} />)}</datalist>
+                  <div className="niche-chips" role="group" aria-label="Atalhos de ramo">
+                    {NICHE_CHIPS.map((c) => <button key={c.q} type="button" className="niche-chip" style={{ ["--h" as string]: c.h }} aria-pressed={form.niche.trim().toLowerCase() === c.q} onClick={() => setForm({ ...form, niche: c.q })}><i aria-hidden="true" />{c.q}</button>)}
+                  </div>
                 </label>
                 <CityPicker value={form.location} uf={form.uf} cityIbge={form.cityIbge} onChange={(v) => setForm({ ...form, ...v })} />
                 <label className="block">
@@ -243,7 +250,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
             {running && <div className="progress-line" role="progressbar" aria-label="Buscando leads" />}
             <div className="flex flex-wrap items-center gap-3">
               <button className={`btn-primary ${running ? "btn-busy" : ""}`} disabled={running || !canRun || (provider === "google_places" && realBlocked) || (provider === "osm" && !premium)}>
-                {running ? <><Spinner /> Buscando e verificando WhatsApp…</> : provider === "import" ? "Importar e analisar" : "Iniciar busca"}
+                {running ? <><Spinner /> Buscando e verificando contatos…</> : provider === "import" ? "Importar e analisar" : "Iniciar busca"}
               </button>
               <p className="text-xs text-slate-500">{provider === "google_places" ? "Usa 1 pesquisa da cota mensal (cobrada pelo Google)." : provider === "osm" ? "Gratuita; respeita o limite de uso do OpenStreetMap." : "Não consome a cota."} Nenhuma empresa é contatada.</p>
             </div>
@@ -332,10 +339,10 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
       ) : !shown.length ? (
         <div className="card p-8 text-center text-sm text-slate-400">Nenhum lead com esses filtros. <button className="text-brand-300 underline" onClick={() => { setOpp("all"); setQ(""); setDataset("all"); setSearchFilter(""); setStage("all"); setContact("all"); }}>Limpar filtros</button></div>
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {shown.map((l, i) => (
-            <li key={l.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
-              <TiltCard as="article" className={`card flex h-full flex-col p-5 ${l.isDemo ? "ring-1 ring-amber-400/20" : ""} ${fresh.has(l.id) ? "lead-new" : ""}`}>
+            <li key={l.id} className="min-w-0 animate-fade-up" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
+              <TiltCard as="article" style={{ ["--h" as string]: GLOW_HUE[nicheFromText(`${l.category ?? ""} ${l.name}`).glow] ?? 210 }} className={`card lead-card flex h-full flex-col p-5 ${l.isDemo ? "ring-1 ring-amber-400/20" : ""} ${fresh.has(l.id) ? "lead-new" : ""}`}>
                 <div className="lift flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate font-semibold text-white">{l.name}</h3>

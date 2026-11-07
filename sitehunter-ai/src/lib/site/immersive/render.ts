@@ -4,6 +4,7 @@ import { buildConcept, withMood } from "./concept";
 import { realRuntime } from "./realRuntime";
 import { arcRuntime } from "./arcRuntime";
 import { nicheOf } from "../nicheProfile";
+import { SPLINE_VIEWER_SRC, isSplineUrl, splineRuntime } from "../spline";
 import { GLTF_ASSETS, assetForModel } from "./kinds";
 import { libraryMetaBySrc } from "../photoLibrary";
 import { hoursRuntime, parseDays, parseSchedule, statusAt, statusText, timezoneFromAddress, todayText } from "../openHours";
@@ -61,6 +62,14 @@ function picture(i: Img, sizes: string, opts: { eager?: boolean; cls?: string } 
   const srcset = meta && m ? ` srcset="${esc(`${m[1]}-m.jpg`)} ${Math.min(mw, meta.w)}w, ${esc(i.src)} ${meta.w}w" sizes="${esc(sizes)}"` : "";
   const dims = meta ? ` width="${meta.w}" height="${meta.h}"` : "";
   return `<img${opts.cls ? ` class="${opts.cls}"` : ""} src="${esc(i.src)}"${srcset}${dims} alt="${esc(i.alt)}" ${opts.eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">`;
+}
+/** Pré-carga com o mesmo srcset do <img>: o navegador baixa só a versão que vai usar (sem baixar duas vezes). */
+function preloadImage(i: Img, sizes: string): string {
+  const meta = libraryMetaBySrc(i.src);
+  const m = i.src.match(/^(.*\/photos\/[a-z]+\/(h?)\d+)\.jpg$/);
+  if (!meta || !m) return `<link rel="preload" as="image" href="${esc(i.src)}">`;
+  const mw = Math.min(m[2] ? 1200 : 640, meta.w);
+  return `<link rel="preload" as="image" href="${esc(i.src)}" imagesrcset="${esc(`${m[1]}-m.jpg`)} ${mw}w, ${esc(i.src)} ${meta.w}w" imagesizes="${esc(sizes)}">`;
 }
 function figure(i: Img, sizes: string, cls: string, eager = false, extra = ""): string {
   return `<figure class="${cls}"${extra}>${picture(i, sizes, { eager })}${imageCaption(i)}</figure>`;
@@ -151,9 +160,14 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     !wa && !b.phone && b.email ? { t: "E-mail", v: b.email } : null,
   ].filter((x): x is { t: string; v: string } => !!x).slice(0, 2);
   const hotAction = mainBtn ? { ...mainBtn, label: mainBtn.action === "whatsapp" || mainBtn.action === "section" ? niche.panelCta : mainBtn.action === "phone" ? "Ligar agora" : mainBtn.label } : null;
-  const media = asset
-    ? `<div class="stage" data-stage3d aria-hidden="true"><canvas></canvas>${heroImg ? picture(heroImg, "(max-width: 900px) 100vw, 40vw", { cls: "stage-fallback" }) : ""}<span class="stage-loading">Carregando modelo 3D…</span></div>`
-    : heroImg ? figure(heroImg, "(max-width: 900px) 100vw, 40vw", "ph", true) : `<div class="ph ph-empty" aria-hidden="true"><b>${esc(brand.charAt(0))}</b></div>`;
+  // Palco do painel, por prioridade: cena do Spline (se configurada e válida) > modelo escaneado > foto em profundidade.
+  const splineUrl = isSplineUrl(k.spline?.url) ? k.spline!.url.trim() : null;
+  const photoMedia = heroImg ? figure(heroImg, "(max-width: 900px) 100vw, 40vw", "ph", true) : `<div class="ph ph-empty" aria-hidden="true"><b>${esc(brand.charAt(0))}</b></div>`;
+  const media = splineUrl
+    ? `<div class="spl" data-spline data-spline-state="waiting"><div class="spl-fallback">${photoMedia}</div><span class="spl-load" aria-hidden="true">Carregando cena 3D…</span></div>`
+    : asset
+      ? `<div class="stage" data-stage3d aria-hidden="true"><canvas></canvas>${heroImg ? picture(heroImg, "(max-width: 900px) 100vw, 40vw", { cls: "stage-fallback" }) : ""}<span class="stage-loading">Carregando modelo 3D…</span></div>`
+      : photoMedia;
   const ribbon = niche.accent ? `<div class="ap-ribbon ${niche.accent}" aria-hidden="true"></div>` : "";
   const panel = `<div class="arc-panel" data-arc-panel>
     ${ribbon}
@@ -166,7 +180,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     <div class="ap-main">
       <header class="ap-head"><div><h2>${esc(niche.panelTitle)}</h2>${todayStr ? `<p class="ap-sub">Hoje · <b data-today>${esc(todayStr)}</b></p>` : `<p class="ap-sub">Horário não informado</p>`}</div>${statusPill()}</header>
       <div class="ap-grid">
-        <div class="ap-media">${media}</div>
+        <div class="ap-media"${!asset && !splineUrl ? " data-tilt-media" : ""}>${media}</div>
         ${b.address ? `<div class="ap-card"><span>Endereço</span><p>${esc(b.address.split("·").slice(0, 2).join(" ·"))}</p><a href="${esc(mapsHref(c))}" target="_blank" rel="noopener noreferrer">Abrir no mapa →</a></div>` : ""}
         ${contactLines.length ? `<div class="ap-card"><span>Contato</span>${contactLines.map((l) => `<p><small>${esc(l.t)}</small> ${esc(l.v)}</p>`).join("")}</div>` : ""}
         ${hotAction ? button(hotAction, c, "ap-card hot").replace(/>([^<]+)<\/a>$/, (_m, t) => `><span>${niche.label}</span><b>${t}</b><em aria-hidden="true">${arrow}</em></a>`) : ""}
@@ -320,7 +334,7 @@ ${opts.noindex ? '<meta name="robots" content="noindex, nofollow">' : ""}
 <meta name="color-scheme" content="${ivory ? "light" : "dark"}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${fontsHref([k.display, k.body])}">
-${heroImg && !asset ? `<link rel="preload" as="image" href="${esc(heroImg.src)}">` : ""}
+${heroImg && !asset ? preloadImage(heroImg, kind === "cinema" ? "100vw" : "(max-width: 900px) 100vw, 40vw") : ""}
 <style>
 :root{--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mu:${P.muted};--ac:${P.accent};--ac2:${P.accent2};--fd:'${k.display}',Georgia,serif;--fb:'${k.body}',system-ui,sans-serif;--ts:${ts};--line:color-mix(in srgb,var(--ink) 13%,transparent);--card:color-mix(in srgb,var(--ink) ${ivory ? 4 : 6}%,var(--bg));--shadow:${ivory ? "0 30px 70px -34px rgba(40,30,20,.4)" : "0 40px 90px -40px rgba(0,0,0,.95)"};--r:${ivory ? "12px" : "18px"};--gut:clamp(16px,5vw,72px);--ease:cubic-bezier(.2,.75,.15,1);color-scheme:${ivory ? "light" : "dark"}}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -420,6 +434,17 @@ figure figcaption a{color:#fff}
 .ap-media{grid-row:span 2;position:relative;min-height:300px}
 .ap-media .ph,.ap-media .stage{height:100%;min-height:300px;border-radius:16px;box-shadow:none}
 .ap-media .stage{position:relative;inset:auto;aspect-ratio:auto;width:100%}
+.spl{position:relative;height:100%;min-height:300px;border-radius:16px;overflow:hidden;background:radial-gradient(70% 60% at 50% 42%,color-mix(in srgb,var(--ink) 10%,var(--bg2)),var(--bg2) 72%)}
+.spl-fallback{position:absolute;inset:0;transition:opacity 1.1s}.spl-fallback .ph{border-radius:0;box-shadow:none}
+.spl spline-viewer{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity 1.1s;transform:translateY(calc(var(--sp,0) * -16px)) rotate(calc(var(--sp,0) * 1.6deg))}
+.spl[data-spline-state=live] spline-viewer{opacity:1}.spl[data-spline-state=live] .spl-fallback,.spl[data-spline-state=live] .spl-load{opacity:0}
+.spl-load{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font-size:12px;color:#fff;background:rgba(0,0,0,.5);padding:5px 11px;border-radius:999px;display:none;transition:opacity .4s}
+.spl[data-spline-state=loading] .spl-load{display:block}
+.ap-media[data-tilt-media]{perspective:1100px}
+.ap-media[data-tilt-media] .ph{transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .4s var(--ease);transform-style:preserve-3d;will-change:transform}
+.ap-media[data-tilt-media] .ph img{transform:translate(var(--tx,0px),var(--ty,0px));transition:transform .6s var(--ease);animation:drift 14s ease-in-out infinite alternate}
+.ap-media[data-tilt-media] .ph::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at var(--mx,30%) var(--my,18%),rgba(255,255,255,.26),transparent 46%);mix-blend-mode:soft-light;transition:background-position .3s}
+@keyframes drift{from{scale:1.06}to{scale:1.15}}
 .ap-card{display:flex;flex-direction:column;gap:6px;padding:18px 18px 20px;border-radius:16px;border:1px solid var(--line);background:color-mix(in srgb,var(--ink) 4%,var(--bg2));text-decoration:none;color:var(--ink);font-size:15px;min-width:0}
 .ap-card>span{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mu)}
 .ap-card p{font-weight:600;overflow-wrap:anywhere;line-height:1.35}.ap-card p small{display:block;font-weight:400;color:var(--mu);font-size:12px}
@@ -585,6 +610,7 @@ ${ivory ? "" : `body::after{content:"";position:fixed;inset:0;z-index:50;pointer
   .contacts li,.hours div{flex-direction:column;gap:2px}.contacts a,.hours dd{text-align:left}
 }
 @media (prefers-reduced-motion:reduce){
+  .ap-media[data-tilt-media] .ph img{animation:none;scale:1}.ap-media[data-tilt-media] .ph{transform:none}.spl spline-viewer{transition:none}
   .ap-ribbon.pole{animation:none}.btn.roll .rl i span,.btn.roll .rl i::after{transition:none}
   html{scroll-behavior:auto}.rv,.reveal{opacity:1;transform:none;clip-path:none;transition:none}
   .split .w>span{transform:none;transition:none}.layer.front .ph img,.cine-bg img{animation:none}
@@ -608,6 +634,7 @@ ${parts.join("\n")}
   <p>${b.address ? esc(b.address) : ""}</p>
   ${credits.length ? `<ul>${credits.map((i) => `<li>${imageCaption(i, "span") || "Imagem: " + esc(i.alt)}</li>`).join("")}</ul>` : ""}
   ${credits.some((i) => i.origin === "stock") ? "<p>Fotos ilustrativas de bancos de imagens livres: não são fotos da empresa.</p>" : ""}
+  ${splineUrl ? `<p>Cena 3D interativa criada no <a href="https://spline.design" target="_blank" rel="noopener noreferrer">Spline</a>, ilustrativa (não é produto da empresa).</p>` : ""}
   ${assetInfo ? `<p>Modelo 3D escaneado de um objeto real: ${esc(assetInfo.label)}, por ${esc(assetInfo.authors)} (Poly Haven, CC0), <a href="${esc(assetInfo.url)}" target="_blank" rel="noopener noreferrer">fonte</a>. Ilustrativo, não é produto da empresa.</p>` : ""}
   ${schedule ? `<p>Status de aberto/fechado calculado pelo horário publicado, no fuso ${esc(tz!)}; feriados não são considerados.</p>` : ""}
   <p>© ${new Date().getFullYear()} ${esc(b.name)}</p>
@@ -615,6 +642,7 @@ ${parts.join("\n")}
 </footer>
 ${dock.length ? `<nav class="dock" aria-label="Contato rápido">${dock.join("")}</nav>` : ""}
 <script>var __name=function(f){return f};(${motionRuntime.toString()})(${JSON.stringify({ amp })});</script>
+${splineUrl ? `<script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${splineRuntime.toString()})(${JSON.stringify({ src: SPLINE_VIEWER_SRC, url: splineUrl, skip: "" })});});</script>` : ""}
 ${kind === "arc" ? `<script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${arcRuntime.toString()})(${JSON.stringify(arcCfg)});});</script>` : ""}
 ${schedule && tz ? `<script>var __name=function(f){return f};(${hoursRuntime.toString()})(${JSON.stringify({ schedule, tz })});</script>` : ""}
 ${cfg3d ? `<script src="${esc(threeSrc)}" defer></script>
@@ -659,6 +687,20 @@ export function motionRuntime(cfg: { amp: number }) {
   var mx = 0, my = 0, tx = 0, ty = 0, raf = 0;
   if (!reduce && !touch && hero) hero.addEventListener("pointermove", function (e) { var r = hero!.getBoundingClientRect(); tx = (e.clientX - r.left) / r.width - 0.5; ty = (e.clientY - r.top) / r.height - 0.5; kick(); }, { passive: true });
   if (hero) hero.addEventListener("pointerleave", function () { tx = 0; ty = 0; kick(); });
+  // foto em profundidade: inclina para o ponteiro, luz que acompanha e deslocamento da imagem (só com mouse)
+  var tm = d.querySelector("[data-tilt-media]") as HTMLElement | null;
+  if (tm && hero && !reduce && !touch) {
+    hero.addEventListener("pointermove", function (e) {
+      var r = tm!.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      x = Math.max(-0.4, Math.min(1.4, x)); y = Math.max(-0.4, Math.min(1.4, y));
+      tm!.style.setProperty("--rx", ((0.5 - y) * 7 * cfg.amp).toFixed(2) + "deg");
+      tm!.style.setProperty("--ry", ((x - 0.5) * 9 * cfg.amp).toFixed(2) + "deg");
+      tm!.style.setProperty("--tx", ((0.5 - x) * 14 * cfg.amp).toFixed(1) + "px");
+      tm!.style.setProperty("--ty", ((0.5 - y) * 10 * cfg.amp).toFixed(1) + "px");
+      tm!.style.setProperty("--mx", (x * 100).toFixed(0) + "%"); tm!.style.setProperty("--my", (y * 100).toFixed(0) + "%");
+    }, { passive: true });
+    hero.addEventListener("pointerleave", function () { ["--rx", "--ry", "--tx", "--ty"].forEach(function (p) { tm!.style.removeProperty(p); }); });
+  }
   // botões magnéticos e cartões com inclinação (só com mouse)
   if (!reduce && !touch) {
     d.querySelectorAll(".btn.mag").forEach(function (el) {

@@ -1,5 +1,6 @@
 // Acesso centralizado às variáveis de ambiente (somente servidor).
 import "server-only";
+import { parseSplineScenes } from "./site/spline";
 
 function opt(name: string): string | undefined {
   const v = process.env[name];
@@ -35,6 +36,8 @@ export const env = {
   get githubPreviewsBranch() { return opt("GITHUB_PREVIEWS_BRANCH"); },
   get githubPreviewsDir() { return opt("GITHUB_PREVIEWS_DIR"); },
   get githubPagesUrl() { return opt("GITHUB_PAGES_URL"); },
+  // Cenas do Spline por ramo (JSON). O Spline é um editor 3D: as cenas são criadas e publicadas lá; aqui só se informa o endereço.
+  get splineScenes() { return parseSplineScenes(opt("SPLINE_SCENES")); },
   get osmContactEmail() { return opt("OSM_CONTACT_EMAIL"); },
   get kiwifyWebhookTokens() {
     return [opt("KIWIFY_WEBHOOK_TOKEN"), opt("KIWIFY_WEBHOOK_TOKEN_PREVIOUS")].filter(Boolean) as string[];
