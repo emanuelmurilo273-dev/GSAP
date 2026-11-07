@@ -37,13 +37,14 @@ export function arcRuntime(cfg) {
 
   function size() {
     var r = host.getBoundingClientRect();
+    if (r.width < 48 || r.height < 48) return; // contêiner ainda sem layout (oculto ou recém-criado): espera o próximo redimensionamento
     W = Math.max(1, r.width); H = Math.max(1, r.height);
     small = W < 700;
     dpr = small ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     var top = panel ? panel.offsetTop : H * (cfg.apexRatio || 0.5);
-    R = Math.min(W * (small ? 1.05 : 0.74), 1400);
+    R = Math.max(48, Math.min(W * (small ? 1.05 : 0.74), 1400));
     apex = top - (panel ? (small ? 14 : 30) : 0);
     cx = W / 2; cy = apex + R;
     // camada do brilho largo (estática)
@@ -72,6 +73,7 @@ export function arcRuntime(cfg) {
 
   function frame(now) {
     raf = 0;
+    if (!glowL) { if (!reduce && visible) raf = requestAnimationFrame(frame); return; } // ainda sem layout: tenta no próximo quadro
     if (now - lastDraw < 30) { if (!reduce && visible) raf = requestAnimationFrame(frame); return; }
     lastDraw = now;
     var dt = Math.min(0.06, (now - last) / 1000); last = now;
@@ -136,6 +138,7 @@ export function arcRuntime(cfg) {
   var rt = 0;
   var onResize = function () { clearTimeout(rt); rt = setTimeout(function () { size(); if (reduce) frame(performance.now() + 100); }, 150); };
   window.addEventListener("resize", onResize, { passive: true });
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(function () { onResize(); }).observe(host);
   var io = null;
   if ("IntersectionObserver" in window) { io = new IntersectionObserver(function (e) { visible = e[0].isIntersecting; if (visible) start(); else if (raf) { cancelAnimationFrame(raf); raf = 0; } }); io.observe(host); }
   var hero = host.closest(cfg.hero || ".hero") || host;

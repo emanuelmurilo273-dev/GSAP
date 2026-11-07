@@ -27,6 +27,7 @@ export async function Shell({ children, admin = false }: { children: React.React
       <div className="app-layer">
       <Sidebar name={user.name} email={user.email} isAdmin={user.role === "ADMIN"} privateMode={isPrivateMode()} />
       <div className="lg:pl-64">
+      <div className="mx-auto w-full max-w-[1480px]">
         <div className="space-y-2 px-4 pt-4 sm:px-8">
           {!a.premium && (
             <div className="flex flex-col gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between">
@@ -50,6 +51,7 @@ export async function Shell({ children, admin = false }: { children: React.React
           ))}
         </div>
         <main className="px-4 pb-28 pt-6 sm:px-8 sm:py-8 lg:pb-8">{children}</main>
+      </div>
       </div>
       <Toaster />
       </div>

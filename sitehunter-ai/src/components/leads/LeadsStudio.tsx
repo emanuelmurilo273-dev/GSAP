@@ -81,13 +81,14 @@ export function prettyWa(n: string | null) {
   return m ? `+55 (${m[1]}) ${m[2]}-${m[3]}` : `+${n}`;
 }
 
-export function LeadsStudio({ mode, initialLeads, initialSearches, providers, premium, nicheSuggestions, initialSearchId = "" }: { mode: "search" | "list"; initialLeads: LeadView[]; initialSearches: SearchRow[]; providers: ProviderRow[]; premium: boolean; nicheSuggestions: string[]; initialSearchId?: string }) {
+export function LeadsStudio({ mode, initialLeads, initialSearches, providers, premium, nicheSuggestions, initialSearchId = "", defaults, prefill }: { mode: "search" | "list"; initialLeads: LeadView[]; initialSearches: SearchRow[]; providers: ProviderRow[]; premium: boolean; nicheSuggestions: string[]; initialSearchId?: string; defaults?: { count: number; provider: string; quickNiches: string[] }; prefill?: { niche?: string; location?: string } }) {
   const google = providers.find((p) => p.id === "google_places")!;
-  const defaultProvider: ProviderRow["id"] = !premium ? "demo" : google.configured ? "google_places" : "osm";
+  const wanted = defaults?.provider;
+  const defaultProvider: ProviderRow["id"] = !premium ? "demo" : wanted === "demo" ? "demo" : wanted === "google_places" && google.configured ? "google_places" : wanted === "osm" ? "osm" : google.configured ? "google_places" : "osm";
   const [leads, setLeads] = useState(initialLeads);
   const [searches, setSearches] = useState(initialSearches);
   const [provider, setProvider] = useState<ProviderRow["id"]>(defaultProvider);
-  const [form, setForm] = useState<{ niche: string; location: string; language: string; count: number; uf: string; cityIbge?: number }>({ niche: "", location: "", language: "pt-BR", count: 10, uf: "" });
+  const [form, setForm] = useState<{ niche: string; location: string; language: string; count: number; uf: string; cityIbge?: number }>({ niche: prefill?.niche ?? "", location: prefill?.location ?? "", language: "pt-BR", count: defaults?.count ?? 10, uf: "" });
   const [coverage, setCoverage] = useState<string | null>(null);
   const [csv, setCsv] = useState("");
   const [running, setRunning] = useState(false);
@@ -227,6 +228,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
                   </div>
                   <div className="niche-chips" role="group" aria-label="Atalhos de ramo">
                     {NICHE_CHIPS.map((c) => <button key={c.q} type="button" className="niche-chip" style={{ ["--h" as string]: c.h }} aria-pressed={form.niche.trim().toLowerCase() === c.q} onClick={() => setForm({ ...form, niche: c.q })}><i aria-hidden="true" />{c.q}</button>)}
+                    {(defaults?.quickNiches ?? []).map((q) => <button key={`x-${q}`} type="button" className="niche-chip" style={{ ["--h" as string]: 260 }} aria-pressed={form.niche.trim().toLowerCase() === q.toLowerCase()} onClick={() => setForm({ ...form, niche: q })}><i aria-hidden="true" />{q}</button>)}
                   </div>
                 </div>
                 <label className="block">
@@ -378,13 +380,14 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
                     ["Telefone", l.phone, l.facts.phone],
                     ["E-mail", l.email, l.facts.email],
                     ["Site", l.website, l.facts.website],
-                  ] as const).map(([k, v, f]) => (
+                  ] as const).filter(([, v]) => !!v).map(([k, v, f]) => (
                     <div key={k} className="flex items-center gap-2">
                       <dt className="w-16 shrink-0 text-xs text-slate-500">{k}</dt>
-                      <dd className="min-w-0 flex-1 truncate text-slate-300">{v ?? <span className="text-slate-600">—</span>}</dd>
+                      <dd className="min-w-0 flex-1 truncate text-slate-300">{v}</dd>
                       {l.facts && Object.keys(l.facts).length > 0 && <FactBadge fact={f} compact />}
                     </div>
                   ))}
+                  {(() => { const miss = ([["telefone", l.phone], ["e-mail", l.email], ["site", l.website]] as const).filter(([, v]) => !v).map(([k]) => k); return miss.length ? <p className="text-xs text-slate-500">Não publicado na fonte: {miss.join(", ")}.</p> : null; })()}
                   {l.socials.length > 0 && <div className="flex gap-2"><dt className="w-16 shrink-0 text-xs text-slate-500">Social</dt><dd className="truncate text-slate-300">{l.socials.map((s) => s.network).join(", ")}</dd></div>}
                 </dl>
                 <p className="mt-3 text-[11px] text-slate-500">Fonte: {l.source === "google_places" ? "Google Maps" : l.source === "osm" ? "OpenStreetMap" : l.source === "demo" ? "Demonstração" : "Importação"} · coletado em {new Date(l.fetchedAt).toLocaleDateString("pt-BR")}{l.reviewedAt ? " · revisado" : ""}</p>

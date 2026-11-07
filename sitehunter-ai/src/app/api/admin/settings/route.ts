@@ -19,6 +19,9 @@ const Body = z.object({
   graceDays: z.number().int().min(0).max(30),
   retentionDays: z.number().int().min(1).max(365),
   usageWarnPercent: z.number().int().min(10).max(100),
+  searchDefaultCount: z.number().int().min(1).max(40),
+  searchDefaultProvider: z.enum(["osm", "google_places", "demo"]),
+  searchQuickNiches: z.string().max(300).regex(/^[^<>{}]*$/, "Use só texto simples, separado por vírgulas."),
 });
 
 export const PUT = route(async (req) => {

@@ -2322,5 +2322,31 @@
    "source": "rawpixel",
    "sourceUrl": "https://www.rawpixel.com/image/5969926/car-wash"
   }
+ ],
+ "pneus": [
+  {
+   "file": "autopecas/1.jpg",
+   "mobile": "autopecas/1-m.jpg",
+   "w": 1024,
+   "h": 683,
+   "alt": "",
+   "credit": "Autor não informado",
+   "creditUrl": "https://www.rawpixel.com/image/5924923/free-public-domain-cc0-photo",
+   "license": "CC0 (domínio público)",
+   "source": "rawpixel",
+   "sourceUrl": "https://www.rawpixel.com/image/5924923/free-public-domain-cc0-photo"
+  },
+  {
+   "file": "autopecas/8.jpg",
+   "mobile": "autopecas/8-m.jpg",
+   "w": 1024,
+   "h": 683,
+   "alt": "side shot tire part vehicle",
+   "credit": "Autor não informado",
+   "creditUrl": "https://www.rawpixel.com/image/3284417/free-photo-image-car-bmw-clean",
+   "license": "CC0 (domínio público)",
+   "source": "rawpixel",
+   "sourceUrl": "https://www.rawpixel.com/image/3284417/free-photo-image-car-bmw-clean"
+  }
  ]
 }

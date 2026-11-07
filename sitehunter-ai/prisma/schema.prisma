@@ -353,6 +353,10 @@ model PlatformSettings {
   graceDays              Int      @default(0)   // dias extras após o vencimento antes de suspender
   retentionDays          Int      @default(30)  // preservação dos projetos após o vencimento
   usageWarnPercent       Int      @default(80)
+  // Padrões da busca de empresas (ajustáveis no painel administrativo)
+  searchDefaultCount     Int      @default(10)
+  searchDefaultProvider  String   @default("osm")
+  searchQuickNiches      String   @default("")   // ramos extras para os atalhos da busca, separados por vírgula
   updatedAt              DateTime @updatedAt
 }
 

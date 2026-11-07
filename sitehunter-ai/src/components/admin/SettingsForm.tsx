@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api } from "@/components/api";
 import { Alert, Field, toast } from "@/components/ui";
 
-type S = { priceCents: number; checkoutUrl: string | null; maxSearchesPerMonth: number; maxGenerationsPerMonth: number; maxPublishedSites: number; graceDays: number; retentionDays: number; usageWarnPercent: number };
+type S = { priceCents: number; checkoutUrl: string | null; maxSearchesPerMonth: number; maxGenerationsPerMonth: number; maxPublishedSites: number; graceDays: number; retentionDays: number; usageWarnPercent: number; searchDefaultCount: number; searchDefaultProvider: string; searchQuickNiches: string };
 
 export function SettingsForm({ initial, envCheckout, webhookUrl }: { initial: S; envCheckout: string | null; webhookUrl: string }) {
   const [s, setS] = useState(initial);
@@ -36,6 +36,15 @@ export function SettingsForm({ initial, envCheckout, webhookUrl }: { initial: S;
         <Field label="Gerações de sites por mês"><input type="number" className="input" value={s.maxGenerationsPerMonth} onChange={num("maxGenerationsPerMonth")} /></Field>
         <Field label="Sites publicados simultaneamente"><input type="number" className="input" value={s.maxPublishedSites} onChange={num("maxPublishedSites")} /></Field>
         <Field label="Aviso de uso a partir de (%)"><input type="number" className="input" value={s.usageWarnPercent} onChange={num("usageWarnPercent")} /></Field>
+      </section>
+      <section className="card space-y-4 p-5 lg:col-span-2">
+        <h2 className="font-semibold text-white">Padrões da busca de empresas</h2>
+        <p className="text-sm text-slate-400">Valem para quem abre a tela de busca. Cada pessoa ainda pode mudar na hora.</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Quantidade padrão de empresas" hint="Entre 1 e 40."><input type="number" min={1} max={40} className="input" value={s.searchDefaultCount} onChange={(e) => setS({ ...s, searchDefaultCount: Math.min(40, Math.max(1, parseInt(e.target.value || "1", 10))) })} /></Field>
+          <Field label="Fonte padrão" hint="Se a fonte não estiver disponível para o usuário, a busca usa a primeira que estiver."><select className="input" value={s.searchDefaultProvider} onChange={(e) => setS({ ...s, searchDefaultProvider: e.target.value })}><option value="osm">OpenStreetMap (sem chave)</option><option value="google_places">Google Maps (requer chave)</option><option value="demo">Demonstração (dados fictícios)</option></select></Field>
+          <Field label="Ramos extras nos atalhos" hint="Separados por vírgula, ex.: martelinho de ouro, som automotivo."><input className="input" maxLength={300} value={s.searchQuickNiches} onChange={(e) => setS({ ...s, searchQuickNiches: e.target.value })} /></Field>
+        </div>
       </section>
       <section className="card space-y-4 p-5 lg:col-span-2">
         <h2 className="font-semibold text-white">Suspensão e retenção</h2>

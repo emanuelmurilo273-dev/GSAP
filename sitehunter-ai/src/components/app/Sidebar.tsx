@@ -16,7 +16,9 @@ export const TABS: (Item & { short: string; step: string })[] = [
 ];
 const MAIN: Item[] = TABS;
 const ADMIN: Item[] = [
-  { href: "/admin", label: "Visão geral", icon: "M4 20V10M10 20V4M16 20v-7M22 20H2" },
+  { href: "/admin/operacao", label: "Central operacional", icon: "M3 12h4l3-8 4 16 3-8h4" },
+  { href: "/admin/empresas", label: "Empresas e contatos", icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6" },
+  { href: "/admin", label: "Financeiro", icon: "M4 20V10M10 20V4M16 20v-7M22 20H2" },
   { href: "/admin/usuarios", label: "Usuários", icon: "M16 20v-2a4 4 0 0 0-8 0v2M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" },
   { href: "/admin/pagamentos", label: "Pagamentos", icon: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
   { href: "/admin/configuracoes", label: "Configurações", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7-3 2-1-2-4-2 1-2-2V4h-4v2L9 8 7 7 5 11l2 1v0l-2 1 2 4 2-1 2 2v2h4v-2l2-2 2 1 2-4z" },

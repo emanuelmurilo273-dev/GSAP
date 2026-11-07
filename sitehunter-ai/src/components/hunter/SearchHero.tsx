@@ -9,7 +9,7 @@ import { arcRuntime } from "@/lib/site/immersive/arcRuntime";
  */
 export function SearchHero() {
   useEffect(() => {
-    const stop = arcRuntime({ canvas: "[data-arc-hunter]", panel: null, apexRatio: 0.78, hero: "[data-hunter-hero]", kind: "neon", dark: true, bg: "#04060b", c: ["#dbeafe", "#60a5fa", "#1d4ed8"] });
+    const stop = arcRuntime({ canvas: "[data-arc-hunter]", panel: null, apexRatio: 0.78, hero: "[data-hunter-hero]", kind: "neon", dark: true, bg: "#0b0a09", c: ["#ffe9d6", "#ff9a63", "#c2410c"] });
     return stop;
   }, []);
   return (

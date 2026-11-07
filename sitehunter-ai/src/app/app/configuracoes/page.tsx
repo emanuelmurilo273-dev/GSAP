@@ -46,7 +46,7 @@ export default async function SettingsPage() {
               <p className="text-xs text-slate-500">{r.what}</p>
               <p className="mt-1 text-sm text-slate-300">{r.status}</p>
               {r.coverage && <p className="mt-1 text-xs text-slate-400">Cobertura: {r.coverage}</p>}
-              {r.how && r.state !== "on" && <p className="mt-1 text-xs text-slate-500">Para ativar: <code className="rounded bg-white/5 px-1.5 py-0.5 text-slate-300">{r.how}</code></p>}
+              {r.how && r.state !== "on" && <p className="mt-1 text-xs text-slate-500">Para ativar: <code className="break-all rounded bg-white/5 px-1.5 py-0.5 text-slate-300">{r.how}</code></p>}
             </div>
             <span className={`badge shrink-0 ${BADGE[r.state]}`}>{LABEL[r.state]}</span>
           </li>

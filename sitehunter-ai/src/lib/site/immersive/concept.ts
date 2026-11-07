@@ -1,3 +1,4 @@
+import { designDirectionFor } from "../direction";
 import { GLTF_ASSETS, MATERIAL_LABEL, MODEL_LABEL, assetForModel, type Material, type ModelKind } from "./kinds";
 import type { Concept } from "../types";
 
@@ -203,9 +204,12 @@ export function buildConcept(input: ConceptInput): Concept {
   const dish: string | undefined = undefined;
 
   // 2. Paleta e material
-  const tones = FAMILY_TONE[model] ?? ["cool"];
+  // A direção visual do ramo (pesquisada, ver direction.ts) decide o clima e os tons; dentro dela a paleta varia por empresa.
+  const dir = designDirectionFor(input.segmentKey, `${input.name} ${input.category ?? ""} ${input.description ?? ""}`);
+  const tones = (dir.key !== "servicos" ? dir.tones : FAMILY_TONE[model]) ?? ["cool"];
   const tone = pick(tones, seed, 1);
-  const mood = moodFor(model);
+  const mood = dir.key !== "servicos" ? dir.mood : moodFor(model);
+  reasons.push(`Direção visual "${dir.name}": ${dir.why}`);
   const pal = pick(palettesFor(mood, tone), seed, 2);
   const material = pick(MATERIAL_FOR[model] ?? (["chrome", "gold"] as Material[]), seed, 3);
   const matTxt = INTRINSIC.has(model) ? "" : ` em ${MATERIAL_LABEL[material]}`;
@@ -213,8 +217,9 @@ export function buildConcept(input: ConceptInput): Concept {
   reasons.push(mood === "ivory" ? "Direção clara e editorial: em saúde, padaria, beleza, moda e pet, luz e limpeza passam mais confiança que um fundo escuro. A abertura com foto continua cinematográfica." : "Direção escura e cinematográfica: luz baixa, contraste alto e foto em tela cheia, como uma vitrine à noite.");
 
   // 3. Tipografia e composição
-  const font = FONTS[pick(FONTS_FOR_TONE[tone] ?? [0], seed, 4)]!;
-  const layouts = ["left", "right", "center", "editorial"] as const;
+  const dirFonts = dir.key !== "servicos" ? FONTS.map((f, i) => (dir.fonts.includes(f.display) ? i : -1)).filter((i) => i >= 0) : [];
+  const font = FONTS[pick(dirFonts.length ? dirFonts : FONTS_FOR_TONE[tone] ?? [0], seed, 4)]!;
+  const layouts = dir.key !== "servicos" ? dir.layouts : (["left", "right", "center", "editorial"] as const);
   const layout = pick(layouts, seed, 5);
   const choreo = pick(["orbit", "drift", "dive"] as const, seed, 6);
   const motif = pick((tone === "cool" ? ["grid", "particles", "rings"] : tone === "bold" ? ["ribbons", "grid", "particles"] : ["particles", "rings", "ribbons"]) as ("rings" | "particles" | "grid" | "ribbons")[], seed, 7);

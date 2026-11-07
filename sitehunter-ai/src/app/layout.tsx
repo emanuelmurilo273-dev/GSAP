@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Encontre empresas que possivelmente ainda não têm site, gere sites profissionais com IA, publique e prepare propostas comerciais em uma única plataforma.",
 };
 
-export const viewport: Viewport = { themeColor: "#04060b", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#0b0a09", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,500;600;700;800&display=swap" />
       </head>
       <body className="min-h-screen font-sans">{children}</body>
     </html>

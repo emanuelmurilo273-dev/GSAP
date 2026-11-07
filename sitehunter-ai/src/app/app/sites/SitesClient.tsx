@@ -72,7 +72,7 @@ export function SitesClient({ projects: initial, premium }: { projects: P[]; pre
 
       <ul className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
         {shown.map((p) => {
-          const pal = p.concept?.palette ?? ["#0b0b0f", "#15151b", "#f5f5f7", "#a1a1aa", "#3b82f6", "#1e3a8a"];
+          const pal = p.concept?.palette ?? ["#0b0b0f", "#15151b", "#f5f5f7", "#a1a1aa", "#ff7a2f", "#1e3a8a"];
           const pub = p.status === "PUBLISHED";
           return (
             <li key={p.id} className="card flex flex-col overflow-hidden">

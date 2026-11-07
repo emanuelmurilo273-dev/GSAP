@@ -301,6 +301,35 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   </div>
 </section>`);
 
+  // ---------- consulta rápida (ramos em que o cliente chega com um veículo e uma necessidade) ----------
+  // Monta a mensagem no navegador e leva ao contato publicado da própria empresa (WhatsApp, telefone ou e-mail).
+  // Nada é enviado pelo site: o visitante toca no link. Sem contato publicado, a seção não aparece.
+  const ASK: Partial<Record<string, { title: string; lede: string; extra: string; ph: string }>> = {
+    oficina: { title: "Peça seu orçamento", lede: "Conte qual é o veículo e o que está acontecendo. A mensagem já vai pronta para a oficina.", extra: "O que está acontecendo?", ph: "ex.: barulho ao frear" },
+    autopecas: { title: "Consulte uma peça", lede: "Informe o veículo e a peça. A loja confirma se tem e o prazo.", extra: "Peça desejada", ph: "ex.: pastilha de freio dianteira" },
+    pneus: { title: "Consulte pneus", lede: "Informe o veículo e, se souber, a medida do pneu. A loja responde com opções e prazo.", extra: "Medida do pneu (opcional)", ph: "ex.: 195/55 R16" },
+    funilaria: { title: "Peça uma avaliação", lede: "Conte o veículo e o que precisa de reparo. Combine o envio de fotos pelo contato.", extra: "O que precisa de reparo?", ph: "ex.: amassado na porta" },
+    concessionaria: { title: "Fale sobre o veículo que procura", lede: "Diga o modelo e o ano de interesse. A equipe retorna com as opções disponíveis.", extra: "Tem veículo para troca? (opcional)", ph: "ex.: sim, um modelo 2015" },
+  };
+  const ask = ASK[niche.key];
+  const askVia = wa ? "wa" : b.phone ? "tel" : b.email ? "mail" : "";
+  if (ask && askVia) {
+    if (navItems.length < 4) navItems.push({ id: "consulta", label: "Consulta" });
+    const goLabel = askVia === "wa" ? "Enviar pelo WhatsApp" : askVia === "tel" ? "Ligar para a empresa" : "Enviar por e-mail";
+    const goHref = askVia === "wa" ? `https://wa.me/${wa}` : askVia === "tel" ? telHref(b.phone!) : `mailto:${b.email}`;
+    parts.push(`<section id="consulta" class="sec ask" aria-labelledby="h-ask" data-ask data-via="${askVia}" data-biz="${esc(b.name)}">
+  <header class="sec-head"><p class="kicker rv">Consulta rápida</p><h2 id="h-ask" class="h2 rv" style="--d:1">${esc(ask.title)}</h2><p class="lede rv" style="--d:2">${esc(ask.lede)}</p></header>
+  <div class="ask-card rv" style="--d:2">
+    <label><span>Veículo (marca e modelo)</span><input data-f="veiculo" maxlength="60" autocomplete="off" placeholder="ex.: Fiat Uno"></label>
+    <label><span>Ano</span><input data-f="ano" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="ex.: 2014"></label>
+    <label class="wide"><span>${esc(ask.extra)}</span><input data-f="extra" maxlength="120" autocomplete="off" placeholder="${esc(ask.ph)}"></label>
+    <p class="ask-preview wide" data-ask-preview aria-live="polite"></p>
+    <a class="btn wide" data-ask-go href="${esc(goHref)}" ${askVia === "wa" ? 'target="_blank" rel="noopener noreferrer"' : ""}>${goLabel}<span aria-hidden="true">→</span></a>
+    <p class="note wide">${askVia === "tel" ? "Esta empresa não publicou WhatsApp: o botão liga, e a mensagem acima serve de roteiro para a ligação." : "Nada é enviado por este site. Você revisa e confirma a mensagem no seu aplicativo."}</p>
+  </div>
+</section>`);
+  }
+
   // ---------- chamada final ----------
   const finalBtn = cta?.button ?? (quote ? { label: quote.buttonLabel || "Pedir orçamento", action: wa ? ("whatsapp" as const) : b.phone ? ("phone" as const) : ("email" as const) } : mainBtn);
   const finalImg = take();
@@ -386,6 +415,14 @@ a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var
 .h1{font:${dw} calc(clamp(42px,5.6vw,88px) * var(--ts))/1.0 var(--fd);letter-spacing:-.03em;text-wrap:balance;overflow-wrap:break-word}
 .h2{font:${dw} calc(clamp(30px,3.6vw,54px) * var(--ts))/1.06 var(--fd);letter-spacing:-.02em;text-wrap:balance;overflow-wrap:break-word}
 .h2.xl{font-size:calc(clamp(36px,5vw,76px) * var(--ts))}
+.ask-card{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:760px;padding:clamp(18px,3vw,30px);border:1px solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:20px;background:color-mix(in srgb,var(--bg2) 70%,transparent)}
+.ask-card label{display:grid;gap:6px;font:500 12px/1.2 var(--fb);letter-spacing:.06em;text-transform:uppercase;color:var(--mu)}
+.ask-card input{font:400 16px/1.3 var(--fb);letter-spacing:0;text-transform:none;color:var(--ink);background:color-mix(in srgb,var(--ink) 6%,transparent);border:1px solid color-mix(in srgb,var(--ink) 18%,transparent);border-radius:12px;padding:13px 14px;min-height:48px;width:100%}
+.ask-card input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.ask-card .wide{grid-column:1/-1}
+.ask-preview{margin:0;font:400 14px/1.45 var(--fb);color:var(--mu);min-height:1.45em}
+.ask-card .btn{justify-self:start}
+@media(max-width:620px){.ask-card{grid-template-columns:1fr}}
 .stmt{padding:clamp(72px,14vh,160px) var(--gut,5vw);display:grid;place-items:center;min-height:60vh}
 .stmt-text{max-width:20ch;margin:0 auto;text-align:center;font:${dw} calc(clamp(38px,7.2vw,116px) * var(--ts))/1.02 var(--fd);letter-spacing:-.035em;text-wrap:balance;${up ? "text-transform:uppercase;" : ""}overflow-wrap:break-word}
 .stmt-js .sw{opacity:.16;transition:opacity .35s linear,color .35s linear}
@@ -706,6 +743,26 @@ export function motionRuntime(cfg: { amp: number }) {
     sws.forEach(function (s, i) { s.classList.toggle("on", i < n); });
   }
   if (stm && !reduce) { stm.classList.add("stmt-js"); stmtUpdate(); w.addEventListener("scroll", stmtUpdate, { passive: true }); w.addEventListener("resize", stmtUpdate, { passive: true }); }
+  // consulta rápida: monta a mensagem e atualiza o link do contato da empresa (o visitante toca para enviar)
+  var askEl = d.querySelector("[data-ask]") as HTMLElement | null;
+  if (askEl) {
+    var go = askEl.querySelector("[data-ask-go]") as HTMLAnchorElement, pv = askEl.querySelector("[data-ask-preview]") as HTMLElement;
+    var via = askEl.getAttribute("data-via"), biz = askEl.getAttribute("data-biz") || "";
+    var baseHref = go.getAttribute("href") || "";
+    var upd = function () {
+      var f = function (k: string) { var i = askEl!.querySelector('[data-f="' + k + '"]') as HTMLInputElement; return i ? i.value.trim() : ""; };
+      var lab = askEl!.querySelector('[data-f="extra"]')!.parentElement!.querySelector("span")!.textContent || "";
+      var parts = ["Olá! Vim pelo site da " + biz + "."];
+      if (f("veiculo")) parts.push("Veículo: " + f("veiculo") + (f("ano") ? " (" + f("ano") + ")" : "") + ".");
+      else if (f("ano")) parts.push("Ano: " + f("ano") + ".");
+      if (f("extra")) parts.push(lab.replace(/\s*\(opcional\)/, "").replace(/\?$/, "") + ": " + f("extra") + ".");
+      var msg = parts.join(" ");
+      pv.textContent = msg;
+      if (via === "wa") go.href = baseHref + "?text=" + encodeURIComponent(msg);
+      else if (via === "mail") go.href = baseHref + "?subject=" + encodeURIComponent("Consulta pelo site") + "&body=" + encodeURIComponent(msg);
+    };
+    askEl.addEventListener("input", upd); upd();
+  }
   var mx = 0, my = 0, tx = 0, ty = 0, raf = 0;
   if (!reduce && !touch && hero) hero.addEventListener("pointermove", function (e) { var r = hero!.getBoundingClientRect(); tx = (e.clientX - r.left) / r.width - 0.5; ty = (e.clientY - r.top) / r.height - 0.5; kick(); }, { passive: true });
   if (hero) hero.addEventListener("pointerleave", function () { tx = 0; ty = 0; kick(); });

@@ -8,6 +8,7 @@ import { LeadImages } from "./LeadImages";
 import { WhatsAppPanel } from "./WhatsAppPanel";
 import { FACT_LABELS, type FactField } from "@/lib/leads/types";
 import type { LeadView } from "./types";
+import { designDirectionFor } from "@/lib/site/direction";
 
 type Draft = { id: string; language: string; subject: string; body: string; ai: boolean; factsUsed: { field: string; value: string; source: string }[]; createdAt: string };
 const LANG_LABEL: Record<string, string> = { "pt-BR": "Português", en: "English", es: "Español" };
@@ -274,6 +275,25 @@ export function LeadProfile({ initialLead, segments, guessedSegment, initialDraf
               <label className="block"><span className="label">Modelo</span>
                 <select className="input" value={segment} onChange={(e) => setSegment(e.target.value)}>{segments.map((s) => <option key={s.key} value={s.key}>{s.label}{s.key === guessedSegment ? " (sugerido)" : ""}</option>)}</select>
               </label>
+              {(() => {
+                const d = designDirectionFor(segment, `${lead.name} ${lead.category ?? ""}`);
+                return (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm" data-direction>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Direção visual para este ramo</p>
+                    <p className="font-display mt-1 text-base font-semibold text-white">{d.name}</p>
+                    <p className="mt-1 text-xs text-slate-400"><b className="text-slate-300">Público:</b> {d.audience}.</p>
+                    <p className="mt-1 text-xs text-slate-400"><b className="text-slate-300">Por que combina:</b> {d.why}</p>
+                    <p className="mt-1 text-xs text-slate-400"><b className="text-slate-300">Composição:</b> {d.composition}. <b className="text-slate-300">Movimento:</b> {d.motion}.</p>
+                    {d.refs.length > 0 ? (
+                      <details className="mt-2 text-xs text-slate-400">
+                        <summary className="cursor-pointer text-brand-300 hover:text-brand-200">Referências pesquisadas ({d.refs.length})</summary>
+                        <ul className="mt-1.5 space-y-1.5">{d.refs.map((r) => <li key={r.url}><a href={r.url} target="_blank" rel="noopener noreferrer" className="text-slate-200 underline decoration-white/20 hover:decoration-brand-400">{r.title}</a><span className="block text-slate-500">{r.takeaway}</span></li>)}</ul>
+                        <p className="mt-1.5 text-slate-600">Inspiração, não cópia. Alguns links são de agências e vendedores de template.</p>
+                      </details>
+                    ) : <p className="mt-2 text-xs text-slate-600">Ramo sem pesquisa própria ainda: direção conservadora.</p>}
+                  </div>
+                );
+              })()}
               <label className="block"><span className="label">Idioma do site</span>
                 <select className="input" value={siteLang} onChange={(e) => setSiteLang(e.target.value)}>{Object.entries(LANG_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
               </label>
