@@ -116,7 +116,13 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
       toast(`${r.createdIds.length} novos leads · ${r.search.duplicates} duplicados ignorados`);
       setCoverage(coverageOf(r.search));
       setLastSearch(r.search);
-      if (!r.createdIds.length && r.search.found) setError("Todas as empresas encontradas já estavam na sua lista.");
+      if (!r.createdIds.length && r.search.found) {
+        const wa = (r.search.log ?? []).find((x) => x.step === "whatsapp")?.detail ?? "";
+        const excluded = Number(/(\d+) sem WhatsApp/.exec(wa)?.[1] ?? 0);
+        setError(excluded
+          ? `Nenhuma empresa nova com WhatsApp comercial confirmado: ${excluded} encontrada(s) não tinham WhatsApp confirmado em fonte pública e ${r.search.duplicates} já estavam na sua lista. Veja o resumo abaixo.`
+          : "Todas as empresas encontradas já estavam na sua lista.");
+      }
     } catch (err) {
       setError((err as Error).message);
       await reload().catch(() => {});
@@ -175,7 +181,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
               </Alert>
             )}
             {provider === "osm" && (premium ? <Alert kind="info">Busca real em dados abertos do OpenStreetMap (© colaboradores do OSM, licença ODbL). Telefones, sites, redes e horários aparecem quando a comunidade os cadastrou; a cobertura varia por cidade. Limite de 1 consulta por segundo.</Alert> : <Alert kind="warn">A busca real exige a conta proprietária com acesso ativo.</Alert>)}
-            {coverage && <Alert kind={/^Nenhum|não retornou/.test(coverage) ? "warn" : "info"}>{coverage}</Alert>}
+            {coverage && <Alert kind={/^Nenhum|não retornou|Atenção/.test(coverage) ? "warn" : "info"}>{coverage}</Alert>}
             {provider === "demo" && <Alert kind="info">Modo demonstração: as empresas geradas são <b>fictícias</b>, ficam marcadas como DEMO e nunca se misturam com leads reais na deduplicação.</Alert>}
 
             {provider !== "import" ? (

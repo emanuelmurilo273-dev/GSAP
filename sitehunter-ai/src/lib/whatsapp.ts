@@ -3,7 +3,10 @@ export function toWhatsAppNumber(phone: string | null | undefined): string | nul
   if (!phone) return null;
   let d = phone.replace(/\D/g, "");
   if (d.startsWith("00")) d = d.slice(2);
-  if (d.length === 10 || d.length === 11) d = "55" + d; // DDD + número
+  if (d.length === 10 || d.length === 11) d = "55" + d;
+  // Celular no formato antigo, sem o nono dígito (DDD + 8 dígitos começando em 6 a 9): desde 2016
+  // todo celular brasileiro tem o 9 na frente, e é assim que o WhatsApp o reconhece.
+  if (d.startsWith("55") && d.length === 12 && /^[6-9]$/.test(d[4]!)) d = d.slice(0, 4) + "9" + d.slice(4); // DDD + número
   if (!/^55\d{10,11}$/.test(d)) return null;
   return d;
 }
@@ -29,6 +32,9 @@ export function normalizeWhatsApp(raw: string | null | undefined): string | null
   if (d.startsWith("00")) d = d.slice(2);
   if (d.startsWith("0") && (d.length === 11 || d.length === 12)) d = d.slice(1); // 0 + DDD (discagem nacional)
   if (d.length === 10 || d.length === 11) d = "55" + d;
+  // Celular no formato antigo, sem o nono dígito (DDD + 8 dígitos começando em 6 a 9): desde 2016
+  // todo celular brasileiro tem o 9 na frente, e é assim que o WhatsApp o reconhece.
+  if (d.startsWith("55") && d.length === 12 && /^[6-9]$/.test(d[4]!)) d = d.slice(0, 4) + "9" + d.slice(4);
   if (d.startsWith("55") && (d.length === 12 || d.length === 13)) return validBr(d) ? d : null;
   return /^\d{11,15}$/.test(d) && !d.startsWith("55") ? d : null;
 }

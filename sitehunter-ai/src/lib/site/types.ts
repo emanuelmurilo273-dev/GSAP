@@ -129,6 +129,8 @@ export const ConceptSchema = z.object({
   highlights: z.array(text(60)).max(3).default([]),
   /** "photo": abertura editorial com foto ampla (referência do site imobiliário); "object": objeto 3D na abertura. */
   heroMode: z.enum(["object", "photo"]).default("object"),
+  /** Direção de arte: "noir" (escura, cinematográfica) ou "ivory" (clara, editorial). Decidida pelo ramo. */
+  mood: z.enum(["noir", "ivory"]).default("noir"),
   /** Modelo 3D fotogramétrico real (Poly Haven, CC0) que substitui o procedural quando carrega. */
   asset: z.string().max(40).optional(),
   /** Foto real de prato (CC0) usada como superfície do prato/pizza/café em 3D. */

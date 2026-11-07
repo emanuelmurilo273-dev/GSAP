@@ -8,6 +8,7 @@ import { dedupeBatch, dedupeKeys } from "./normalize";
 import { detectOpportunities } from "./opportunities";
 import { checkPresence } from "./presence";
 import { getProvider, type ImportRow } from "./providers";
+import type { SearchDiagnostics } from "./providers/types";
 import type { ImageCandidate, LeadCriteria, PresenceReport, RawBusiness } from "./types";
 import { companyImageCandidates, sourceImageCandidates } from "./leadImages";
 
@@ -30,9 +31,15 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 }
 
 /** Explica a cobertura real da fonte usada; avisa quando a cidade não retornou nada. */
-export function coverageNote(providerId: string, found: number, location: string, niche: string, cityMatched: boolean, wa?: { verified: number; noWhatsapp: number; kept: number }): string {
-  const waTxt = wa && providerId !== "demo" ? ` Destas, ${wa.kept} têm WhatsApp comercial confirmado em fonte pública e entraram na lista; ${wa.noWhatsapp} ficaram de fora por não terem WhatsApp confirmado.` : "";
-  return baseCoverage(providerId, found, location, niche, cityMatched) + (found ? waTxt : "");
+export function coverageNote(providerId: string, found: number, location: string, niche: string, cityMatched: boolean, wa?: { verified: number; noWhatsapp: number; kept: number; duplicates?: number }, diag?: SearchDiagnostics | null): string {
+  let waTxt = "";
+  if (wa && providerId !== "demo" && found) {
+    const dup = wa.duplicates ? ` ${wa.duplicates} já estavam na sua lista.` : "";
+    waTxt = ` Destas, ${wa.kept} têm WhatsApp comercial confirmado em fonte pública e entraram na lista; ${wa.noWhatsapp} ficaram de fora por não terem WhatsApp confirmado.${dup}`;
+    if (!wa.kept && wa.noWhatsapp) waTxt += " Dica: o WhatsApp só é confirmado quando aparece no cadastro do OSM ou no site da empresa; ramos com mais empresas com site (clínicas, imobiliárias, academias) costumam render mais. O Google Maps traz mais empresas com site.";
+  }
+  const ov = diag?.overpass === "failed" ? ` Atenção: o Overpass (consulta principal do OpenStreetMap) não respondeu (${diag.overpassError}); a busca usou só o Nominatim, que traz bem menos empresas com site. Tente de novo em alguns minutos.` : "";
+  return baseCoverage(providerId, found, location, niche, cityMatched) + waTxt + ov;
 }
 
 function baseCoverage(providerId: string, found: number, location: string, niche: string, cityMatched: boolean): string {
@@ -66,7 +73,9 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
     step("discover", provider.label);
     // Só entram empresas com WhatsApp comercial confirmado: busca um conjunto maior e filtra depois da verificação.
     const pool = providerId === "import" || isDemo ? criteria.count : Math.min(80, Math.max(criteria.count * 6, 40));
-    const raw = await provider.search({ ...criteria, count: pool }, { rows });
+    let diag: SearchDiagnostics | null = null;
+    const raw = await provider.search({ ...criteria, count: pool }, { rows, onDiagnostics: (d) => { diag = d; } });
+    if (diag) step("sources", (diag as SearchDiagnostics).overpass === "ok" ? `Overpass (${(diag as SearchDiagnostics).overpassServer}) + Nominatim` : `Overpass indisponível (${(diag as SearchDiagnostics).overpassError ?? "não usado"}); só Nominatim`);
     const { unique, duplicates: batchDups } = dedupeBatch(raw);
 
     // Deduplicação contra a lista do usuário (demo só se compara com demo).
@@ -113,7 +122,7 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
       if (c) created.push(c.id);
     }
     step("whatsapp", `${enriched.length} verificadas · ${noWhatsapp} sem WhatsApp comercial confirmado (excluídas)`);
-    step("coverage", coverageNote(providerId, raw.length, criteria.location, criteria.niche, !!city, { verified: enriched.length, noWhatsapp, kept: created.length }));
+    step("coverage", coverageNote(providerId, raw.length, criteria.location, criteria.niche, !!city, { verified: enriched.length, noWhatsapp, kept: created.length, duplicates }, diag));
     step("done", `${created.length} novos leads`);
     const updated = await prisma.leadSearch.update({
       where: { id: search.id },

@@ -77,3 +77,44 @@ describe("Texto do site oficial", () => {
     expect(usableOwnDescription("Pizzas artesanais, burratas feitas por nós e uma experiência italiana completa no bairro.")).toMatch(/Pizzas artesanais/);
   });
 });
+
+import { withMood } from "@/lib/site/immersive/concept";
+const lum = (h: string) => { const v = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); return 0.2126 * v[0]! + 0.7152 * v[1]! + 0.0722 * v[2]!; };
+const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x! + 0.05) / (y! + 0.05); };
+
+describe("Direção de arte por ramo (premium)", () => {
+  it("saúde e padaria ficam claras; barbearia e restaurante ficam escuros e cinematográficos", () => {
+    const dent = make("Clínica Sorriso Pleno", "odontologia", { category: "Dentista" }).concept!;
+    const pad = make("Padaria Trigo Bom", "padaria", { category: "Padaria" }).concept!;
+    const barb = make("Barbearia Navalha", "barbearia", { category: "Barbearia" }).concept!;
+    const rest = make("Cantina Nonna", "restaurante", { category: "Restaurante" }).concept!;
+    expect([dent.mood, pad.mood, barb.mood, rest.mood]).toEqual(["ivory", "ivory", "noir", "noir"]);
+    expect(lum(dent.palette.bg)).toBeGreaterThan(0.8);
+    expect(lum(barb.palette.bg)).toBeLessThan(0.02);
+  });
+  it("texto, texto suave e destaque têm contraste AA nas paletas claras e escuras", () => {
+    for (const n of ["Clínica Sorriso", "Odonto Vida", "Padaria Sol", "Salão Bella", "Barbearia X", "Pizzaria Y", "Academia Z", "Pet Amigo"]) {
+      const seg = /Odonto|Clínica/.test(n) ? "odontologia" : /Padaria/.test(n) ? "padaria" : /Salão/.test(n) ? "salao" : /Barb/.test(n) ? "barbearia" : /Pizz/.test(n) ? "restaurante" : /Acad/.test(n) ? "academia" : "petshop";
+      const p = make(n, seg).concept!.palette;
+      expect(ratio(p.ink, p.bg)).toBeGreaterThan(7);
+      expect(ratio(p.muted, p.bg)).toBeGreaterThan(4.5);
+      expect(ratio(p.accent, p.bg)).toBeGreaterThan(4.5);
+    }
+  });
+  it("página tem pular para o conteúdo, menu acessível no celular, color-scheme do ramo e abertura cinematográfica", () => {
+    const c = make("Clínica Sorriso Pleno", "odontologia", { category: "Dentista" });
+    const html = renderSite(c);
+    expect(html).toContain('class="skip" href="#conteudo"');
+    expect(html).toContain('<main id="conteudo">');
+    expect(html).toMatch(/<details class="menu"><summary>Menu<\/summary><nav aria-label="Seções">/);
+    expect(html).toContain('<meta name="color-scheme" content="light">');
+    expect(renderSite(make("Barbearia Navalha", "barbearia"))).toContain('<meta name="color-scheme" content="dark">');
+  });
+  it("conceito salvo antes da direção de arte ganha o mood do ramo ao renderizar", () => {
+    const old = { ...make("Clínica Sorriso Pleno", "odontologia").concept!, palette: { bg: "#07090c", bg2: "#10151b", ink: "#eef3f8", muted: "#9aa8b8", accent: "#7cc4ff", accent2: "#2a5a85" } } as Record<string, unknown>;
+    delete old.mood;
+    const k = withMood(old as never);
+    expect(k.mood).toBe("ivory");
+    expect(lum(k.palette.bg)).toBeGreaterThan(0.8);
+  });
+});

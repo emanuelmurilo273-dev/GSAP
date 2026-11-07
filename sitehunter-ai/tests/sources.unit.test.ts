@@ -177,7 +177,7 @@ describe("Municípios do Brasil", () => {
     vi.stubGlobal("fetch", vi.fn(async (u: string) => { urls.push(String(u)); return new Response(JSON.stringify([{ ...nom, address: { ...nom.address, city: "Chapecó" } }, { ...nom, osm_id: 5, address: { ...nom.address, city: "Xaxim" } }])); }));
     const r = await osmProvider.search({ niche: "dentista", location: "Chapecó - SC", cityIbge: 4204202, language: "pt-BR", count: 1 });
     expect(urls[0]).toContain("overpass"); // 1º: Overpass (WhatsApp ou site cadastrados)
-    expect(urls[1]).toContain("bounded=1"); // depois: Nominatim na área do município
+    expect(urls.find((u) => u.includes("nominatim"))).toContain("bounded=1"); // depois: Nominatim na área do município
     expect(r.map((x) => x.city)).toEqual(["Chapecó"]);
   });
   it("cidade sem resultados é sinalizada com a cobertura real da fonte", () => {
@@ -224,7 +224,7 @@ import { overpassToNom } from "@/lib/leads/providers/osm";
 import { contactLink } from "@/lib/leads/presence";
 
 describe("Overpass e página de contato", () => {
-  it("Overpass filtra por WhatsApp/site na área do município e prioriza quem tem WhatsApp", async () => {
+  it("Overpass consulta o ramo na área do município (sem filtro lento por regex) e prioriza quem tem WhatsApp", async () => {
     const bodies: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (u: string, init?: RequestInit) => {
       if (String(u).includes("overpass")) {
@@ -237,7 +237,10 @@ describe("Overpass e página de contato", () => {
       return new Response("[]");
     }));
     const r = await osmProvider.search({ niche: "barbearia", location: "Chapecó - SC", cityIbge: 4204202, language: "pt-BR", count: 5 });
-    expect(decodeURIComponent(bodies[0]!)).toMatch(/contact:whatsapp\|whatsapp/);
+    const q = new URLSearchParams(bodies[0]!).get("data")!;
+    expect(q).toContain('nwr["shop"="barber"]["name"];');
+    expect(q).toMatch(/\[bbox:-?[\d.]+,-?[\d.]+,-?[\d.]+,-?[\d.]+\]/);
+    expect(q).not.toContain("[~");
     expect(r.map((x) => x.name)).toEqual(["Barbearia Zap", "Barbearia Site"]);
     expect(r[0]).toMatchObject({ whatsapp: "+55 49 99123-4567", city: "Chapecó", mapsUrl: "https://www.openstreetmap.org/way/11" });
   });
@@ -246,5 +249,33 @@ describe("Overpass e página de contato", () => {
     const html = '<a href="https://instagram.com/x">Insta</a><a href="/fale-conosco">Fale conosco</a><a href="https://outro.com/contato">x</a>';
     expect(contactLink(html, "https://loja.com.br/")).toBe("https://loja.com.br/fale-conosco");
     expect(contactLink('<a href="https://outro.com/contato">Contato</a>', "https://loja.com.br/")).toBeNull();
+  });
+});
+
+describe("Overpass com servidores de reserva", () => {
+  it("tenta o próximo servidor quando um falha e registra o servidor usado", async () => {
+    const hosts: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (u: string) => {
+      const url = String(u);
+      if (url.includes("interpreter")) {
+        hosts.push(new URL(url).host);
+        if (hosts.length === 1) return new Response("busy", { status: 504 });
+        return new Response(JSON.stringify({ elements: [{ type: "node", id: 7, lat: -27.1, lon: -52.6, tags: { name: "Clínica Sorriso", amenity: "dentist", website: "https://sorriso.com.br" } }] }));
+      }
+      return new Response("[]");
+    }));
+    let diag: { overpass: string; overpassServer: string | null } | null = null;
+    const r = await osmProvider.search({ niche: "dentista", location: "Chapecó - SC", cityIbge: 4204202, language: "pt-BR", count: 5 }, { onDiagnostics: (d) => { diag = d; } });
+    expect(hosts.length).toBe(2);
+    expect(diag).toMatchObject({ overpass: "ok", overpassServer: hosts[1] });
+    expect(r[0]?.name).toBe("Clínica Sorriso");
+  });
+  it("todos os servidores fora do ar: segue com o Nominatim e avisa no resumo", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (u: string) => (String(u).includes("interpreter") ? new Response("", { status: 503 }) : new Response("[]"))));
+    let diag: { overpass: string; overpassError: string | null } | null = null;
+    await osmProvider.search({ niche: "dentista", location: "Chapecó - SC", cityIbge: 4204202, language: "pt-BR", count: 5 }, { onDiagnostics: (d) => { diag = d; } });
+    expect(diag!.overpass).toBe("failed");
+    expect(diag!.overpassError).toMatch(/HTTP 503/);
+    expect(coverageNote("osm", 3, "Chapecó - SC", "dentista", true, { verified: 3, noWhatsapp: 3, kept: 0 }, diag as never)).toMatch(/Overpass .* não respondeu/);
   });
 });

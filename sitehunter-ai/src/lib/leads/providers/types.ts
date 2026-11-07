@@ -13,8 +13,16 @@ export interface BusinessSearchProvider {
   configured(): boolean;
   /** Instruções exibidas quando não está configurado. */
   setupHint: string;
-  search(criteria: LeadCriteria, opts?: { rows?: ImportRow[] }): Promise<RawBusiness[]>;
+  search(criteria: LeadCriteria, opts?: { rows?: ImportRow[]; onDiagnostics?: (d: SearchDiagnostics) => void }): Promise<RawBusiness[]>;
 }
+
+/** O que aconteceu com cada fonte consultada (vai para o resumo da busca, sem dados sensíveis). */
+export type SearchDiagnostics = {
+  overpass: "ok" | "failed" | "skipped";
+  overpassServer: string | null;
+  overpassError: string | null;
+  nominatimQueries: number;
+};
 
 export type ImportRow = {
   name: string;

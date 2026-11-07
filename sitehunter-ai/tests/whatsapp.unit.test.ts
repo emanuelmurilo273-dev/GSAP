@@ -22,6 +22,9 @@ describe("WhatsApp: número e link", () => {
     expect(normalizeWhatsApp("+55 41 3323-1150")).toBe("554133231150");
     expect(normalizeWhatsApp("+351 912 345 678")).toBe("351912345678");
     expect(normalizeWhatsApp("123")).toBeNull();
+    // celular no formato antigo (sem o nono dígito) ganha o 9; fixo continua igual
+    expect(normalizeWhatsApp("554899940431")).toBe("5548999940431");
+    expect(normalizeWhatsApp("554833075444")).toBe("554833075444");
     expect(isBrMobile("5541998765432")).toBe(true);
     expect(isBrMobile("554133231150")).toBe(false);
   });
@@ -156,5 +159,12 @@ describe("WhatsApp com DDD de outra cidade", () => {
     const { facts } = buildFacts(r, pres());
     expect(facts.whatsapp?.status).toBe("confirmed");
     expect(facts.whatsapp?.note).toMatch(/DDD 51 não é o da cidade \(São Paulo, DDD 11\)/);
+  });
+});
+
+describe("WhatsApp em botões flutuantes do site", () => {
+  it("acha o link em JSON com barras escapadas e com &#038; no lugar de &", () => {
+    expect(analyzeHtml('<script>var c={"url":"https:\\/\\/wa.me\\/5548991202269"}</script>', "https://x.com.br/").whatsapp).toEqual(["5548991202269"]);
+    expect(analyzeHtml('<div data-href="https://api.whatsapp.com/send?text=oi&#038;phone=554899940431"></div>', "https://x.com.br/").whatsapp).toEqual(["554899940431"]);
   });
 });

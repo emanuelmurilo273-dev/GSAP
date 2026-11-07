@@ -95,6 +95,32 @@ const PALETTES: Record<string, Pal[]> = {
     ["Terracota", "#0a0706", "#1a0f0b", "#f8ede6", "#c2a597", "#e07b55", "#7a3420"],
   ],
 };
+// ---------- paletas claras (ramos em que luz e limpeza vendem mais que noite) ----------
+// Texto e destaque com contraste AA (≥ 4,5:1) sobre o fundo.
+const LIGHT: Record<string, Pal[]> = {
+  warm: [
+    ["Farinha e forno", "#f5efe6", "#ebe1d2", "#1d150e", "#5b4c3d", "#9a4a1c", "#e3b07a"],
+    ["Crema e canela", "#f4ede4", "#e8dccb", "#21170f", "#5e4e3e", "#8a4a22", "#d9a26c"],
+  ],
+  cool: [
+    ["Porcelana", "#f3f5f4", "#e5ebea", "#0f1a1c", "#47575a", "#0e6a66", "#8fc9c0"],
+    ["Linho e azul", "#f4f5f7", "#e4e8ef", "#111827", "#4a5468", "#1f4fa3", "#9db6e4"],
+  ],
+  soft: [
+    ["Marfim e rosé", "#f6f0ee", "#ece1de", "#1e1416", "#5e4b50", "#93365a", "#e3aab9"],
+    ["Pérola e ameixa", "#f5f1f2", "#e9e0e3", "#1c1419", "#584a53", "#6e2f5c", "#cfa3c4"],
+  ],
+  earth: [
+    ["Pedra e linho", "#f2efe8", "#e5e0d5", "#1a1a14", "#55533f", "#566324", "#c4b57c"],
+  ],
+};
+/** Ramos que ficam claros: saúde (limpeza, confiança), padaria e café da manhã, beleza, moda, pet. */
+const IVORY = new Set<ModelKind>(["tooth", "implant", "pill", "glasses", "loaf", "croissant", "cake", "comb", "hairdryer", "bottle", "polish", "hanger", "tshirt", "paw", "bone"]);
+export function moodFor(model: ModelKind): "noir" | "ivory" { return IVORY.has(model) ? "ivory" : "noir"; }
+function palettesFor(mood: "noir" | "ivory", tone: string): Pal[] {
+  return mood === "ivory" ? LIGHT[tone] ?? LIGHT.warm! : PALETTES[tone]!;
+}
+
 const FAMILY_TONE: Record<string, (keyof typeof PALETTES)[]> = {
   cup: ["warm", "earth"], bean: ["warm"], loaf: ["warm", "earth"], croissant: ["warm"], cake: ["soft", "warm"], plate: ["warm", "earth", "soft"], cloche: ["warm", "soft"], pizza: ["bold", "warm"], burger: ["bold", "warm"], cutlery: ["warm"],
   scissors: ["warm", "bold", "cool"], razor: ["warm", "bold"], pole: ["bold"], comb: ["soft"], hairdryer: ["soft", "warm"], bottle: ["soft"], polish: ["soft"],
@@ -189,10 +215,12 @@ export function buildConcept(input: ConceptInput): Concept {
   // 2. Paleta e material
   const tones = FAMILY_TONE[model] ?? ["cool"];
   const tone = pick(tones, seed, 1);
-  const pal = pick(PALETTES[tone]!, seed, 2);
+  const mood = moodFor(model);
+  const pal = pick(palettesFor(mood, tone), seed, 2);
   const material = pick(MATERIAL_FOR[model] ?? (["chrome", "gold"] as Material[]), seed, 3);
   const matTxt = INTRINSIC.has(model) ? "" : ` em ${MATERIAL_LABEL[material]}`;
   reasons.push(`Paleta "${pal[0]}"${matTxt ? ` e material ${MATERIAL_LABEL[material]}` : ""}: tom ${tone === "warm" ? "quente" : tone === "cool" ? "frio e limpo" : tone === "bold" ? "de alto contraste" : tone === "soft" ? "suave" : "terroso"} combina com ${MODEL_LABEL[model]}; a variação vem do nome da empresa.`);
+  reasons.push(mood === "ivory" ? "Direção clara e editorial: em saúde, padaria, beleza, moda e pet, luz e limpeza passam mais confiança que um fundo escuro. A abertura com foto continua cinematográfica." : "Direção escura e cinematográfica: luz baixa, contraste alto e foto em tela cheia, como uma vitrine à noite.");
 
   // 3. Tipografia e composição
   const font = FONTS[pick(FONTS_FOR_TONE[tone] ?? [0], seed, 4)]!;
@@ -240,6 +268,7 @@ export function buildConcept(input: ConceptInput): Concept {
     highlights,
     seed,
     heroMode,
+    mood,
     ...(dish ? { dish } : {}),
     ...(asset ? { asset } : {}),
   };
@@ -250,7 +279,7 @@ export function varyConcept(c: Concept): Concept {
   const seed = (c.seed * 1103515245 + 12345) >>> 0;
   const tones = FAMILY_TONE[c.model] ?? ["cool"];
   const tone = pick(tones, seed, 1);
-  const pal = pick(PALETTES[tone]!, seed, 2);
+  const pal = pick(palettesFor(c.mood ?? moodFor(c.model), tone), seed, 2);
   const font = FONTS[pick(FONTS_FOR_TONE[tone] ?? [0], seed, 4)]!;
   const material = INTRINSIC.has(c.model) ? c.material : pick(MATERIAL_FOR[c.model] ?? (["chrome", "gold"] as Material[]), seed, 3);
   const matTxt = INTRINSIC.has(c.model) ? "" : ` em ${MATERIAL_LABEL[material]}`;
@@ -275,5 +304,21 @@ export function relabelModel(c: Concept, model: ModelKind): Concept {
   const matTxt = INTRINSIC.has(model) ? "" : ` em ${MATERIAL_LABEL[c.material]}`;
   const dish = model === "pizza" ? "pizza" : model === "cup" ? "latte" : model === "plate" ? (c.dish && c.dish !== "pizza" && c.dish !== "latte" ? c.dish : "grill") : undefined;
   const asset = model === "croissant" ? "croissant" : model === "cake" ? "carrot_cake" : undefined;
-  return { ...c, model, dish, asset, secondary: c.secondary.filter((k) => k !== model), name: `${MODEL_LABEL[model][0]!.toUpperCase()}${MODEL_LABEL[model].slice(1)}${matTxt} · ${c.name.split(" · ")[1] ?? ""}`, reasons: [...c.reasons.filter((r) => !r.startsWith("Objeto trocado")), `Objeto trocado no editor para ${MODEL_LABEL[model]}.`].slice(0, 14) };
+  // Trocar de ramo pode trocar a direção de arte (ex.: tesoura → dente): a paleta acompanha.
+  const mood = moodFor(model);
+  let palette = c.palette;
+  if (mood !== (c.mood ?? "noir")) {
+    const pal = pick(palettesFor(mood, pick(FAMILY_TONE[model] ?? ["cool"], c.seed, 1)), c.seed, 2);
+    palette = { bg: pal[1], bg2: pal[2], ink: pal[3], muted: pal[4], accent: pal[5], accent2: pal[6] };
+  }
+  return { ...c, model, dish, asset, mood, palette, secondary: c.secondary.filter((k) => k !== model), name: `${MODEL_LABEL[model][0]!.toUpperCase()}${MODEL_LABEL[model].slice(1)}${matTxt} · ${c.name.split(" · ")[1] ?? ""}`, reasons: [...c.reasons.filter((r) => !r.startsWith("Objeto trocado")), `Objeto trocado no editor para ${MODEL_LABEL[model]}.`].slice(0, 14) };
+}
+
+/** Conceitos salvos antes da direção de arte por ramo: ganham o mood do ramo (e paleta clara, se for o caso). */
+export function withMood(c: Concept): Concept {
+  if (c.mood) return c;
+  const mood = moodFor(c.model);
+  if (mood === "noir") return { ...c, mood };
+  const pal = pick(palettesFor(mood, pick(FAMILY_TONE[c.model] ?? ["cool"], c.seed, 1)), c.seed, 2);
+  return { ...c, mood, palette: { bg: pal[1], bg2: pal[2], ink: pal[3], muted: pal[4], accent: pal[5], accent2: pal[6] }, name: `${c.name.split(" · ")[0]} · ${pal[0]}` };
 }

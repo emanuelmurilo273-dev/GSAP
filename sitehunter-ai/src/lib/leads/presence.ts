@@ -46,7 +46,11 @@ export function analyzeHtml(html: string, pageUrl: string, now = new Date()): Om
     .slice(0, 3);
   const phones = [...new Set(hrefs.filter((h) => h.toLowerCase().startsWith("tel:")).map((h) => h.slice(4).trim()))].slice(0, 3);
   // WhatsApp publicado pela empresa no próprio site (wa.me, api.whatsapp.com, whatsapp://).
-const linked = hrefs.map((h) => h.match(/(?:wa\.me\/|whatsapp\.com\/send\/?\?(?:[^#]*&)?phone=|whatsapp:\/\/send\?(?:[^#]*&)?phone=)\+?(\d{10,15})/i)?.[1]).filter((x): x is string => !!x);
+  // Além dos href, procura no HTML inteiro: botões flutuantes e construtores (WordPress, Wix) gravam o
+  // link em atributos data-*, JSON com barras escapadas (wa.me\/55...) ou com &#038; no lugar de &.
+  const flat = html.replace(/\\\//g, "/").replace(/&#0?38;|&amp;/gi, "&").replace(/%3D/gi, "=").replace(/%2B/gi, "+");
+  const WA_LINK = /(?:wa\.me\/|whatsapp\.com\/send\/?\?(?:[^#"'\s<>]*&)?phone=|whatsapp:\/\/send\?(?:[^#"'\s<>]*&)?phone=)\+?(\d{10,15})/gi;
+  const linked = [...new Set([...hrefs.join("\n").matchAll(WA_LINK), ...flat.matchAll(WA_LINK)].map((m) => m[1]!))];
   // Também aceita o número escrito como WhatsApp no texto ("WhatsApp: (41) 99876-5432").
   const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
   const written = [...text.matchAll(/(?:whats\s?app|whats|zap)\s*[:\-–]?\s*((?:\+?55\s*)?\(?\d{2}\)?\s*9?\s*\d{4}[\s.-]?\d{4})/gi)].map((m) => m[1]!.replace(/\D/g, ""));
