@@ -21,7 +21,7 @@ export function realRuntime(cfg) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.6 : 2));
   renderer.outputEncoding = T.sRGBEncoding;
   renderer.toneMapping = T.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = cfg.exposure || 1.0;
+  renderer.toneMappingExposure = cfg.exposure || (cfg.dark ? 1.45 : 1.0);
   renderer.physicallyCorrectLights = true;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
@@ -33,7 +33,7 @@ export function realRuntime(cfg) {
   scene.add(pivot);
 
   // Luz principal (janela de estúdio) + preenchimento suave; o HDR faz o resto.
-  var key = new T.DirectionalLight(0xffffff, 2.2);
+  var key = new T.DirectionalLight(0xffffff, cfg.dark ? 3 : 2.2);
   key.position.set(2.5, 4.5, 3);
   key.castShadow = true;
   key.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
@@ -69,7 +69,7 @@ export function realRuntime(cfg) {
       if (o.isMesh) {
         o.castShadow = true;
         o.receiveShadow = true;
-        if (o.material) { o.material.envMapIntensity = 1.0; o.material.needsUpdate = true; }
+        if (o.material) { o.material.envMapIntensity = o.material.metalness > 0.5 ? 1.8 : 1.0; o.material.needsUpdate = true; }
       }
     });
     // Centraliza, apoia no chão (y = 0) e normaliza o tamanho para o enquadramento.
