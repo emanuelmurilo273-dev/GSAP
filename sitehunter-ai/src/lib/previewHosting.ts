@@ -5,8 +5,9 @@ import type { SiteContent } from "./site/types";
 
 // Link público das prévias, sem depender do computador do usuário: os arquivos vão para um
 // repositório PÚBLICO no GitHub do usuário (API de conteúdo, token só no servidor) e o link é:
-//   - GitHub Pages, se o usuário ativou (GITHUB_PAGES_URL), ou
-//   - raw.githack.com, que serve arquivos de repositórios públicos como páginas, sem configuração.
+//   GitHub Pages (https://<usuario>.github.io/<repo>/..., ou GITHUB_PAGES_URL para domínio próprio).
+// O Pages precisa ser ativado uma vez no repositório (Settings → Pages). CDNs de arquivos "raw"
+// (githack, jsDelivr, statically) foram testadas e não servem: entregam text/plain ou uma página de anúncio.
 // Só a página da prévia e os recursos 3D (licenças MIT/CC0) saem do app; o painel e os leads não.
 
 export type HostingConfig = { token: string; owner: string; repo: string; branch: string; dir: string; pagesUrl: string | null };
@@ -18,8 +19,15 @@ export function hostingConfig(): HostingConfig | null {
   return { token, owner, repo, branch: env.githubPreviewsBranch ?? "main", dir: env.githubPreviewsDir ?? "previas", pagesUrl: env.githubPagesUrl ?? null };
 }
 
+/** Endereço padrão do GitHub Pages do repositório (repo "<usuario>.github.io" publica na raiz). */
+export function pagesBaseFor(cfg: Pick<HostingConfig, "owner" | "repo" | "pagesUrl">) {
+  if (cfg.pagesUrl) return cfg.pagesUrl.replace(/\/$/, "");
+  const user = cfg.owner.toLowerCase();
+  return cfg.repo.toLowerCase() === `${user}.github.io` ? `https://${user}.github.io` : `https://${user}.github.io/${cfg.repo}`;
+}
+
 export function externalUrlFor(cfg: HostingConfig, slug: string) {
-  return cfg.pagesUrl ? `${cfg.pagesUrl.replace(/\/$/, "")}/${cfg.dir}/${slug}/` : `https://raw.githack.com/${cfg.owner}/${cfg.repo}/${cfg.branch}/${cfg.dir}/${slug}/index.html`;
+  return `${pagesBaseFor(cfg)}/${cfg.dir}/${slug}/`;
 }
 
 async function gh(cfg: HostingConfig, method: string, p: string, body?: unknown) {
@@ -50,6 +58,8 @@ async function put(cfg: HostingConfig, f: BundleFile, message: string, overwrite
 export async function publishExternal(content: SiteContent, slug: string, cfg = hostingConfig()): Promise<string | null> {
   if (!cfg) return null;
   const files = await buildPreviewBundle(content, slug, cfg.dir);
+  // Sem isto o Jekyll do Pages ignora pastas que começam com "_" (os recursos 3D em _assets).
+  files.unshift({ path: ".nojekyll", data: Buffer.from("") } as BundleFile);
   for (const f of files) await put(cfg, f, `Prévia ${slug}: ${f.path.endsWith("index.html") ? "atualiza página" : "recurso 3D"}`, f.path.endsWith("index.html"));
   return externalUrlFor(cfg, slug);
 }

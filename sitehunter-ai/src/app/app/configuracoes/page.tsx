@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 import { aiConfigured } from "@/lib/ai";
 import { isPrivateMode } from "@/lib/owner";
 import { CITIES } from "@/lib/br/cities";
-import { hostingConfig } from "@/lib/previewHosting";
+import { hostingConfig, pagesBaseFor } from "@/lib/previewHosting";
 
 type Row = { name: string; what: string; state: "on" | "off" | "partial"; status: string; how?: string; coverage?: string };
 
@@ -69,16 +69,16 @@ export default async function SettingsPage() {
             <span className={`badge ${BADGE[hosting ? "on" : "off"]}`}>{hosting ? "Funcionando" : "Desligado · requer token do GitHub"}</span>
           </div>
           {hosting ? (
-            <p className="mt-3 text-sm text-slate-300">Ao liberar uma prévia, a página e os recursos 3D vão para <b>{hosting.owner}/{hosting.repo}</b> (pasta <code>{hosting.dir}</code>) e o link fica em {hosting.pagesUrl ? <>GitHub Pages ({hosting.pagesUrl})</> : <>raw.githack.com (serve arquivos de repositórios públicos como página)</>}. “Retirar acesso” apaga a página.</p>
+            <p className="mt-3 text-sm text-slate-300">Ao liberar uma prévia, a página e os recursos 3D vão para <b>{hosting.owner}/{hosting.repo}</b> (pasta <code>{hosting.dir}</code>) e o link fica no GitHub Pages ({pagesBaseFor(hosting)}). O Pages precisa estar ativado no repositório (Settings → Pages → Deploy from a branch → branch <b>{hosting.branch}</b>, pasta / (root)). “Retirar acesso” apaga a página.</p>
           ) : (
             <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-300">
               <li>No GitHub, crie um repositório <b>público</b> (ex.: <code>sitehunter-previas</code>) com um arquivo README.</li>
               <li>Crie um token em Settings → Developer settings → Fine-grained tokens, só para esse repositório, com permissão <b>Contents: Read and write</b>.</li>
               <li>No arquivo de configuração, adicione <code>GITHUB_PREVIEWS_TOKEN=…</code> e <code>GITHUB_PREVIEWS_REPO=seu-usuario/sitehunter-previas</code> e reinicie o app.</li>
-              <li>Opcional: ative GitHub Pages no repositório (Settings → Pages → branch main) e adicione <code>GITHUB_PAGES_URL=https://seu-usuario.github.io/sitehunter-previas</code> para um link mais curto.</li>
+              <li>Ative o GitHub Pages no repositório: Settings → Pages → “Deploy from a branch” → branch <code>main</code>, pasta <code>/ (root)</code> → Save. O primeiro link leva 1 a 2 minutos para funcionar. <code>GITHUB_PAGES_URL</code> só é necessário com domínio próprio.</li>
             </ol>
           )}
-          <p className="mt-3 text-xs text-slate-500">Gratuito. Cuidados: o repositório é público (qualquer pessoa com o link vê a prévia, como numa publicação); o histórico do Git guarda versões antigas mesmo depois de retirar o acesso; o raw.githack.com é um serviço gratuito de terceiros, sem garantia de disponibilidade, e pode levar alguns minutos para refletir uma atualização.</p>
+          <p className="mt-3 text-xs text-slate-500">Gratuito. Cuidados: o repositório é público (qualquer pessoa com o link vê a prévia, como numa publicação); o histórico do Git guarda versões antigas mesmo depois de retirar o acesso; cada atualização leva cerca de 1 minuto para aparecer no Pages; o GitHub limita sites do Pages a 1 GB e 100 GB de tráfego por mês, e não permite uso comercial pesado (é para prévias, não para hospedar o site final do cliente).</p>
         </section>
         <section className="card p-5 sm:p-6">
           <h2 className="font-semibold text-white">Como adicionar uma chave</h2>

@@ -58,7 +58,7 @@ describe("Link público das prévias", () => {
     expect(html).toContain('"dishUrl":"../_assets/models/dishes/pizza.jpg"');
     expect(html).toContain('name="robots" content="noindex');
   });
-  it("envia pela API do GitHub e devolve link githack (ou Pages); retirar apaga a página", async () => {
+  it("envia pela API do GitHub e devolve link do GitHub Pages; retirar apaga a página", async () => {
     const cfg: HostingConfig = { token: "t", owner: "ana", repo: "previas", branch: "main", dir: "previas", pagesUrl: null };
     const calls: { m: string; u: string }[] = [];
     vi.stubGlobal("fetch", vi.fn(async (u: string, init?: RequestInit) => {
@@ -67,12 +67,14 @@ describe("Link público das prévias", () => {
       return new Response("{}", { status: 201 });
     }));
     const url = await publishExternal(content, "forneria-teste", cfg);
-    expect(url).toBe("https://raw.githack.com/ana/previas/main/previas/forneria-teste/index.html");
+    expect(url).toBe("https://ana.github.io/previas/previas/forneria-teste/");
+    expect(calls.some((c) => c.m === "PUT" && c.u.endsWith("/contents/.nojekyll"))).toBe(true);
     expect(calls.filter((c) => c.m === "PUT").map((c) => decodeURIComponent(c.u))).toEqual(expect.arrayContaining([expect.stringContaining("previas/forneria-teste/index.html"), expect.stringContaining("previas/_assets/vendor/three.min.js")]));
     expect(calls.every((c) => c.u.startsWith("https://api.github.com/repos/ana/previas/contents/"))).toBe(true);
     calls.length = 0;
     await unpublishExternal("forneria-teste", cfg);
     expect(calls.map((c) => c.m)).toEqual(["GET", "DELETE"]);
-    expect(externalUrlFor({ ...cfg, pagesUrl: "https://ana.github.io/previas" }, "x")).toBe("https://ana.github.io/previas/previas/x/");
+    expect(externalUrlFor({ ...cfg, pagesUrl: "https://previas.ana.com.br/" }, "x")).toBe("https://previas.ana.com.br/previas/x/");
+    expect(externalUrlFor({ ...cfg, owner: "Ana", repo: "ana.github.io" }, "x")).toBe("https://ana.github.io/previas/x/");
   });
 });
