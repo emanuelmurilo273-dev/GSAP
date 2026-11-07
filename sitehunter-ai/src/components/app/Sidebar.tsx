@@ -53,7 +53,7 @@ function NavList({ items, onNavigate }: { items: Item[]; onNavigate?: () => void
   );
 }
 
-export function Sidebar({ name, email, isAdmin, privateMode = false }: { name: string; email: string; isAdmin: boolean; privateMode?: boolean }) {
+export function Sidebar({ name, email, isAdmin, privateMode = false, version = "local" }: { name: string; email: string; isAdmin: boolean; privateMode?: boolean; version?: string }) {
   const [open, setOpen] = useState(false);
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -75,7 +75,7 @@ export function Sidebar({ name, email, isAdmin, privateMode = false }: { name: s
         <p className="truncate text-sm font-medium text-white">{name}</p>
         <p className="truncate text-xs text-slate-500">{email}</p>
         {privateMode && <p className="mt-1 text-[11px] text-emerald-300/80">Painel privado · conta proprietária</p>}
-        <button onClick={logout} className="mt-2 text-xs text-slate-400 hover:text-red-300">Sair</button>
+        <div className="mt-2 flex items-center justify-between gap-2"><button onClick={logout} className="text-xs text-slate-400 hover:text-red-300">Sair</button><span className="text-[10px] tabular-nums text-slate-600" title="Versão desta instalação (confira se é a mais recente)" data-app-version>versão {version}</span></div>
       </div>
     </div>
   );

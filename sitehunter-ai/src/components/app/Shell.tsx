@@ -25,7 +25,7 @@ export async function Shell({ children, admin = false }: { children: React.React
       <AmbientBackdrop />
       <Spotlight />
       <div className="app-layer">
-      <Sidebar name={user.name} email={user.email} isAdmin={user.role === "ADMIN"} privateMode={isPrivateMode()} />
+      <Sidebar name={user.name} email={user.email} isAdmin={user.role === "ADMIN"} privateMode={isPrivateMode()} version={(process.env.APP_VERSION ?? "local").slice(0, 7)} />
       <div className="lg:pl-64">
       <div className="mx-auto w-full max-w-[1480px]">
         <div className="space-y-2 px-4 pt-4 sm:px-8">

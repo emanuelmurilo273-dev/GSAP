@@ -14,7 +14,8 @@ RUN npx prisma generate && npx next build
 # ---------- execução ----------
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+ARG GIT_SHA=local
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 APP_VERSION=$GIT_SHA
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/* \
   && npm install -g prisma@6.19.3 && useradd -m -u 1001 app
 COPY --from=build /app/.next/standalone ./

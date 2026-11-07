@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, version: (process.env.APP_VERSION ?? "local").slice(0, 7) });
   } catch {
     return NextResponse.json({ ok: false }, { status: 503 });
   }
