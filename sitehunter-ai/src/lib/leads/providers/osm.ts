@@ -1,4 +1,5 @@
 import { env } from "../../env";
+import { firstPhone } from "../../whatsapp";
 import { HttpError } from "../../http";
 import { log } from "../../logger";
 import { parseOsmHours } from "../hours";
@@ -162,7 +163,7 @@ export function mapNominatim(x: NomItem, fallbackCategory: string): RawBusiness 
     neighborhood: a.suburb ?? a.neighbourhood ?? null,
     city,
     state: a.state ?? null,
-    phone: t.phone ?? t["contact:phone"] ?? t["contact:mobile"] ?? null,
+    phone: firstPhone(t.phone ?? t["contact:phone"] ?? t["contact:mobile"] ?? null),
     email: t.email ?? t["contact:email"] ?? null,
     website: website && /^https?:\/\//i.test(website) ? website : website ? `https://${website}` : null,
     mapsUrl: url,

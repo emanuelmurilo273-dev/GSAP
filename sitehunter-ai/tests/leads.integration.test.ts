@@ -57,8 +57,8 @@ describe("Pipeline de leads", () => {
     expect(r.createdIds).toHaveLength(3);
     expect(r.search.found).toBe(5);
     const log = r.search.log as { step: string; detail?: string }[];
-    expect(log.find((x) => x.step === "contacts")?.detail).toMatch(/3 salvas · 0 com WhatsApp confirmado · 3 só com telefone/);
-    expect(log.find((x) => x.step === "coverage")?.detail).toMatch(/3 entraram na lista: 0 com WhatsApp confirmado, 3 só com telefone/);
+    expect(log.find((x) => x.step === "contacts")?.detail).toMatch(/3 salvas · 0 com WhatsApp confirmado · 3 com telefone \(WhatsApp não informado\)/);
+    expect(log.find((x) => x.step === "coverage")?.detail).toMatch(/3 entraram na lista: 0 com WhatsApp confirmado, 3 com telefone \(WhatsApp não informado\)/);
     const saved = await prisma.company.findMany({ where: { userId: u.id } });
     expect(saved.every((c) => c.whatsapp === null && !!c.phone)).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1); // perfis sociais/sem site: nenhum site acessado

@@ -8,6 +8,7 @@ import { TiltCard } from "@/components/studio/TiltCard";
 import { DemoBadge, FactBadge, ScoreMeter } from "./FactBadge";
 import type { LeadView, ProviderRow, SearchRow } from "./types";
 import { CityPicker } from "./CityPicker";
+import { formatBrPhone, validBrPhone } from "@/lib/whatsapp";
 
 const coverageOf = (s: SearchRow) => (s.log ?? []).find((x) => x.step === "coverage")?.detail ?? null;
 
@@ -291,7 +292,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
           <select className="input w-auto py-2" value={contact} onChange={(e) => setContact(e.target.value as typeof contact)} aria-label="Forma de contato">
             <option value="all">Qualquer contato</option>
             <option value="whatsapp">Com WhatsApp confirmado</option>
-            <option value="phone">Com telefone</option>
+            <option value="phone">Com telefone (com ou sem WhatsApp)</option>
             <option value="email">Com e-mail</option>
             <option value="none">Sem contato publicado</option>
           </select>
@@ -392,16 +393,29 @@ function ContactBox({ l }: { l: LeadView }) {
       </div>
     );
   }
+  const phoneOk = validBrPhone(l.phone);
+  const others = cs.filter((c) => c.key !== "phone");
   return (
     <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
-      <p className="text-[11px] text-slate-400">{cs.length ? "Sem WhatsApp confirmado. Contato publicado:" : "Nenhum contato publicado na fonte: só nome e endereço."}</p>
-      {cs.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">{cs.map((c) => <span key={c.key} className="badge bg-white/5 text-slate-200">{c.label}</span>)}</div>}
+      {l.phone ? (
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-100">{formatBrPhone(l.phone)}</p>
+            <p className="truncate text-[11px] text-slate-400">Telefone{phoneOk ? "" : " (número incompleto na fonte: confira)"} · WhatsApp não informado</p>
+          </div>
+          {phoneOk && <a href={`tel:+${phoneOk}`} className="btn-secondary shrink-0 px-3 py-1.5 text-xs">Ligar</a>}
+        </div>
+      ) : (
+        <p className="text-[11px] text-slate-400">{cs.length ? "Sem telefone publicado. Outros contatos:" : "Nenhum contato publicado na fonte: só nome e endereço."}</p>
+      )}
+      {others.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">{others.map((c) => <span key={c.key} className="badge bg-white/5 text-slate-200">{c.label}</span>)}</div>}
     </div>
   );
 }
 
 function ContactLine({ l }: { l: LeadView }) {
   if (l.waConfirmed || (l.isDemo && l.whatsapp)) return <span className="text-emerald-300">{l.isDemo ? "WhatsApp fictício" : `WhatsApp ${prettyWa(l.whatsapp)}`}</span>;
+  if (l.phone) return <span className="text-slate-300">Telefone {formatBrPhone(l.phone)}</span>;
   const cs = contactsOf(l);
   return <span className="text-slate-400">{cs.length ? cs.map((c) => c.label).join(" · ") : "sem contato publicado"}</span>;
 }
@@ -419,7 +433,7 @@ function SearchResults({ lastSearch, results, searches }: { lastSearch: SearchRo
       <section className="card p-5 sm:p-6" aria-live="polite">
         <h2 className="font-semibold text-white">Resultado da busca</h2>
         {!lastSearch ? (
-          <p className="mt-2 text-sm text-slate-400">Escolha o ramo, o estado e a cidade e clique em <b>Iniciar busca</b>. Entram todas as empresas reais encontradas; cada uma mostra as formas de contato publicadas (WhatsApp confirmado, telefone, e-mail, site, Instagram).</p>
+          <p className="mt-2 text-sm text-slate-400">Escolha o ramo, o estado e a cidade e clique em <b>Iniciar busca</b>. Entram todas as empresas reais encontradas, com ou sem WhatsApp. O telefone aparece como contato; o WhatsApp só é indicado quando a fonte informa.</p>
         ) : !results.length ? (
           <p className="mt-2 text-sm text-slate-400">Nenhuma empresa nova nesta busca. Veja o resumo acima: tente outro termo, uma cidade vizinha ou a fonte Google Maps (requer chave).</p>
         ) : (

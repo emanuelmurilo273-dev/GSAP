@@ -8,6 +8,7 @@ import { dedupeBatch, dedupeKeys } from "./normalize";
 import { detectOpportunities } from "./opportunities";
 import { checkPresence } from "./presence";
 import { getProvider, type ImportRow } from "./providers";
+import { validBrPhone } from "../whatsapp";
 import type { SearchDiagnostics } from "./providers/types";
 import type { ImageCandidate, LeadCriteria, PresenceReport, RawBusiness } from "./types";
 import { companyImageCandidates, sourceImageCandidates } from "./leadImages";
@@ -37,7 +38,7 @@ export function coverageNote(providerId: string, found: number, location: string
   let waTxt = "";
   if (t && providerId !== "demo" && found) {
     const dup = t.duplicates ? ` ${t.duplicates} já estavam na sua lista.` : "";
-    waTxt = ` ${t.kept} entraram na lista: ${t.whatsapp} com WhatsApp confirmado, ${t.phoneOnly} só com telefone, ${t.otherContact} com e-mail, site ou rede social e ${t.none} sem contato publicado (só endereço).${dup}`;
+    waTxt = ` ${t.kept} entraram na lista: ${t.whatsapp} com WhatsApp confirmado, ${t.phoneOnly} com telefone (WhatsApp não informado), ${t.otherContact} com e-mail, site ou rede social e ${t.none} sem contato publicado (só endereço).${dup}`;
   }
   const ov = diag?.overpass === "failed" ? ` Atenção: o Overpass (consulta principal do OpenStreetMap) não respondeu (${diag.overpassError}); a busca usou só o Nominatim, que traz bem menos empresas com site. Tente de novo em alguns minutos.` : "";
   return baseCoverage(providerId, found, location, niche, cityMatched) + waTxt + ov;
@@ -107,7 +108,7 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
     const created: string[] = [];
     const tally = { whatsapp: 0, phoneOnly: 0, otherContact: 0, none: 0 };
     // Quem tem mais formas de contato vem primeiro; quem não tem nenhuma entra por último (só endereço).
-    const contactRank = (r: RawBusiness, p: PresenceReport) => (p.whatsapp?.length || r.whatsapp ? 0 : r.phone ? 1 : r.website || r.email || r.socialLinks?.length ? 2 : 3);
+    const contactRank = (r: RawBusiness, p: PresenceReport) => (p.whatsapp?.length || r.whatsapp ? 0 : validBrPhone(r.phone) ? 1 : r.phone || r.website || r.email || r.socialLinks?.length ? 2 : 3);
     enriched.sort((a, b) => contactRank(a.r, a.presence) - contactRank(b.r, b.presence));
     for (const { r, keys, presence } of enriched) {
       if (created.length >= criteria.count) break;
@@ -117,7 +118,7 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
       const wa = facts.whatsapp;
       const whatsapp = wa?.value && wa.status === "confirmed" ? wa.value : null;
       if (whatsapp) tally.whatsapp++;
-      else if (r.phone) tally.phoneOnly++;
+      else if (validBrPhone(r.phone)) tally.phoneOnly++;
       else if (email || r.website || socials.length) tally.otherContact++;
       else tally.none++;
       const opp = detectOpportunities(facts, presence);
@@ -129,7 +130,7 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
       });
       if (c) created.push(c.id);
     }
-    step("contacts", `${created.length} salvas · ${tally.whatsapp} com WhatsApp confirmado · ${tally.phoneOnly} só com telefone · ${tally.otherContact} com e-mail/site/rede social · ${tally.none} sem contato publicado`);
+    step("contacts", `${created.length} salvas · ${tally.whatsapp} com WhatsApp confirmado · ${tally.phoneOnly} com telefone (WhatsApp não informado) · ${tally.otherContact} com e-mail/site/rede social · ${tally.none} sem contato publicado`);
     step("coverage", coverageNote(providerId, raw.length, criteria.location, criteria.niche, !!city, { kept: created.length, duplicates, ...tally }, diag));
     step("done", `${created.length} novos leads`);
     const updated = await prisma.leadSearch.update({

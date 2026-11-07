@@ -168,3 +168,18 @@ describe("WhatsApp em botões flutuantes do site", () => {
     expect(analyzeHtml('<div data-href="https://api.whatsapp.com/send?text=oi&#038;phone=554899940431"></div>', "https://x.com.br/").whatsapp).toEqual(["554899940431"]);
   });
 });
+
+import { firstPhone, formatBrPhone, validBrPhone } from "@/lib/whatsapp";
+describe("Telefone como forma de contato (sem exigir WhatsApp)", () => {
+  it("valida fixo e celular brasileiros e formata para exibir", () => {
+    expect(validBrPhone("+55 41 3333-1111")).toBe("554133331111");
+    expect(formatBrPhone("+55 41 3333-1111")).toBe("(41) 3333-1111");
+    expect(formatBrPhone("41998765432")).toBe("(41) 99876-5432");
+    expect(validBrPhone("3333")).toBeNull();
+    expect(formatBrPhone("3333")).toBe("3333"); // número incompleto continua visível, sem inventar dígitos
+  });
+  it("cadastro com vários números usa o primeiro válido", () => {
+    expect(firstPhone("123; +55 48 3025-2121")).toBe("+55 48 3025-2121");
+    expect(firstPhone("(48) 99111-2222 / (48) 3333-0000")).toBe("(48) 99111-2222");
+  });
+});

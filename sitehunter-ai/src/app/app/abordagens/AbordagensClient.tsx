@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { toast } from "@/components/ui";
-import { waMeLink } from "@/lib/whatsapp";
+import { formatBrPhone, validBrPhone, waMeLink } from "@/lib/whatsapp";
 
 export type WaItem = {
   id: string; name: string; city: string | null; category: string | null; isDemo: boolean;
@@ -54,7 +54,7 @@ export function AbordagensClient({ items }: { items: WaItem[] }) {
           const st = state[i.id]!;
           const isOpen = open === i.id;
           const link = i.whatsapp ? waMeLink(i.whatsapp, st.text.trim()) : null;
-          const channel = i.whatsapp ? (i.isDemo ? "WhatsApp fictício (demo)" : `WhatsApp ${pretty(i.whatsapp)}`) : [i.phone && "Telefone", i.email && "E-mail", i.instagram && "Instagram"].filter(Boolean).join(" · ");
+          const channel = i.whatsapp ? (i.isDemo ? "WhatsApp fictício (demo)" : `WhatsApp ${pretty(i.whatsapp)}`) : [i.phone && `Telefone ${formatBrPhone(i.phone)}`, i.email && "E-mail", i.instagram && "Instagram"].filter(Boolean).join(" · ");
           return (
             <li key={i.id} id={`lead-${i.id}`} className="card scroll-mt-24 overflow-hidden">
               <button className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left" onClick={() => setOpen(isOpen ? null : i.id)} aria-expanded={isOpen}>
@@ -96,7 +96,7 @@ export function AbordagensClient({ items }: { items: WaItem[] }) {
                     ) : (
                       <div className="grid gap-2">
                         {link && <a href={link} target="_blank" rel="noopener noreferrer" className="btn-primary w-full justify-center" style={{ background: "#1fa855" }}>Abrir no WhatsApp para revisar e enviar</a>}
-                        {!link && i.phone && <a href={`tel:${i.phone.replace(/[^\d+]/g, "")}`} className="btn-primary w-full justify-center">Ligar para {i.phone}</a>}
+                        {!link && i.phone && <a href={`tel:${validBrPhone(i.phone) ? `+${validBrPhone(i.phone)}` : i.phone.replace(/[^\d+]/g, "")}`} className="btn-primary w-full justify-center">Ligar para {formatBrPhone(i.phone)}</a>}
                         {i.email && <a href={`mailto:${i.email}?subject=${encodeURIComponent(`Ideia para o site da ${i.name}`)}&body=${encodeURIComponent(st.text.trim())}`} className={`${link || i.phone ? "btn-secondary" : "btn-primary"} w-full justify-center`}>Abrir e-mail com o texto (você envia)</a>}
                         {i.instagram && <a href={i.instagram} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full justify-center" onClick={() => navigator.clipboard.writeText(st.text).then(() => toast("Texto copiado: cole na mensagem direta do Instagram"))}>Copiar texto e abrir o Instagram</a>}
                       </div>

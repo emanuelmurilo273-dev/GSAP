@@ -58,3 +58,27 @@ export function waMeLink(number: string, text: string) {
 export function isBrMobile(waNumber: string | null): boolean {
   return !!waNumber && /^55\d{2}9\d{8}$/.test(waNumber);
 }
+
+/**
+ * Telefone brasileiro válido (fixo ou celular, DDD existente), só dígitos com 55 na frente; null se inválido.
+ * Serve para mostrar o telefone como forma de contato: não diz nada sobre WhatsApp.
+ */
+export function validBrPhone(raw: string | null | undefined): string | null {
+  const d = normalizeWhatsApp(raw);
+  return d && d.startsWith("55") ? d : null;
+}
+
+/** "(41) 3333-0000" / "(41) 99876-5432"; devolve o texto original se não for um telefone brasileiro válido. */
+export function formatBrPhone(raw: string | null | undefined): string {
+  const d = validBrPhone(raw);
+  if (!d) return (raw ?? "").trim();
+  const m = d.match(/^55(\d{2})(\d{4,5})(\d{4})$/)!;
+  return `(${m[1]}) ${m[2]}-${m[3]}`;
+}
+
+/** Cadastros com vários números ("A; B", "A / B"): o primeiro telefone válido, ou o primeiro trecho. */
+export function firstPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const parts = raw.split(/\s*[;,|/]\s*|\s+ou\s+/i).map((p) => p.trim()).filter(Boolean);
+  return parts.find((p) => validBrPhone(p)) ?? parts[0] ?? null;
+}

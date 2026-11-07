@@ -1,3 +1,4 @@
+import { firstPhone } from "../../whatsapp";
 import type { LeadCriteria, RawBusiness } from "../types";
 import type { BusinessSearchProvider, ImportRow } from "./types";
 
@@ -81,7 +82,7 @@ export const importProvider: BusinessSearchProvider = {
       neighborhood: null,
       city: r.city || c.location || null,
       state: r.state || null,
-      phone: r.phone || null,
+      phone: firstPhone(r.phone) || null,
       email: r.email || null,
       website: r.website ? (/^https?:\/\//i.test(r.website) ? r.website : `https://${r.website}`) : null,
       mapsUrl: null,
