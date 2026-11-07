@@ -800,7 +800,13 @@ function jsonLd(c: SiteContent) {
   return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
 }
 
-export type RenderOpts = { footerCredit?: boolean; previewRibbon?: string | null; lang?: string; noindex?: boolean; threeSrc?: string };
+export type RenderOpts = {
+  footerCredit?: boolean; previewRibbon?: string | null; lang?: string; noindex?: boolean; threeSrc?: string;
+  /** Pasta dos modelos/fotos 3D (padrão: ao lado do three.js, em "models/"). */
+  assetBase?: string;
+  /** Resolve o endereço de um recurso (ex.: versão embutida no app clicável). */
+  assetUrl?: (path: string) => string;
+};
 
 export function renderSite(c: SiteContent, opts: RenderOpts = { footerCredit: true }): string {
   if (resolveStyle(c) === "immersive") return renderImmersive(c, opts);
@@ -930,7 +936,11 @@ ${uses3d ? `if(!lite&&matchMedia('(pointer: fine)').matches)d.querySelectorAll('
 
 /** Política de segurança de conteúdo aplicada aos sites publicados (scriptOrigin: de onde vem o three.js). */
 export function publishedSiteCsp(scriptOrigin?: string) {
-  return PUBLISHED_SITE_CSP.replace("script-src 'unsafe-inline'", `script-src 'unsafe-inline'${scriptOrigin ? " " + scriptOrigin : ""}`);
+  const o = scriptOrigin ? " " + scriptOrigin : "";
+  return PUBLISHED_SITE_CSP
+    .replace("script-src 'unsafe-inline'", `script-src 'unsafe-inline'${o}`)
+    .replace("img-src https: data:", `img-src https: data:${o}`)
+    .replace("form-action 'none'", `connect-src${o || " 'none'"}; form-action 'none'`);
 }
 
 export const PUBLISHED_SITE_CSP = [

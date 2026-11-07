@@ -301,6 +301,7 @@ model Publication {
   customDomainVerifiedAt DateTime?
   status        PublicationStatus @default(DRAFT)
   html          String?           // snapshot publicado (servido aos visitantes)
+  externalUrl   String?           // link público fora do app (GitHub/githack ou Pages), quando configurado
   publishedAt   DateTime?
   lastDeployAt  DateTime?
   suspendedAt   DateTime?

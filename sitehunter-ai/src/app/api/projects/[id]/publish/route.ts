@@ -19,7 +19,8 @@ export const POST = route<Ctx>(async (req, { params }) => {
   const b = await parseJson(req, Body);
   if (b.confirmPublic !== true) throw new HttpError(400, "Confirme a liberação do link público.", "confirmation_required");
   const pub = await publishProject(project, user.id, b.slug);
-  return json({ publication: { ...pub, html: undefined, url: publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt), pathUrl: pathUrlFor(pub.slug) } });
+  // Link para compartilhar: o público fora do app (GitHub) quando configurado; senão o do próprio app.
+  return json({ publication: { ...pub, html: undefined, url: pub.externalUrl ?? publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt), appUrl: publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt), externalUrl: pub.externalUrl, pathUrl: pathUrlFor(pub.slug) } });
 });
 
 /** Despublicar: permitido mesmo sem assinatura ativa. */

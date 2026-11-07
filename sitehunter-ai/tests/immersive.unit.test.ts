@@ -59,7 +59,7 @@ describe("Vitrine 3D: página", () => {
     expect(html.match(/data-ch="/g)!.length).toBeGreaterThanOrEqual(5);
     expect(html).toMatch(/data-side="(left|right|center)"/);
     expect(html).toContain("09:00–19:30");
-    expect(html).toContain("Objeto 3D ilustrativo");
+    expect(html).toContain("Objetos 3D ilustrativos");
     expect(html).not.toContain("wa.me/55413333"); // sem WhatsApp confirmado
   });
   it("o runtime serializado não depende de nada de fora", () => {

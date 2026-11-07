@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { aiConfigured } from "@/lib/ai";
 import { isPrivateMode } from "@/lib/owner";
 import { CITIES } from "@/lib/br/cities";
+import { hostingConfig } from "@/lib/previewHosting";
 
 type Row = { name: string; what: string; state: "on" | "off" | "partial"; status: string; how?: string; coverage?: string };
 
@@ -13,6 +14,7 @@ const LABEL = { on: "Funcionando", off: "Desligado · requer chave", partial: "F
 
 export default async function SettingsPage() {
   const user = await pageUser();
+  const hosting = hostingConfig();
   const commonsOff = process.env.IMAGE_SEARCH === "off" || process.env.COMMONS_SEARCH === "off";
   const search: Row[] = [
     { name: "Municípios do Brasil", what: "Lista de estados e cidades para a busca", state: "on", status: `${CITIES.length.toLocaleString("pt-BR")} municípios + DF embutidos no app (base aberta derivada do IBGE, licença MIT).`, coverage: "Todo o Brasil" },
@@ -29,7 +31,7 @@ export default async function SettingsPage() {
   const other: Row[] = [
     { name: "Textos com IA (Claude)", what: "Textos dos sites e das abordagens", state: aiConfigured() ? "on" : "off", status: aiConfigured() ? "Chave configurada." : "Sem chave: o app usa textos-modelo por setor, sem fatos inventados.", how: "ANTHROPIC_API_KEY=…" },
     { name: "WhatsApp", what: "Abordagens", state: "on", status: "O app só monta o link wa.me com o texto preenchido; você abre, revisa e envia. Não há envio automático nem verificação de conta pelo WhatsApp (isso exigiria mandar mensagens)." },
-    { name: "3D dos sites (three.js)", what: "Vitrine 3D das prévias", state: "on", status: "Servido pelo próprio app (licença MIT); funciona sem chave." },
+    { name: "3D dos sites (three.js + modelos reais)", what: "Vitrine 3D das prévias", state: "on", status: "three.js (MIT), modelos fotogramétricos do Poly Haven (CC0) e fotos reais de pratos (CC0/domínio público), servidos pelo próprio app; sem chave." },
     { name: "Painel privado", what: "Acesso ao app", state: "on", status: isPrivateMode() ? `Modo privado: só a conta proprietária (${env.ownerEmail ?? user.email}) entra. Sem cadastro público.` : "Modo multiusuário (ACCESS_MODE=saas)." },
   ];
   const Section = ({ title, rows }: { title: string; rows: Row[] }) => (
@@ -58,6 +60,26 @@ export default async function SettingsPage() {
         <Section title="Fontes de pesquisa" rows={search} />
         <Section title="Imagens" rows={images} />
         <Section title="Outras integrações" rows={other} />
+        <section id="link-publico" className="card scroll-mt-24 p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-white">Link público das prévias</h2>
+              <p className="text-xs text-slate-500">Para quem recebe a prévia abrir em qualquer aparelho, sem “localhost”.</p>
+            </div>
+            <span className={`badge ${BADGE[hosting ? "on" : "off"]}`}>{hosting ? "Funcionando" : "Desligado · requer token do GitHub"}</span>
+          </div>
+          {hosting ? (
+            <p className="mt-3 text-sm text-slate-300">Ao liberar uma prévia, a página e os recursos 3D vão para <b>{hosting.owner}/{hosting.repo}</b> (pasta <code>{hosting.dir}</code>) e o link fica em {hosting.pagesUrl ? <>GitHub Pages ({hosting.pagesUrl})</> : <>raw.githack.com (serve arquivos de repositórios públicos como página)</>}. “Retirar acesso” apaga a página.</p>
+          ) : (
+            <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-300">
+              <li>No GitHub, crie um repositório <b>público</b> (ex.: <code>sitehunter-previas</code>) com um arquivo README.</li>
+              <li>Crie um token em Settings → Developer settings → Fine-grained tokens, só para esse repositório, com permissão <b>Contents: Read and write</b>.</li>
+              <li>No arquivo de configuração, adicione <code>GITHUB_PREVIEWS_TOKEN=…</code> e <code>GITHUB_PREVIEWS_REPO=seu-usuario/sitehunter-previas</code> e reinicie o app.</li>
+              <li>Opcional: ative GitHub Pages no repositório (Settings → Pages → branch main) e adicione <code>GITHUB_PAGES_URL=https://seu-usuario.github.io/sitehunter-previas</code> para um link mais curto.</li>
+            </ol>
+          )}
+          <p className="mt-3 text-xs text-slate-500">Gratuito. Cuidados: o repositório é público (qualquer pessoa com o link vê a prévia, como numa publicação); o histórico do Git guarda versões antigas mesmo depois de retirar o acesso; o raw.githack.com é um serviço gratuito de terceiros, sem garantia de disponibilidade, e pode levar alguns minutos para refletir uma atualização.</p>
+        </section>
         <section className="card p-5 sm:p-6">
           <h2 className="font-semibold text-white">Como adicionar uma chave</h2>
           <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-slate-300">

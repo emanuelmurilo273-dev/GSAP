@@ -3,7 +3,7 @@ import { button, esc, imageCaption, imgSrc, mapsHref, nl2p, safeUrl, telHref, wa
 import { objectSvg, type ObjectKind } from "../stage";
 import { buildConcept } from "./concept";
 import { immersiveRuntime } from "./runtime";
-import type { ModelKind } from "./kinds";
+import { DISHES, GLTF_ASSETS, type ModelKind } from "./kinds";
 
 // Vitrine 3D: página escura em capítulos. Um canvas fixo (three.js) fica atrás do texto e o
 // objeto do negócio muda de posição, ângulo e escala a cada capítulo. Textos e botões ficam em
@@ -203,7 +203,27 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const fallbackArt = objectSvg(FALLBACK[k.model], P.accent, P.accent2, "fb");
   const credits = [photoHero ?? heroImg, about?.image, ...gimgs].filter((i): i is SiteImage => !!i && !!imgSrc(i));
   const threeSrc = opts.threeSrc ?? "/vendor/three.min.js";
-  const cfg = { model: k.model, secondary: k.secondary, material: k.material, motif: k.motif, choreo: k.choreo, pal: P, seed: k.seed };
+  // Recursos reais (modelos CC0 e fotos de pratos): mesma origem do three.js.
+  const base = opts.assetBase ?? threeSrc.replace(/vendor\/three\.min\.js$/, "models/");
+  const res = (path: string) => (opts.assetUrl ? opts.assetUrl(path) : base + path);
+  const dish = k.dish && DISHES[k.dish] ? DISHES[k.dish] : null;
+  const gltf = k.asset && GLTF_ASSETS[k.asset] ? k.asset : null;
+  // Objetos secundários com modelo real disponível (croissant, chave).
+  const SEC_GLTF: Record<string, string> = { croissant: "croissant", wrench: "combination_wrench" };
+  const secGltf = Object.fromEntries(k.secondary.filter((x) => SEC_GLTF[x]).map((x) => [x, res(`${SEC_GLTF[x]}/model.gltf`)]));
+  const wantsWrench = k.secondary.includes("wrench");
+  const assets = {
+    dishUrl: dish ? res(`dishes/${dish.file}`) : null, dishKind: dish ? k.dish : null, plate: dish?.plate ?? null,
+    gltfUrl: gltf ? res(`${gltf}/model.gltf`) : null, secGltf,
+  };
+  const loaderSrc = threeSrc.replace(/three\.min\.js$/, "GLTFLoader.js");
+  const cfg = { model: k.model, secondary: k.secondary, material: k.material, motif: k.motif, choreo: k.choreo, pal: P, seed: k.seed, assets };
+  const credits3d = [
+    dish && `Superfície do ${dish.label} em 3D: foto de ${dish.credit} (${dish.license}), <a href="${esc(dish.source)}" target="_blank" rel="noopener noreferrer">fonte</a>. Imagem ilustrativa, não é prato da empresa.`,
+    gltf && `Modelo 3D: ${GLTF_ASSETS[gltf]!.label}, por ${GLTF_ASSETS[gltf]!.authors} (Poly Haven, CC0), <a href="${esc(GLTF_ASSETS[gltf]!.url)}" target="_blank" rel="noopener noreferrer">fonte</a>.`,
+    wantsWrench && `Modelo 3D da chave: ${GLTF_ASSETS.combination_wrench!.authors} (Poly Haven, CC0).`,
+    k.secondary.includes("croissant") && gltf !== "croissant" && `Modelo 3D do croissant: ${GLTF_ASSETS.croissant!.authors} (Poly Haven, CC0).`,
+  ].filter(Boolean);
   const up = k.caseStyle === "upper";
   const kw = (WIDE[k.display] ?? 0.66) * (up ? 1.12 : 1);
 
@@ -355,10 +375,12 @@ ${all.map((ch, i) => `<section id="${esc(ch.id)}" class="ch ${ch.cls ?? ""}" dat
 <footer>
   <p>© ${new Date().getFullYear()} ${esc(b.name)}${b.address ? ` · ${esc(b.address)}` : ""}</p>
   ${credits.length ? `<ul>${credits.map((i) => `<li>${imageCaption(i, "span") || "Imagem: " + esc(i.alt)}</li>`).join("")}</ul>` : ""}
-  <p>Objeto 3D ilustrativo, criado para esta prévia (não é foto de produto da empresa).</p>
+  <p>Objetos 3D ilustrativos, criados para esta prévia (não são produtos da empresa).</p>
+  ${credits3d.map((t) => `<p>${t}</p>`).join("")}
   ${opts.footerCredit ? `<p>Site criado com SiteHunter AI</p>` : ""}
 </footer>
 <script src="${esc(threeSrc)}" defer></script>
+${gltf || Object.keys(secGltf).length ? `<script src="${esc(opts.assetUrl ? opts.assetUrl("vendor/GLTFLoader.js") : loaderSrc)}" defer></script>` : ""}
 <script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${immersiveRuntime.toString()})(${JSON.stringify(cfg).replace(/</g, "\\u003c")});});</script>
 </body>
 </html>`;

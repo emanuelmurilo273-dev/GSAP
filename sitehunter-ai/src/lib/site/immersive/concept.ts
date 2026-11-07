@@ -154,7 +154,9 @@ export function buildConcept(input: ConceptInput): Concept {
   // Nome muito específico (café colonial, forneria, implantes) manda mais que a categoria genérica da fonte.
   const strongName = byName && /colonial|confeit|forneria|pizz|implant/.test(fold(input.name)) ? byName : null;
   const fam: Family = strongName ?? specific ?? byCat ?? byName ?? byText ?? { main: ["gear"], secondary: ["key"], why: "serviço sem objeto típico" };
-  const model = pick(fam.main, seed);
+  const rawModel = pick(fam.main, seed);
+  // Restaurante: o prato com foto real é mais fiel ao cardápio que a cloche fechada.
+  const model: ModelKind = rawModel === "cloche" ? "plate" : rawModel;
   reasons.push(`Objeto 3D principal: ${MODEL_LABEL[model]}, porque ${fam.why}${fam === byName || specific || strongName ? " (indicado no nome da empresa)" : input.category ? ` (categoria "${input.category}" na fonte)` : ""}.`);
   const secondary: ModelKind[] = [];
   const other = byName && byName !== fam && !SAME_TRADE(byName, fam) ? byName : null;
@@ -164,6 +166,25 @@ export function buildConcept(input: ConceptInput): Concept {
   }
   secondary.push(...fam.secondary);
   const sec = [...new Set(secondary)].filter((k) => k !== model).slice(0, 2);
+
+  // 1b. Realismo: prato com foto real de referência (escolhida pelo cardápio/descrição) ou modelo fotogramétrico.
+  let dish: string | undefined, asset: string | undefined;
+  if (model === "pizza") dish = "pizza";
+  if (model === "cup") dish = "latte";
+  if (model === "plate") {
+    dish = /ital|massa|pasta|spaghet|espaguet|lasanh|tratt|cantina|nhoque|risot/.test(text) ? "pasta" : /salad|natural|vegan|vegetar|saudav|\bfit\b|poke|bowl/.test(text) ? "salad" : "grill";
+  }
+  if (model === "croissant") asset = "croissant";
+  if (model === "cake") asset = "carrot_cake";
+  const dishWhy: Record<string, string> = {
+    pizza: "foto real de pizza vista de cima (CC0) como superfície, com borda e relevo em 3D",
+    pasta: "foto real de espaguete (CC0), porque o cardápio/descrição indica cozinha italiana",
+    salad: "foto real de salada (CC0), porque a descrição indica comida natural ou saudável",
+    grill: "foto real de prato com carne grelhada e arroz (CC0), prato típico de restaurante",
+    latte: "foto real de café com arte no leite (CC0) na superfície da xícara",
+  };
+  if (dish) reasons.push(`Realismo: ${dishWhy[dish]}. A foto é ilustrativa, não é prato da empresa.`);
+  if (asset) reasons.push("Realismo: modelo 3D fotogramétrico real (Poly Haven, licença CC0), com a versão procedural de reserva enquanto carrega.");
 
   // 2. Paleta e material
   const tones = FAMILY_TONE[model] ?? ["cool"];
@@ -219,6 +240,8 @@ export function buildConcept(input: ConceptInput): Concept {
     highlights,
     seed,
     heroMode,
+    ...(dish ? { dish } : {}),
+    ...(asset ? { asset } : {}),
   };
 }
 
@@ -250,5 +273,7 @@ export function varyConcept(c: Concept): Concept {
 
 export function relabelModel(c: Concept, model: ModelKind): Concept {
   const matTxt = INTRINSIC.has(model) ? "" : ` em ${MATERIAL_LABEL[c.material]}`;
-  return { ...c, model, secondary: c.secondary.filter((k) => k !== model), name: `${MODEL_LABEL[model][0]!.toUpperCase()}${MODEL_LABEL[model].slice(1)}${matTxt} · ${c.name.split(" · ")[1] ?? ""}`, reasons: [...c.reasons.filter((r) => !r.startsWith("Objeto trocado")), `Objeto trocado no editor para ${MODEL_LABEL[model]}.`].slice(0, 14) };
+  const dish = model === "pizza" ? "pizza" : model === "cup" ? "latte" : model === "plate" ? (c.dish && c.dish !== "pizza" && c.dish !== "latte" ? c.dish : "grill") : undefined;
+  const asset = model === "croissant" ? "croissant" : model === "cake" ? "carrot_cake" : undefined;
+  return { ...c, model, dish, asset, secondary: c.secondary.filter((k) => k !== model), name: `${MODEL_LABEL[model][0]!.toUpperCase()}${MODEL_LABEL[model].slice(1)}${matTxt} · ${c.name.split(" · ")[1] ?? ""}`, reasons: [...c.reasons.filter((r) => !r.startsWith("Objeto trocado")), `Objeto trocado no editor para ${MODEL_LABEL[model]}.`].slice(0, 14) };
 }

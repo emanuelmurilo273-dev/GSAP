@@ -43,3 +43,20 @@ export const MODEL_QUERY: Record<ModelKind, string> = {
   hanger: "clothing boutique", tshirt: "clothing store", bone: "pet shop dog", paw: "dog grooming", key: "house keys real estate", house: "house facade",
   pill: "pharmacy", glasses: "eyeglasses optician",
 };
+
+// ---------- Recursos reais (licença livre), servidos em /models ----------
+/** Modelos 3D fotogramétricos do Poly Haven (CC0). Carregam por cima da versão procedural. */
+export const GLTF_ASSETS: Record<string, { label: string; authors: string; url: string }> = {
+  croissant: { label: "Croissant", authors: "Greg Zaal e Dario Barresi", url: "https://polyhaven.com/a/croissant" },
+  carrot_cake: { label: "Bolo de cenoura", authors: "Greg Zaal e James Ray Cock", url: "https://polyhaven.com/a/carrot_cake" },
+  combination_wrench: { label: "Chave combinada", authors: "BKS", url: "https://polyhaven.com/a/combination_wrench" },
+};
+
+/** Fotos reais de pratos vistas de cima (CC0/PDM), usadas como superfície do prato 3D. */
+export const DISHES: Record<string, { label: string; file: string; plate: "none" | "white" | "black" | "cup"; credit: string; license: string; source: string }> = {
+  pizza: { label: "pizza", file: "pizza.jpg", plate: "none", credit: "personalgraphic.official", license: "CC0", source: "https://www.flickr.com/photos/198895458@N04/53097409424" },
+  pasta: { label: "espaguete", file: "pasta.jpg", plate: "white", credit: "rawpixel", license: "CC0", source: "https://www.rawpixel.com/image/5918682/image-public-domain-food-white" },
+  salad: { label: "salada", file: "salad.jpg", plate: "white", credit: "f0976531950131", license: "Domínio público (PDM)", source: "https://www.flickr.com/photos/203130278@N08/54970565705" },
+  grill: { label: "carne grelhada com arroz", file: "grill.jpg", plate: "black", credit: "Alina Kakshapati", license: "CC0", source: "https://wordpress.org/photos/photo/731688e106/" },
+  latte: { label: "café com arte no leite", file: "latte.jpg", plate: "cup", credit: "rawpixel", license: "CC0", source: "https://www.rawpixel.com/image/5918906/image-heart-public-domain-coffee" },
+};

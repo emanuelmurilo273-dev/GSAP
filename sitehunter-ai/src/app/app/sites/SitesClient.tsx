@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/components/api";
 import { toast } from "@/components/ui";
 
-type P = { id: string; name: string; company: string | null; place: string; concept: { name: string; palette: string[]; display: string } | null; createdAt: string; updatedAt: string; status: string; url: string | null; pathUrl: string | null; visits: number; lastDeployAt: string | null };
+type P = { id: string; name: string; company: string | null; place: string; external?: boolean; concept: { name: string; palette: string[]; display: string } | null; createdAt: string; updatedAt: string; status: string; url: string | null; pathUrl: string | null; visits: number; lastDeployAt: string | null };
 
 export function SitesClient({ projects: initial, premium }: { projects: P[]; premium: boolean }) {
   const [projects, setProjects] = useState(initial);
@@ -27,7 +27,7 @@ export function SitesClient({ projects: initial, premium }: { projects: P[]; pre
     try {
       if (p.status !== "PUBLISHED" && !confirm(`Liberar o link público da prévia de "${p.name}"? Só esta página fica visível; o painel e os dados dos leads continuam privados.`)) return;
       const r = await api<{ publication: { url: string; pathUrl: string; status: string } }>(`/api/projects/${p.id}/publish`, { body: { confirmPublic: true } });
-      setProjects((x) => x.map((y) => (y.id === p.id ? { ...y, status: "PUBLISHED", url: r.publication.url, pathUrl: r.publication.pathUrl, lastDeployAt: new Date().toISOString() } : y)));
+      setProjects((x) => x.map((y) => (y.id === p.id ? { ...y, status: "PUBLISHED", url: r.publication.url, external: !!(r.publication as { externalUrl?: string | null }).externalUrl, pathUrl: r.publication.pathUrl, lastDeployAt: new Date().toISOString() } : y)));
       toast(p.status === "PUBLISHED" ? "Prévia atualizada no link" : "Link público liberado");
     } catch (e) {
       toast((e as Error).message);
@@ -91,7 +91,7 @@ export function SitesClient({ projects: initial, premium }: { projects: P[]; pre
                   <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
                     <a href={p.url} target="_blank" rel="noopener noreferrer" className="truncate text-brand-300 hover:underline">{p.url.replace(/^https?:\/\//, "")}</a>
                     <button className="text-slate-400 hover:text-white" onClick={() => { navigator.clipboard.writeText(p.url!); toast("Endereço copiado"); }}>Copiar</button>
-                    <span className="text-slate-500">· {p.visits} visita(s)</span>
+                    <span className="text-slate-500">· {p.external ? "link público (GitHub)" : `${p.visits} visita(s)`}</span>
                   </p>
                 )}
                 <div className="mt-auto flex flex-wrap gap-2 pt-4">

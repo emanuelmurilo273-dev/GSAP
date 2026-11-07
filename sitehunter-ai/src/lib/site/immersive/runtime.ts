@@ -190,8 +190,9 @@ export function immersiveRuntime(cfg) {
     cup: function () {
       var g = new T.Group(), m = main();
       g.add(mesh(lathe([[0, 0], [0.55, 0], [0.62, 0.08], [0.95, 1.2], [1.0, 1.3], [0.93, 1.3], [0.88, 1.2], [0.56, 0.12], [0, 0.12]]), m, 0, -0.7));
-      g.add(mesh(new T.CircleGeometry(0.86, 64), solid("#3b2014", 0.25, 0, { clearcoat: 1 }), 0, 0.42, 0, -Math.PI / 2));
-      g.add(mesh(new T.RingGeometry(0.55, 0.86, 64), solid("#b07a4c", 0.5), 0, 0.425, 0, -Math.PI / 2));
+      var coffee = mesh(new T.CircleGeometry(0.86, 64), solid("#3b2014", 0.25, 0, { clearcoat: 1 }), 0, 0.42, 0, -Math.PI / 2); g.add(coffee);
+      var crema = mesh(new T.RingGeometry(0.55, 0.86, 64), solid("#b07a4c", 0.5), 0, 0.425, 0, -Math.PI / 2); g.add(crema);
+      g.userData.coffee = coffee; g.userData.crema = crema;
       g.add(mesh(new T.TorusGeometry(0.36, 0.08, 20, 60, Math.PI * 1.25), m, 1.02, -0.05, 0, 0, 0, -Math.PI * 0.62));
       g.add(mesh(lathe([[0, 0], [1.4, 0], [1.55, 0.12], [1.5, 0.16], [0.6, 0.06], [0, 0.06]]), m, 0, -0.82));
       return g;
@@ -393,9 +394,98 @@ export function immersiveRuntime(cfg) {
     return holder;
   }
 
-  // ---------- cena ----------
-  var hero = build(cfg.model, mobile ? 3.0 : 3.1);
+  /** Normaliza um grupo (centro e tamanho) dentro de um "holder" já existente, trocando o conteúdo. */
+  function fit(g, size) {
+    var box = new T.Box3().setFromObject(g), c = box.getCenter(new T.Vector3()), sz = box.getSize(new T.Vector3());
+    g.position.sub(c);
+    var wrap = new T.Group(); wrap.add(g); wrap.scale.setScalar(size / Math.max(sz.x, sz.y, sz.z));
+    return wrap;
+  }
+  function swap(holder, g, size, secondary) {
+    if (!secondary && FLAT) { var tilt = new T.Group(); tilt.add(g); tilt.rotation.x = cfg.model === "pizza" ? 0.95 : 0.75; spinner = g; g = tilt; }
+    var w = fit(g, size);
+    holder.children.slice().forEach(function (ch) { holder.remove(ch); });
+    holder.add(w);
+    if (!reduce) { w.scale.multiplyScalar(0.001); var target = size / Math.max(1e-6, new T.Box3().setFromObject(g).getSize(new T.Vector3()).length() / 1.732); var t0 = performance.now(), s1 = w.scale.x * 1000; (function grow(t) { var k = Math.min(1, (t - t0) / 600), e = 1 - Math.pow(1 - k, 3); w.scale.setScalar(Math.max(0.001, s1 * e)); if (k < 1) requestAnimationFrame(grow); })(t0); }
+  }
+
+  // ---------- realismo: fotos reais de pratos e modelos fotogramétricos ----------
+  var A = cfg.assets || {};
+  function loadImage(url, cb) {
+    var img = new Image(); img.crossOrigin = "anonymous";
+    img.onload = function () { cb(img); }; img.onerror = function () {};
+    img.src = url;
+  }
+  /** Amostra a foto para gerar relevo: comida (cor saturada) sobe, prato branco/preto fica plano. */
+  function sampler(img, n) {
+    var cv = d.createElement("canvas"); cv.width = cv.height = n; var x = cv.getContext("2d"); x.drawImage(img, 0, 0, n, n);
+    var px; try { px = x.getImageData(0, 0, n, n).data; } catch (e) { return function () { return 0; }; }
+    return function (u, v) {
+      var i = (Math.min(n - 1, Math.max(0, Math.round(v * (n - 1)))) * n + Math.min(n - 1, Math.max(0, Math.round(u * (n - 1))))) * 4;
+      var r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      return { sat: mx ? (mx - mn) / mx : 0, lum: 0.3 * r + 0.59 * g + 0.11 * b, r: r, g: g, b: b };
+    };
+  }
+  /** Disco em grade polar (anéis x setores), com UV da foto quadrada e altura vinda da foto. */
+  function disc(R, rings, segs, height) {
+    var pos = [], uv = [], idx = [];
+    pos.push(0, 0, 0); uv.push(0.5, 0.5);
+    for (var i = 1; i <= rings; i++) {
+      var r = R * i / rings;
+      for (var j = 0; j < segs; j++) { var a = j / segs * Math.PI * 2, x = Math.cos(a) * r, z = Math.sin(a) * r; pos.push(x, 0, z); uv.push(0.5 + x / (2 * R), 0.5 - z / (2 * R)); }
+    }
+    for (var j2 = 0; j2 < segs; j2++) idx.push(0, 1 + (j2 + 1) % segs, 1 + j2);
+    for (var i2 = 1; i2 < rings; i2++) for (var j3 = 0; j3 < segs; j3++) {
+      var a0 = 1 + (i2 - 1) * segs + j3, a1 = 1 + (i2 - 1) * segs + (j3 + 1) % segs, b0 = a0 + segs, b1 = a1 + segs;
+      idx.push(a0, a1, b1, a0, b1, b0);
+    }
+    var geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(pos, 3)); geo.setAttribute("uv", new T.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    if (height) { var p = geo.attributes.position, u = geo.attributes.uv; for (var k = 0; k < p.count; k++) p.setY(k, height(u.getX(k), u.getY(k), Math.hypot(p.getX(k), p.getZ(k)) / R)); }
+    geo.computeVertexNormals();
+    return geo;
+  }
+  function photoTex(img) { var t = new T.Texture(img); t.encoding = T.sRGBEncoding; t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); t.needsUpdate = true; return t; }
+
+  function dishModel(img, kind, plate) {
+    var g = new T.Group(), tex = photoTex(img), S = sampler(img, 96), segs = mobile ? 96 : 160, rings = mobile ? 40 : 72;
+    var food = M({ map: tex, roughness: 0.62, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.5, envMapIntensity: 0.6 });
+    if (kind === "pizza") {
+      // Pizza: foto como cobertura; borda assada mais alta, recheio com relevo suave dos ingredientes.
+      var R = 1.7;
+      var top = disc(R, rings, segs, function (u, v, rr) { var q = S(u, v), rim = Math.exp(-Math.pow((rr - 0.93) / 0.05, 2)) * 0.11; return 0.1 + q.sat * 0.035 + (1 - q.lum) * 0.012 + rim - Math.max(0, rr - 0.985) * 1.6; });
+      g.add(new T.Mesh(top, food));
+      var crust = solid("#b06d33", 0.78, 0, { envMapIntensity: 0.4 });
+      g.add(mesh(new T.CylinderGeometry(R * 0.995, R * 0.97, 0.12, segs, 1, true), crust, 0, 0.05));
+      g.add(mesh(new T.CircleGeometry(R * 0.97, 64), solid("#8a5226", 0.85), 0, -0.01, 0, Math.PI / 2));
+      // tábua de madeira por baixo (reforça a escala e a leitura de "pizza servida")
+      g.add(mesh(new T.CylinderGeometry(R * 1.12, R * 1.12, 0.09, 96), solid("#6b4528", 0.7, 0, { envMapIntensity: 0.35 }), 0, -0.07));
+      return g;
+    }
+    // Prato: cerâmica (branca ou preta, combinando com a foto) e comida com relevo.
+    var dark = plate === "black", ceramic = dark ? solid("#141416", 0.32, 0.05, { clearcoat: 1, clearcoatRoughness: 0.1 }) : solid("#f2efe9", 0.3, 0, { clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 0.7 });
+    g.add(mesh(lathe([[0, 0], [1.25, 0], [1.4, 0.06], [2.05, 0.32], [2.12, 0.36], [2.02, 0.36], [1.42, 0.13], [0, 0.13]], 128), ceramic, 0, 0));
+    var Rf = dark ? 1.98 : 1.78; // a foto do prato escuro inclui o prato inteiro; nas brancas, só o centro
+    var mound = disc(Rf, rings, segs, function (u, v, rr) { var q = S(u, v), mask = 1 - Math.pow(Math.min(1, rr / 0.92), 6); return 0.14 + (dark ? rr * rr * 0.2 : rr * rr * 0.18) + q.sat * q.sat * 0.32 * mask; });
+    g.add(new T.Mesh(mound, food));
+    return g;
+  }
+
+  // Pizza e pratos: giram como num prato giratório (em torno do próprio centro) e nunca mostram o fundo.
+  var FLAT = cfg.model === "pizza" || cfg.model === "plate";
+  var spinner = null;
+  var heroSize = mobile ? 3.0 : 3.1;
+  var hero = build(cfg.model, heroSize);
   scene.add(hero);
+  if (A.dishUrl && A.dishKind && A.dishKind !== "latte") loadImage(A.dishUrl, function (img) { swap(hero, dishModel(img, A.dishKind, A.plate), heroSize); });
+  if (A.dishUrl && A.dishKind === "latte") loadImage(A.dishUrl, function (img) {
+    hero.traverse(function (o) { if (o.userData && o.userData.coffee) { var t = photoTex(img); o.userData.coffee.material = M({ map: t, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 0.8 }); o.userData.coffee.geometry = new T.CircleGeometry(0.87, 96); o.userData.crema.visible = false; } });
+  });
+  if (A.gltfUrl && T.GLTFLoader) {
+    new T.GLTFLoader().load(A.gltfUrl, function (gl) {
+      var sc = gl.scene; sc.traverse(function (o) { if (o.isMesh && o.material) { o.material.envMapIntensity = 0.9; } });
+      swap(hero, sc, heroSize);
+    }, undefined, function () {});
+  }
   var floor = (function () {
     var cv = d.createElement("canvas"); cv.width = cv.height = 256; var x = cv.getContext("2d");
     var gr = x.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, P.accent); gr.addColorStop(0.35, P.accent2); gr.addColorStop(1, "rgba(0,0,0,0)");
@@ -408,7 +498,10 @@ export function immersiveRuntime(cfg) {
   var secs = (cfg.secondary || []).map(function (k, j) {
     var o = build(k, mobile ? 1.4 : 1.7);
     o.userData = { k: 1 + j * Math.max(1, Math.floor((chapters.length - 2) / Math.max(1, cfg.secondary.length))), j: j };
-    o.visible = false; scene.add(o); return o;
+    o.visible = false; scene.add(o);
+    var su = A.secGltf && A.secGltf[k];
+    if (su && T.GLTFLoader) new T.GLTFLoader().load(su, function (gl) { swap(o, gl.scene, mobile ? 1.4 : 1.7, true); }, undefined, function () {});
+    return o;
   });
 
   var motif = new T.Group(); scene.add(motif);
@@ -437,6 +530,7 @@ export function immersiveRuntime(cfg) {
     if (i === 0) { p.s *= cfg.choreo === "drift" ? 1.2 : 1.1; p.ry = -0.55; p.rz = 0.18; }
     if (sd === 0) { p.x = 0; p.y = -2.0; p.s *= 0.66; p.z = 0; } // texto centralizado no alto, objeto abaixo dele
     if (last) { p.ry = Math.PI * 2 + 0.4 + i * 0.2; p.rx = 0.25; p.s *= 0.95; }
+    if (FLAT) { p.rx = Math.sin(i * 1.3) * 0.18; p.rz = Math.sin(i * 0.9) * 0.16; p.ry = Math.sin(i * 1.1) * 0.45; }
     // Capítulos de foto ampla: o objeto sai de cena (e volta no capítulo seguinte, entrando de baixo).
     if (chapters[i] && chapters[i].dataset.hide) { p.s = 0.001; p.y = -4.5; p.z = -2; }
     if (mobile) { p.x *= 0.1; p.y = (sd === 0 ? 0 : p.y * 0.4) + 1.15; p.s *= 0.74; p.z = Math.min(p.z, 0.4); }
@@ -475,7 +569,9 @@ export function immersiveRuntime(cfg) {
     measure();
     var tg = target(), k = reduce ? 1 : 1 - Math.pow(0.002, dt);
     keys.forEach(function (q) { cur[q] += (tg[q] - cur[q]) * k; });
-    var idle = reduce ? 0 : clock * 0.18;
+    var idle = reduce ? 0 : FLAT ? Math.sin(clock * 0.4) * 0.12 : clock * 0.18;
+    if (spinner && !reduce) spinner.rotation.y = clock * 0.22 + f * 0.9;
+    else if (spinner) spinner.rotation.y = f * 0.9;
     hero.position.set(cur.x, cur.y + (reduce ? 0 : Math.sin(clock * 0.9) * 0.06), cur.z);
     hero.rotation.set(cur.rx + my * 0.18, cur.ry + idle + mx * 0.35, cur.rz);
     hero.scale.setScalar(cur.s);

@@ -29,6 +29,12 @@ export const env = {
   get imageSearchDisabled() { return opt("IMAGE_SEARCH") === "off"; },
   get nominatimUrl() { return opt("NOMINATIM_URL"); },
   get overpassUrl() { return opt("OVERPASS_URL"); },
+  // Link público das prévias (repositório público no GitHub do usuário; token só no servidor)
+  get githubPreviewsToken() { return opt("GITHUB_PREVIEWS_TOKEN"); },
+  get githubPreviewsRepo() { return opt("GITHUB_PREVIEWS_REPO"); },
+  get githubPreviewsBranch() { return opt("GITHUB_PREVIEWS_BRANCH"); },
+  get githubPreviewsDir() { return opt("GITHUB_PREVIEWS_DIR"); },
+  get githubPagesUrl() { return opt("GITHUB_PAGES_URL"); },
   get osmContactEmail() { return opt("OSM_CONTACT_EMAIL"); },
   get kiwifyWebhookTokens() {
     return [opt("KIWIFY_WEBHOOK_TOKEN"), opt("KIWIFY_WEBHOOK_TOKEN_PREVIOUS")].filter(Boolean) as string[];
