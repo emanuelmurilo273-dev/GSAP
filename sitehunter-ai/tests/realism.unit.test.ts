@@ -58,8 +58,8 @@ describe("Link público das prévias", () => {
   content.sections = content.sections.map((x) => (x.type === "hero" ? { ...x, image: libraryImages("pizza", 0, 1)[0] } : x));
   it("pacote tem a página com caminhos relativos e só os recursos usados (fotos da biblioteca + modelo)", async () => {
     const files = await assetFilesFor(content);
-    expect(files).toContain("photos/pizza/1.jpg");
-    expect(files).toContain("photos/pizza/1-m.jpg");
+    expect(files).toContain("photos/pizza/h1.jpg");
+    expect(files).toContain("photos/pizza/h1-m.jpg");
     expect(files).toContain("models/carrot_cake/model.gltf");
     expect(files).toContain("models/hdri/studio_small_09_1k.hdr");
     expect(files.some((f) => f.includes("croissant"))).toBe(false);
@@ -67,7 +67,7 @@ describe("Link público das prévias", () => {
     const html = b.find((f) => f.path === "previas/forneria-teste/index.html")!.data.toString();
     expect(html).toContain('src="../_assets/vendor/three.min.js"');
     expect(html).toContain('"gltfUrl":"../_assets/models/carrot_cake/model.gltf"');
-    expect(html).toContain('../_assets/photos/pizza/1.jpg');
+    expect(html).toContain('../_assets/photos/pizza/h1.jpg');
     expect(html).toContain('name="robots" content="noindex');
   });
   it("envia pela API do GitHub e devolve link do GitHub Pages; retirar apaga a página", async () => {

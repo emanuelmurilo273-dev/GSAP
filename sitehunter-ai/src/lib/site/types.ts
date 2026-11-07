@@ -82,7 +82,15 @@ export const SectionSchema = z.discriminatedUnion("type", [
     categories: z.array(z.object({ name: text(80), items: z.array(z.object({ name: text(100), description: text(300), price: text(30) })).max(40) })).max(12),
   }),
   z.object({ ...base, type: z.literal("products"), title: text(120), intro: text(600), items: z.array(z.object({ name: text(100), description: text(300), image: ImageSchema.optional() })).max(24) }),
-  z.object({ ...base, type: z.literal("hours"), title: text(120), lines: z.array(z.object({ label: text(60), value: text(80) })).max(10), note: text(300) }),
+  z.object({
+    ...base,
+    type: z.literal("hours"),
+    title: text(120),
+    lines: z.array(z.object({ label: text(60), value: text(80) })).max(10),
+    note: text(300),
+    /** Fuso horário local da empresa (IANA, ex.: America/Manaus): base do "aberto agora". */
+    timezone: text(60).optional(),
+  }),
   z.object({ ...base, type: z.literal("gallery"), title: text(120), images: z.array(ImageSchema).max(12) }),
   z.object({ ...base, type: z.literal("cta"), title: text(160), text: text(500), button: ButtonSchema }),
   z.object({ ...base, type: z.literal("quote"), title: text(120), text: text(500), buttonLabel: text(60) }),

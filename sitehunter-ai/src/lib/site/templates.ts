@@ -1,3 +1,4 @@
+import { timezoneFor } from "./openHours";
 import { z } from "zod";
 import { placePhrase, sectorCopy, usableOwnDescription } from "./copyLibrary";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
@@ -156,6 +157,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
           { label: "Domingo", value: "" },
         ],
     note: company.hoursLines?.length ? `Horários publicados no ${company.hoursSource ?? "perfil público"}; confirme com a empresa antes de liberar o link.` : "Confirme os horários com a empresa antes de publicar.",
+    ...(timezoneFor(company.state, company.city) ? { timezone: timezoneFor(company.state, company.city)! } : {}),
   };
   const gallery: Section = { id: "galeria", type: "gallery", visible: galleryImgs.length > 0, title: "Galeria", images: galleryImgs };
   const cta: Section = { id: "chamada", type: "cta", visible: true, title: copy.ctaTitle, text: copy.ctaText, button: { label: copy.primaryCta || "Fale conosco", action: mainAction, href: hasPhone ? undefined : "contato" } };

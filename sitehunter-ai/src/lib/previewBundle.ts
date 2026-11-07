@@ -15,7 +15,7 @@ export type BundleFile = { path: string; data: Buffer };
 export async function assetFilesFor(content: SiteContent): Promise<string[]> {
   // Fotos usadas depois da atualização das prévias antigas (ainda com endereços "lib:").
   const prepared = prepareContent(content, { assetUrl: (p) => `lib-resolved:${p}` });
-  const photos = [...new Set((JSON.stringify(prepared).match(/lib-resolved:photos\/[a-z]+\/\d+\.jpg/g) ?? []).map((u) => u.slice("lib-resolved:".length)))]
+  const photos = [...new Set((JSON.stringify(prepared).match(/lib-resolved:photos\/[a-z]+\/h?\d+\.jpg/g) ?? []).map((u) => u.slice("lib-resolved:".length)))]
     .flatMap((f) => [f, f.replace(/\.jpg$/, "-m.jpg")]);
   const files = [...photos, ...(photos.length ? ["photos/LICENSES.md"] : [])];
   if (content.theme.style !== "immersive") return files;

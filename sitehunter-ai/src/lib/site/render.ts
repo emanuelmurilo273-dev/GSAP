@@ -124,7 +124,7 @@ export function imageCaption(i: SiteImage, tag = "figcaption", cls = ""): string
 }
 
 /** Caminho relativo de foto da biblioteca do app (sem esquema, só caracteres seguros). */
-const LIB_PATH = /^[\w./-]*photos\/[a-z]+\/\d+\.jpg$/;
+const LIB_PATH = /^[\w./-]*photos\/[a-z]+\/h?\d+\.jpg$/;
 
 export function imgSrc(i: SiteImage | undefined): string | null {
   if (!i?.url) return null;

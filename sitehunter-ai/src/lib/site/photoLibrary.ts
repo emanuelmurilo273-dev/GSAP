@@ -77,20 +77,20 @@ export function libraryMeta(url: string): LibPhoto | null {
 
 /** Metadados de uma foto da biblioteca já resolvida para endereço real (…/photos/<ramo>/<n>.jpg). */
 export function libraryMetaBySrc(src: string): LibPhoto | null {
-  const m = src.match(/\/photos\/([a-z]+)\/(\d+)\.jpg$/);
+  const m = src.match(/\/photos\/([a-z]+)\/(h?\d+)\.jpg$/);
   return m ? CATALOG[m[1]!]?.find((p) => p.file === `${m[1]}/${m[2]}.jpg`) ?? null : null;
 }
 
 /** Arquivos de public/ usados pelas fotos da biblioteca no conteúdo (para o pacote estático). */
 export function libraryFilesIn(content: SiteContent): string[] {
-  const urls = JSON.stringify(content).match(/"lib:[a-z]+\/\d+\.jpg"/g) ?? [];
+  const urls = JSON.stringify(content).match(/"lib:[a-z]+\/h?\d+\.jpg"/g) ?? [];
   return [...new Set(urls.map((u) => u.slice(5, -1)))].flatMap((f) => [`photos/${f}`, `photos/${f.replace(/\.jpg$/, "-m.jpg")}`]);
 }
 
 /** Troca "lib:..." pelo endereço real (base termina em "/"). */
 export function resolveLibrary(content: SiteContent, base: string | ((path: string) => string)): SiteContent {
   const resolve = typeof base === "function" ? base : (p: string) => base + p;
-  const json = JSON.stringify(content).replace(/"lib:([a-z]+\/\d+\.jpg)"/g, (_, f: string) => JSON.stringify(resolve(`photos/${f}`)));
+  const json = JSON.stringify(content).replace(/"lib:([a-z]+\/h?\d+\.jpg)"/g, (_, f: string) => JSON.stringify(resolve(`photos/${f}`)));
   return JSON.parse(json) as SiteContent;
 }
 
