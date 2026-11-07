@@ -120,6 +120,16 @@ export function statusAt(schedule: Schedule | null, hasLines: boolean, date: Dat
   return { kind: "closed", opensAt: null, opensDay: null };
 }
 
+/** Horário de hoje no fuso da empresa ("09:00–12:00 e 14:00–18:00" ou "Fechado hoje"). */
+export function todayText(schedule: Schedule | null, date: Date, timeZone: string): string | null {
+  if (!schedule) return null;
+  const { day } = localNow(date, timeZone);
+  const iv = [...schedule[day]!].sort((a, b) => a[0] - b[0]);
+  if (!iv.length) return "Fechado hoje";
+  if (iv.length === 1 && iv[0]![0] === 0 && iv[0]![1] === 1440) return "24 horas";
+  return iv.map(([a, b]) => `${hhmm(a)}–${hhmm(b)}`).join(" e ");
+}
+
 export function statusText(s: OpenStatus): string {
   if (s.kind === "none") return "Horário não informado";
   if (s.kind === "unknown") return "Confira os horários";
@@ -182,17 +192,24 @@ export function hoursRuntime(cfg: { schedule: Schedule; tz: string }) {
     var g = function (t: string) { for (var i = 0; i < p.length; i++) if (p[i]!.type === t) return p[i]!.value; return "0"; };
     return { day: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(g("weekday")), min: Number(g("hour")) * 60 + Number(g("minute")) };
   }
+  function todayOf(n: { day: number; min: number }) {
+    var iv = cfg.schedule[n.day]!.slice().sort(function (a, b) { return a[0] - b[0]; }), out = [], i;
+    if (!iv.length) return "Fechado hoje";
+    if (iv.length === 1 && iv[0]![0] === 0 && iv[0]![1] === 1440) return "24 horas";
+    for (i = 0; i < iv.length; i++) out.push(hm(iv[i]![0]) + "–" + hm(iv[i]![1]));
+    return out.join(" e ");
+  }
   function compute() {
-    var n = now(), s = cfg.schedule, i, k;
-    for (i = 0; i < s[n.day]!.length; i++) { var a = s[n.day]![i]!; if (n.min >= a[0] && n.min < a[1]) return { open: true, text: "Aberto agora · fecha às " + hm(a[1]) + (a[1] > 1440 ? " (amanhã)" : ""), day: n.day }; }
+    var n = now(), s = cfg.schedule, i, k, td = todayOf(n);
+    for (i = 0; i < s[n.day]!.length; i++) { var a = s[n.day]![i]!; if (n.min >= a[0] && n.min < a[1]) return { open: true, text: "Aberto agora · fecha às " + hm(a[1]) + (a[1] > 1440 ? " (amanhã)" : ""), day: n.day, today: td }; }
     var y = s[(n.day + 6) % 7]!;
-    for (i = 0; i < y.length; i++) { var b = y[i]!; if (b[1] > 1440 && n.min + 1440 >= b[0] && n.min + 1440 < b[1]) return { open: true, text: "Aberto agora · fecha às " + hm(b[1]), day: n.day }; }
+    for (i = 0; i < y.length; i++) { var b = y[i]!; if (b[1] > 1440 && n.min + 1440 >= b[0] && n.min + 1440 < b[1]) return { open: true, text: "Aberto agora · fecha às " + hm(b[1]), day: n.day, today: td }; }
     for (k = 0; k < 8; k++) {
       var d = (n.day + k) % 7, best = -1;
       for (i = 0; i < s[d]!.length; i++) { var st = s[d]![i]![0]; if ((k > 0 || st > n.min) && (best < 0 || st < best)) best = st; }
-      if (best >= 0) return { open: false, text: "Fechado agora · abre " + (k === 0 ? "" : k === 1 ? "amanhã " : DAYS[d] + " ") + "às " + hm(best), day: n.day };
+      if (best >= 0) return { open: false, text: "Fechado agora · abre " + (k === 0 ? "" : k === 1 ? "amanhã " : DAYS[d] + " ") + "às " + hm(best), day: n.day, today: td };
     }
-    return { open: false, text: "Fechado", day: n.day };
+    return { open: false, text: "Fechado", day: n.day, today: td };
   }
   function paint() {
     var r = compute();
@@ -200,6 +217,7 @@ export function hoursRuntime(cfg: { schedule: Schedule; tz: string }) {
       el.classList.toggle("is-open", r.open); el.classList.toggle("is-closed", !r.open);
       var t = el.querySelector("[data-open-text]"); if (t) t.textContent = r.text;
     });
+    document.querySelectorAll("[data-today]").forEach(function (el) { el.textContent = r.today; });
     document.querySelectorAll("[data-days]").forEach(function (el) {
       var days = (el.getAttribute("data-days") || "").split(",");
       el.classList.toggle("is-today", days.indexOf(String(r.day)) >= 0);

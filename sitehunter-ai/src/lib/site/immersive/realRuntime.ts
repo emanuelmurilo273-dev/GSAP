@@ -136,7 +136,7 @@ export function realRuntime(cfg) {
       var scroll = Math.max(-1, Math.min(1, -r.top / Math.max(1, r.height)));
       px += (tx - px) * 0.06; py += (ty - py) * 0.06;
       // Giro lento de vitrine + rolagem da página + leve inclinação pelo mouse.
-      pivot.rotation.y = (reduce ? 0.6 : t * 0.18 + 0.6) + scroll * 1.1 + px * 0.25;
+      pivot.rotation.y = (reduce ? -0.3 : t * 0.18 - 0.4) + scroll * 1.1 + px * 0.25; // começa de lado (objetos compridos aparecem inteiros)
       var d = camera.userData.dist * camera.userData.fit, el = camera.userData.elev + py * 0.05;
       var tg = camera.userData.target;
       camera.position.set(Math.sin(0.35) * d * Math.cos(el), tg.y + d * Math.sin(el), Math.cos(0.35) * d * Math.cos(el));

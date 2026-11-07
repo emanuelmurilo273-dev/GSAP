@@ -11,7 +11,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const { search } = await searchParams;
   return (
     <>
-      <PageHeader title="Leads encontrados" subtitle="Empresas com WhatsApp comercial confirmado em fonte pública. Filtre por status, abra o perfil, crie a prévia e prepare a abordagem." />
+      <PageHeader title="Leads encontrados" subtitle="Empresas encontradas em fontes públicas, com ou sem WhatsApp: o telefone e os demais contatos aparecem em cada cartão. Filtre por status, abra o perfil, crie a prévia e prepare a abordagem." />
       <LeadsStudio mode="list" initialSearchId={search ?? ""} premium={user.access.premium} providers={providerStatus()} nicheSuggestions={SEGMENTS.map((s) => s.query)} {...data} />
     </>
   );

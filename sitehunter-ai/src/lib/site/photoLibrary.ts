@@ -50,14 +50,18 @@ const toImage = (key: string, p: LibPhoto): SiteImage => ({
 });
 
 /**
- * n fotos do ramo, sem repetir. A primeira (capa) é sempre uma das duas melhores do ramo; a ordem
- * das demais gira pela semente da empresa, para que duas empresas do mesmo ramo não tenham a mesma página.
+ * n fotos do ramo, sem repetir. A capa sai das melhores fotos do ramo (as primeiras do catálogo, em alta
+ * resolução) e evita as capas já usadas em outras prévias do mesmo usuário (`avoid`), para que duas
+ * empresas do mesmo ramo não abram com a mesma foto. A ordem das demais gira pela semente da empresa.
  */
-export function libraryImages(key: string, seed: number, n: number): SiteImage[] {
+export function libraryImages(key: string, seed: number, n: number, avoid: Set<string> = new Set()): SiteImage[] {
   const own = libraryPhotos(key);
   const extra = libraryPhotos(NEIGHBOR[key] ?? "").map((p) => [NEIGHBOR[key]!, p] as const);
   if (!own.length) return [];
-  const cover = own[seed % Math.min(2, own.length)]!;
+  const top = own.slice(0, Math.min(6, own.length));
+  const fresh = top.filter((p) => !avoid.has(`${LIB_PREFIX}${p.file}`));
+  const pool = fresh.length ? fresh : top;
+  const cover = pool[seed % pool.length]!;
   const rest = own.filter((p) => p !== cover);
   const start = rest.length ? (seed >>> 3) % rest.length : 0;
   const rotated = [...rest.slice(start), ...rest.slice(0, start)];

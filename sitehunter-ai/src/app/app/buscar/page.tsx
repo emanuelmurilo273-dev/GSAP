@@ -10,7 +10,7 @@ export default async function SearchPage() {
   const data = await loadLeadsData(user.id);
   return (
     <>
-      <PageHeader title="Buscar empresas" subtitle="Qualquer cidade do Brasil. Só entram na lista empresas com WhatsApp comercial confirmado em fonte pública; nenhuma é contatada." />
+      <PageHeader title="Buscar empresas" subtitle="Qualquer cidade do Brasil. Entram todas as empresas reais encontradas, com ou sem WhatsApp (o telefone já basta); o WhatsApp só é indicado quando a fonte informa. Nenhuma empresa é contatada." />
       <LeadsStudio mode="search" premium={user.access.premium} providers={providerStatus()} nicheSuggestions={SEGMENTS.map((s) => s.query)} {...data} />
     </>
   );

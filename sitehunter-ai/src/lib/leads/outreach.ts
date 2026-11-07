@@ -1,3 +1,4 @@
+import { nicheFromText } from "../site/nicheProfile";
 import { z } from "zod";
 import { aiConfigured, structured } from "../ai";
 import { isUsable, type Facts, type Language, type Opportunity } from "./types";
@@ -245,6 +246,13 @@ export function templateWhatsapp(input: OutreachInput & { category?: string | nu
   if (obs?.evidence && obs.code !== "no_website") used.push({ field: obs.code, value: obs.evidence, source: obs.code === "social_only" ? params.source : "Verificação do site" });
   const url = input.hasPreview ? input.previewUrl ?? null : null;
   const opening = pair ? `${pair[0]} ${pair[1]}` : publicSource ? d.opportunity(params) : "";
-  const body = [d.greet(name), "", opening || "[Escreva aqui um problema ou oportunidade que você confirmou sobre a empresa.]", "", d.offer(url, input.senderName), "", d.close].join("\n");
+  // Ângulo do ramo (só em português): por que o ponto importa para esse tipo de negócio e o que a sugestão destaca.
+  // Fala do RAMO, nunca de fatos sobre a empresa que não foram verificados.
+  const niche = lang === "pt-BR" ? nicheFromText(`${input.category ?? ""} ${fullName}`) : null;
+  // Sem WhatsApp confirmado, o canal de contato do site sugerido é o telefone.
+  const hasWa = !!input.facts.whatsapp?.value && input.facts.whatsapp.status === "confirmed";
+  const offerTxt = niche ? (hasWa ? niche.offer : niche.offer.replace(/pelo WhatsApp/g, "pelo telefone")) : "";
+  const nicheLine = niche && niche.key !== "generico" ? `Pensando em ${niche.label}, a sugestão destaca ${offerTxt}.` : null;
+  const body = [d.greet(name), "", opening || "[Escreva aqui um problema ou oportunidade que você confirmou sobre a empresa.]", ...(nicheLine ? ["", nicheLine] : []), "", d.offer(url, input.senderName), "", d.close].join("\n");
   return { subject: "WhatsApp", body, factsUsed: used, observation: pair?.[0] ?? null, basis: pair ? "problem" : "opportunity", needsEdit: !opening };
 }

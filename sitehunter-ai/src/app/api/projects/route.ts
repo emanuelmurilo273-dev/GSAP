@@ -64,7 +64,13 @@ export const POST = route(async (req) => {
     // Completa com a biblioteca de fotos do app: escolhidas à mão por ramo, domínio público, sempre carregam.
     const draftConcept = buildConcept({ name: info.name, category: info.category, segmentKey: segment.key, description: info.ownDescription?.text ?? null });
     const need = Math.max(0, 7 - usable.length);
-    const extra = need && !company.isDemo ? libraryImages(libraryKey(draftConcept.model, segment.key), draftConcept.seed, need) : [];
+    // Capas já usadas nas outras prévias deste usuário: a nova empresa abre com outra foto do ramo.
+    const usedCovers = new Set<string>();
+    for (const o of await prisma.project.findMany({ where: { userId: user.id, companyId: { not: company.id } }, select: { content: true }, take: 300 })) {
+      const h = (o.content as { sections?: { type: string; image?: { url?: string } }[] } | null)?.sections?.find((x) => x.type === "hero");
+      if (h?.image?.url) usedCovers.add(h.image.url);
+    }
+    const extra = need && !company.isDemo ? libraryImages(libraryKey(draftConcept.model, segment.key), draftConcept.seed, need, usedCovers) : [];
     const { copy, ai } = await generateSiteCopy(info, segment, b.instructions, language);
     const content = buildSiteContent(info, segment, copy, [...usable, ...extra]);
     content.libraryVersion = 1;

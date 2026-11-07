@@ -1,4 +1,5 @@
 import { timezoneFor } from "./openHours";
+import { nicheOf } from "./nicheProfile";
 import { z } from "zod";
 import { placePhrase, sectorCopy, usableOwnDescription } from "./copyLibrary";
 import { FONTS, type Section, type SiteContent, type SiteImage, type Theme } from "./types";
@@ -115,6 +116,12 @@ export function themeForStyle(style: SiteStyle, primary: string, accent: string)
   };
 }
 
+/** Aviso sobre a tipologia do ramo mostrada no painel e na faixa em movimento (não são afirmações sobre a empresa). */
+function nicheNote(company: CompanyInfo, segment: Segment): string | null {
+  const n = nicheOf(undefined, `${company.category ?? ""} ${company.name} ${segment.key}`);
+  return n.chips.length ? `Painel e faixa em movimento usam itens típicos de ${n.label} (${n.chips.slice(0, 3).join(", ")}…): confirme o que a empresa realmente oferece antes de publicar.` : null;
+}
+
 export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: SiteCopy, images: SiteImage[] = [], style?: SiteStyle): SiteContent {
   // A direção visual (estrutura, tipografia, base de cores) vem do setor; a IA só sugere as cores da marca.
   const theme = themeForStyle(
@@ -222,6 +229,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
       : {}),
     reviewNotes: [
       "Os serviços/produtos listados são sugestões típicas do segmento — confirme com a empresa.",
+      ...(nicheNote(company, segment) ? [nicheNote(company, segment)!] : []),
       company.hoursLines?.length ? `Horários vieram do ${company.hoursSource ?? "perfil público"}: confirme com a empresa.` : "Preencha os horários de funcionamento e os preços somente com informações confirmadas.",
       ...(company.ownDescription && usableOwnDescription(company.ownDescription.text) ? [`O texto "Sobre" usa a descrição publicada em ${company.ownDescription.source}: confira se continua atual.`] : []),
       ...(company.phone ? [] : ["A fonte de dados não informou telefone: adicione um contato em 'Dados da empresa'."]),

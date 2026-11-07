@@ -1,10 +1,12 @@
-import type { Concept, Section, SiteContent, SiteImage } from "../types";
+import type { Concept, Section, SiteButton, SiteContent, SiteImage } from "../types";
 import { button, esc, imageCaption, imgSrc, mapsHref, nl2p, safeUrl, telHref, waNumber, type RenderOpts } from "../render";
 import { buildConcept, withMood } from "./concept";
 import { realRuntime } from "./realRuntime";
+import { arcRuntime } from "./arcRuntime";
+import { nicheOf } from "../nicheProfile";
 import { GLTF_ASSETS, assetForModel } from "./kinds";
 import { libraryMetaBySrc } from "../photoLibrary";
-import { hoursRuntime, parseDays, parseSchedule, statusAt, statusText, timezoneFromAddress } from "../openHours";
+import { hoursRuntime, parseDays, parseSchedule, statusAt, statusText, timezoneFromAddress, todayText } from "../openHours";
 
 // Site imersivo por empresa ("Vitrine"): profundidade, parallax, transições e elementos interativos em
 // HTML/CSS (rápido e legível), com 3D só quando há modelo escaneado de um objeto real. A estrutura segue
@@ -67,7 +69,6 @@ function figure(i: Img, sizes: string, cls: string, eager = false, extra = ""): 
 /** Ramos e o caráter do movimento: calmo (saúde), equilibrado ou intenso. */
 const CALM = new Set(["tooth", "implant", "pill", "glasses"]);
 const BOLD = new Set(["scissors", "razor", "pole", "dumbbell", "kettlebell", "wheel", "wrench", "gear", "burger", "pizza"]);
-const MOSAIC = new Set(["plate", "cloche", "cutlery", "pizza", "burger", "cup", "bean", "cake", "loaf", "croissant", "bone", "paw", "hanger", "tshirt", "key", "house", "comb", "hairdryer", "bottle", "polish"]);
 
 export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const k = conceptOf(c);
@@ -112,7 +113,16 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const statusCls = status.kind === "open" ? " is-open" : status.kind === "closed" ? " is-closed" : " is-unknown";
   const statusPill = (cls = "") => `<p class="status${statusCls}${cls ? ` ${cls}` : ""}"${schedule ? " data-open-status" : ""} role="status"><i aria-hidden="true"></i><span data-open-text>${esc(statusText(status))}</span></p>`;
 
-  // ---------- abertura: escolhe o tipo pelo ramo e pelas fotos disponíveis ----------
+  // ---------- ramo: linguagem visual e conteúdo típico (a confirmar com a empresa) ----------
+  const niche = nicheOf(k.model, `${b.name} ${c.siteName} ${c.seo.description}`);
+  const svcItems = services?.items.filter((i) => i.title.trim()) ?? products?.items.filter((i) => i.name.trim()).map((i) => ({ title: i.name, description: i.description })) ?? [];
+  const realItem = (i: { name: string }) => i.name.trim() && !/^item do card/i.test(i.name);
+  const menuCats = menu?.categories.filter((cat) => cat.name.trim()).map((cat) => ({ ...cat, items: cat.items.filter(realItem) })).filter((cat) => cat.items.length) ?? [];
+  const chipSet = new Map<string, string>();
+  for (const w of [...svcItems.map((i) => i.title), ...menuCats.map((m) => m.name), ...niche.chips]) if (w.trim() && !chipSet.has(fold(w))) chipSet.set(fold(w), w.trim());
+  const chips = [...chipSet.values()];
+
+  // ---------- abertura inspirada em heros com arco de luz: centrada, pílula de status, dois botões e um painel ----------
   const title = (hero?.title || c.siteName).trim();
   const sub = (hero?.subtitle ?? "").trim();
   const titleIsName = fold(title).includes(fold(brand)) || fold(brand).includes(fold(title));
@@ -120,52 +130,78 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const lede = titleIsName ? sub.replace(proposal, "").trim() : sub;
   const where = k.kicker;
   const mainBtn = hero?.buttons[0];
-  const contactFact = wa ? { t: "WhatsApp", v: prettyPhone(wa) } : b.phone ? { t: "Telefone", v: b.phone } : b.email ? { t: "E-mail", v: b.email } : null;
-  const facts = [b.address ? { t: "Endereço", v: b.address.split("·")[0]!.trim() } : null, contactFact].filter((x): x is { t: string; v: string } => !!x);
-
   const heroImg = take(hero?.image, 1200);
-  const kind: "stage" | "cinema" | "mosaic" | "split" = asset ? "stage" : isLarge(heroImg) && motion !== "calm" ? "cinema" : MOSAIC.has(k.model) && pool.length >= 4 ? "mosaic" : "split";
-  const mosaicImgs: Img[] = kind === "mosaic" ? [take(), take()].filter((x): x is Img => !!x) : [];
-  const backImg = kind === "stage" || kind === "split" ? take() : null; // foto em segundo plano, com profundidade
+  // Variedade: ramos de vitrine usam a foto em tela cheia (cinema); os demais, o arco com painel.
+  const kind: "arc" | "cinema" = !asset && isLarge(heroImg) && ["pet", "roupas", "imobiliaria"].includes(niche.key) ? "cinema" : "arc";
+  const todayStr = todayText(schedule, new Date(), tz ?? "America/Sao_Paulo");
 
-  const copy = `<div class="hero-copy">
-    <p class="eyebrow rv">${esc(brand)}${where ? `<span>${esc(where)}</span>` : ""}</p>
-    <h1 id="h-hero" class="h1 split" aria-label="${esc(proposal)}">${words(proposal)}</h1>
-    ${brandFull ? `<p class="fullname rv" style="--d:3">${esc(brandFull)}</p>` : ""}
-    ${lede ? `<p class="lede rv" style="--d:3">${esc(lede)}</p>` : ""}
-    ${hero?.buttons.length ? `<div class="acts rv" style="--d:4">${hero.buttons.map((x, i) => button(x, c, i ? "btn ghost" : "btn mag")).join("")}</div>` : ""}
-    <div class="hero-meta rv" style="--d:5">${statusPill()}${facts.length ? `<dl class="facts">${facts.map((f) => `<div><dt>${esc(f.t)}</dt><dd>${esc(f.v)}</dd></div>`).join("")}</dl>` : ""}</div>
+  const arrow = `<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  /** Botão com troca de letras no hover, seta em círculo (primário) ou preenchimento em círculo (secundário). */
+  const rollBtn = (x: SiteButton, cls: string, withArrow = false) => {
+    const html = button(x, c, `btn roll ${cls}`);
+    const label = x.label;
+    const letters = [...label].map((ch, i) => `<i style="--i:${i}" data-c="${ch === " " ? "&nbsp;" : esc(ch)}"><span>${ch === " " ? "&nbsp;" : esc(ch)}</span></i>`).join("");
+    return html.replace(`>${esc(label)}</a>`, `><span class="rl" aria-hidden="true">${letters}</span><span class="sr">${esc(label)}</span>${withArrow ? `<span class="ar" aria-hidden="true">${arrow}</span>` : ""}</a>`);
+  };
+
+  const sideList = (svcItems.length ? svcItems.map((i) => i.title) : niche.chips).slice(0, 4);
+  const contactLines = [
+    wa ? { t: "WhatsApp", v: prettyPhone(wa) } : null,
+    b.phone ? { t: "Telefone", v: b.phone } : null,
+    !wa && !b.phone && b.email ? { t: "E-mail", v: b.email } : null,
+  ].filter((x): x is { t: string; v: string } => !!x).slice(0, 2);
+  const hotAction = mainBtn ? { ...mainBtn, label: mainBtn.action === "whatsapp" || mainBtn.action === "section" ? niche.panelCta : mainBtn.action === "phone" ? "Ligar agora" : mainBtn.label } : null;
+  const media = asset
+    ? `<div class="stage" data-stage3d aria-hidden="true"><canvas></canvas>${heroImg ? picture(heroImg, "(max-width: 900px) 100vw, 40vw", { cls: "stage-fallback" }) : ""}<span class="stage-loading">Carregando modelo 3D…</span></div>`
+    : heroImg ? figure(heroImg, "(max-width: 900px) 100vw, 40vw", "ph", true) : `<div class="ph ph-empty" aria-hidden="true"><b>${esc(brand.charAt(0))}</b></div>`;
+  const ribbon = niche.accent ? `<div class="ap-ribbon ${niche.accent}" aria-hidden="true"></div>` : "";
+  const panel = `<div class="arc-panel" data-arc-panel>
+    ${ribbon}
+    <div class="ap-side">
+      <p class="ap-brand"><i aria-hidden="true">${esc(brand.charAt(0))}</i><span>${esc(brand)}</span></p>
+      <p class="ap-label">${esc(niche.panelTitle)}</p>
+      <ul>${sideList.map((t, n) => `<li${n === 0 ? ' class="on"' : ""}>${esc(t)}</li>`).join("")}</ul>
+      ${where ? `<p class="ap-where">${esc(where)}</p>` : ""}
+    </div>
+    <div class="ap-main">
+      <header class="ap-head"><div><h2>${esc(niche.panelTitle)}</h2>${todayStr ? `<p class="ap-sub">Hoje · <b data-today>${esc(todayStr)}</b></p>` : `<p class="ap-sub">Horário não informado</p>`}</div>${statusPill()}</header>
+      <div class="ap-grid">
+        <div class="ap-media">${media}</div>
+        ${b.address ? `<div class="ap-card"><span>Endereço</span><p>${esc(b.address.split("·").slice(0, 2).join(" ·"))}</p><a href="${esc(mapsHref(c))}" target="_blank" rel="noopener noreferrer">Abrir no mapa →</a></div>` : ""}
+        ${contactLines.length ? `<div class="ap-card"><span>Contato</span>${contactLines.map((l) => `<p><small>${esc(l.t)}</small> ${esc(l.v)}</p>`).join("")}</div>` : ""}
+        ${hotAction ? button(hotAction, c, "ap-card hot").replace(/>([^<]+)<\/a>$/, (_m, t) => `><span>${niche.label}</span><b>${t}</b><em aria-hidden="true">${arrow}</em></a>`) : ""}
+      </div>
+    </div>
   </div>`;
-  let media = "";
-  if (kind === "stage") {
-    media = `<div class="hero-media" data-tilt>
-      ${backImg ? `<div class="layer back" data-depth="-0.6">${picture(backImg, "30vw")}</div>` : ""}
-      <div class="stage layer" data-stage3d data-depth="0.4" aria-hidden="true"><canvas></canvas>${heroImg ? picture(heroImg, "(max-width: 900px) 100vw, 50vw", { cls: "stage-fallback" }) : ""}<span class="stage-loading">Carregando modelo 3D…</span></div>
-    </div>`;
-  } else if (kind === "mosaic" && heroImg) {
-    const all = [heroImg, ...mosaicImgs];
-    media = `<div class="hero-media mosaic" aria-hidden="false">${all.map((i, n) => `<div class="tile t${n}" data-par="${[0.12, -0.08, 0.2][n] ?? 0.1}" data-depth="${[0.5, -0.4, 0.8][n] ?? 0.3}">${figure(i, "(max-width: 900px) 60vw, 26vw", "ph", n === 0)}</div>`).join("")}</div>`;
-  } else if (kind === "split" && heroImg) {
-    media = `<div class="hero-media" data-tilt>
-      ${backImg ? `<div class="layer back" data-depth="-0.5">${picture(backImg, "30vw")}</div>` : ""}
-      <div class="layer front" data-depth="0.5">${figure(heroImg, "(max-width: 900px) 100vw, 52vw", "ph", true)}</div>
-    </div>`;
-  }
+  const acts = hero?.buttons.length ? `<div class="acts rv" style="--d:4">${hero.buttons.map((x, i) => (i ? rollBtn(x, "ghost") : rollBtn(x, "hero-primary mag", true))).join("")}</div>` : "";
+  const pill = `<a class="pill rv" href="#${esc(hours ? hours.id : "contato")}">${statusPill("in-pill")}<em aria-hidden="true">${arrow}</em></a>`;
   const heroHtml = kind === "cinema" && heroImg
     ? `<section id="${esc(hero?.id ?? "inicio")}" class="hero cinema" aria-labelledby="h-hero">
   <div class="cine-bg" data-par="-0.18" aria-hidden="true">${picture(heroImg, "100vw", { eager: true })}</div>
   <div class="cine-shade" aria-hidden="true"></div>
-  ${copy}
+  <div class="hero-copy">${pill}
+    <h1 id="h-hero" class="h1 split" aria-label="${esc(proposal)}">${words(proposal)}</h1>
+    ${brandFull ? `<p class="fullname rv" style="--d:3">${esc(brandFull)}</p>` : ""}
+    ${lede ? `<p class="lede rv" style="--d:3">${esc(lede)}</p>` : ""}
+    ${acts}
+  </div>
   ${imageCaption(heroImg, "p", "cine-cap")}
   <a class="scroll-cue" href="#${esc((services ?? products ?? menu ?? about)?.id ?? "contato")}" aria-label="Rolar para o conteúdo"><span></span></a>
 </section>`
-    : `<section id="${esc(hero?.id ?? "inicio")}" class="hero ${kind} ${seed % 2 ? "media-left" : "media-right"}${media ? "" : " no-media"}" aria-labelledby="h-hero">${copy}${media}</section>`;
+    : `<section id="${esc(hero?.id ?? "inicio")}" class="hero arc glow-${niche.glow}" aria-labelledby="h-hero">
+  <div class="arc-fx" aria-hidden="true"><canvas data-arc></canvas></div>
+  <div class="arc-copy">
+    ${pill}
+    <h1 id="h-hero" class="h1 split" aria-label="${esc(proposal)}">${words(proposal)}</h1>
+    ${brandFull ? `<p class="fullname rv" style="--d:3">${esc(brandFull)}</p>` : ""}
+    ${lede ? `<p class="lede rv" style="--d:3">${esc(lede)}</p>` : ""}
+    ${acts}
+  </div>
+  ${panel}
+</section>`;
 
-  // ---------- faixa em movimento com o que a empresa faz (só conteúdo real) ----------
-  const svcItems = services?.items.filter((i) => i.title.trim()) ?? products?.items.filter((i) => i.name.trim()).map((i) => ({ title: i.name, description: i.description })) ?? [];
-  const realItem = (i: { name: string }) => i.name.trim() && !/^item do card/i.test(i.name);
-  const menuCats = menu?.categories.filter((cat) => cat.name.trim()).map((cat) => ({ ...cat, items: cat.items.filter(realItem) })).filter((cat) => cat.items.length) ?? [];
-  const marqueeWords = [...svcItems.map((i) => i.title), ...menuCats.map((m) => m.name), ...k.highlights].filter(Boolean).slice(0, 8);
+  // ---------- faixa em movimento: serviços reais + tipologia do ramo ----------
+  const marqueeWords = [...chips, ...k.highlights].filter(Boolean).slice(0, 10);
   const marquee = marqueeWords.length >= 3 ? `<div class="marquee" aria-hidden="true"><div class="mq-track">${[0, 1].map(() => `<span>${marqueeWords.map((w) => `${esc(w)}<i>✦</i>`).join("")}</span>`).join("")}</div></div>` : "";
 
   // ---------- serviços: trilho horizontal fixado (computador) / deslizar (celular) ----------
@@ -265,6 +301,9 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   const credits = [...new Map(shown.map((i) => [i.src, i])).values()];
   const assetInfo = asset ? GLTF_ASSETS[asset] : null;
   const cfg3d = asset ? { gltfUrl: res(`${asset}/model.gltf`), hdrUrl: res("hdri/studio_small_09_1k.hdr"), dark: !ivory } : null;
+  const mixHex = (a: string, bHex: string, t: number) => { const f = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const x = f(a), y = f(bHex); return "#" + x.map((v, i) => Math.round(v + (y[i]! - v) * t).toString(16).padStart(2, "0")).join(""); };
+  const glowColors: [string, string, string] = niche.glow === "fire" ? ["#ffe3ac", "#ff7a1a", "#c2300a"] : niche.glow === "sparks" ? ["#ffffff", "#ff9a3c", mixHex(P.accent2, "#8fa6c0", 0.5)] : [mixHex(P.accent, "#ffffff", 0.55), P.accent, P.accent2];
+  const arcCfg = { kind: niche.glow, c: glowColors, dark: !ivory, bg: P.bg };
   const ts = TITLE_SCALE[k.display] ?? 1;
   const up = k.caseStyle === "upper";
   const dw = ["Anton", "Instrument Serif", "Archivo Black"].includes(k.display) ? 400 : 600;
@@ -281,7 +320,7 @@ ${opts.noindex ? '<meta name="robots" content="noindex, nofollow">' : ""}
 <meta name="color-scheme" content="${ivory ? "light" : "dark"}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${fontsHref([k.display, k.body])}">
-${heroImg && kind !== "stage" ? `<link rel="preload" as="image" href="${esc(heroImg.src)}">` : ""}
+${heroImg && !asset ? `<link rel="preload" as="image" href="${esc(heroImg.src)}">` : ""}
 <style>
 :root{--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mu:${P.muted};--ac:${P.accent};--ac2:${P.accent2};--fd:'${k.display}',Georgia,serif;--fb:'${k.body}',system-ui,sans-serif;--ts:${ts};--line:color-mix(in srgb,var(--ink) 13%,transparent);--card:color-mix(in srgb,var(--ink) ${ivory ? 4 : 6}%,var(--bg));--shadow:${ivory ? "0 30px 70px -34px rgba(40,30,20,.4)" : "0 40px 90px -40px rgba(0,0,0,.95)"};--r:${ivory ? "12px" : "18px"};--gut:clamp(16px,5vw,72px);--ease:cubic-bezier(.2,.75,.15,1);color-scheme:${ivory ? "light" : "dark"}}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -335,27 +374,79 @@ a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var
 .fullname{margin-top:12px;color:var(--mu);font-size:15px}
 .prose{color:var(--mu);font-size:18px;max-width:60ch}.prose p+p{margin-top:14px}
 /* abertura */
-.hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:clamp(28px,5vw,88px);align-items:center;padding:clamp(28px,5vw,72px) var(--gut) clamp(56px,7vw,110px);max-width:1520px;margin:0 auto;min-height:calc(100svh - 76px)}
-.hero.media-left .hero-copy{order:2}
-.hero.no-media{grid-template-columns:1fr;max-width:1040px}
+.hero{position:relative;max-width:1520px;margin:0 auto}
 .acts{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
-.hero-meta{display:flex;flex-wrap:wrap;align-items:center;gap:18px 28px;margin-top:40px;padding-top:24px;border-top:1px solid var(--line)}
-.facts{display:flex;flex-wrap:wrap;gap:14px 28px}
-.facts dt{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mu)}.facts dd{font-weight:600;margin-top:2px;overflow-wrap:anywhere}
-.hero-media{position:relative;perspective:1400px;min-height:min(70vh,640px)}
-.layer{position:absolute;will-change:transform;transition:transform .9s var(--ease)}
-.layer.front{inset:6% 0 0 12%}.layer.back{width:46%;aspect-ratio:3/4;left:0;top:0;border-radius:var(--r);overflow:hidden;opacity:.85;box-shadow:var(--shadow)}
-.layer.back img{width:100%;height:100%;object-fit:cover;filter:saturate(.85)}
-.media-left .layer.front{inset:6% 12% 0 0}.media-left .layer.back{left:auto;right:0}
 .ph{position:relative;margin:0;height:100%;border-radius:var(--r);overflow:hidden;background:var(--bg2);box-shadow:var(--shadow)}
 .ph img{width:100%;height:100%;object-fit:cover}
-.layer.front .ph img{animation:settle 1.8s var(--ease) both}
-@keyframes settle{from{transform:scale(1.08);opacity:.3}to{transform:none;opacity:1}}
+.ph-empty{display:grid;place-items:center;background:radial-gradient(circle at 30% 20%,color-mix(in srgb,var(--ac) 35%,var(--bg2)),var(--bg2))}.ph-empty b{font:${dw} 96px/1 var(--fd);color:color-mix(in srgb,var(--ink) 80%,transparent)}
 figure figcaption{position:absolute;left:12px;right:12px;bottom:10px;font-size:11.5px;line-height:1.35;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.9);pointer-events:auto}
 figure figcaption a{color:#fff}
-.mosaic{display:grid;grid-template-columns:1.1fr 1fr;grid-template-rows:1fr 1fr;gap:clamp(10px,1.4vw,18px);min-height:min(76vh,700px)}
-.mosaic .tile{position:relative;will-change:transform}
-.mosaic .t0{grid-row:1/3}.mosaic .t1{margin-top:12%}.mosaic .t2{margin-bottom:12%}
+/* abertura com arco de luz */
+.hero.arc{max-width:none;margin:0;overflow:hidden;padding:clamp(40px,6vw,92px) var(--gut) 0;min-height:calc(100svh - 76px);display:flex;flex-direction:column;align-items:center}
+.arc-fx{position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 78% 46% at 50% 64%,color-mix(in srgb,var(--ac) ${ivory ? 22 : 42}%,transparent),transparent 72%)}
+.arc-fx canvas{position:absolute;inset:0;width:100%;height:100%}
+.arc-copy{position:relative;z-index:2;text-align:center;max-width:980px;display:flex;flex-direction:column;align-items:center}
+.arc-copy .h1{font-size:calc(clamp(40px,5.4vw,84px) * var(--ts));background:linear-gradient(180deg,var(--ink) 30%,color-mix(in srgb,var(--ink) 60%,var(--ac)));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;padding-bottom:.06em}
+.arc-copy .split .w>span{-webkit-text-fill-color:transparent}
+.arc-copy .lede{margin-inline:auto;margin-top:20px;max-width:56ch}
+.arc-copy .acts{justify-content:center;margin-top:30px}
+.pill{display:inline-flex;align-items:center;gap:10px;margin-bottom:26px;padding:7px 8px 7px 14px;border-radius:999px;border:1px solid var(--line);background:color-mix(in srgb,var(--bg) 55%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);text-decoration:none;font-size:14px;transition:border-color .3s,transform .4s var(--ease)}
+.pill:hover{border-color:color-mix(in srgb,var(--ink) 40%,transparent);transform:translateY(-1px)}
+.pill .status{border:0;background:transparent;padding:0;margin:0;font-weight:500}
+.pill em{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--ink)}
+.pill em svg{width:13px;height:13px}
+.arc-panel{position:relative;z-index:2;width:min(1220px,100%);margin-top:clamp(36px,5.5vw,84px);margin-bottom:-150px;display:grid;grid-template-columns:230px minmax(0,1fr);border:1px solid color-mix(in srgb,var(--ink) 16%,transparent);border-radius:24px 24px 0 0;background:linear-gradient(180deg,color-mix(in srgb,var(--bg2) 92%,transparent),color-mix(in srgb,var(--bg) 96%,transparent));box-shadow:0 -20px 80px -30px color-mix(in srgb,var(--ac) 45%,transparent),var(--shadow);overflow:hidden;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.arc-panel::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ac) 80%,#fff),transparent);opacity:.9}
+.hero.arc::after{content:"";position:absolute;left:0;right:0;bottom:0;height:150px;z-index:3;pointer-events:none;background:linear-gradient(180deg,transparent,var(--bg))}
+.ap-ribbon{position:absolute;left:0;right:0;top:0;height:5px;z-index:2;opacity:.95}
+.ap-ribbon.pole{background:repeating-linear-gradient(115deg,#d92f2f 0 14px,#f4f4f4 14px 28px,#2d5fd0 28px 42px,#f4f4f4 42px 56px);background-size:112px 100%;animation:poleMove 7s linear infinite}
+.ap-ribbon.checker{background:conic-gradient(#d92f2f 25%,#f4f1ea 0 50%,#d92f2f 0 75%,#f4f1ea 0) 0 0/10px 10px}
+.ap-ribbon.stripe{background:repeating-linear-gradient(-45deg,#f5c518 0 10px,#15151a 10px 20px)}
+@keyframes poleMove{to{background-position:112px 0}}
+.ap-side{padding:22px 16px 28px 18px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.ap-brand{display:flex;align-items:center;gap:10px;font:${dw} 17px/1.1 var(--fd);margin-bottom:18px}
+.ap-brand i{font-style:normal;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--ac);color:var(--bg);font-weight:700;flex:0 0 auto}
+.ap-brand span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ap-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mu);margin-bottom:4px}
+.ap-side ul{list-style:none;display:grid;gap:4px}
+.ap-side li{padding:10px 12px;border-radius:10px;font-size:14.5px;color:var(--mu);border:1px solid transparent}
+.ap-side li.on{color:var(--ink);background:color-mix(in srgb,var(--ac) 14%,transparent);border-color:color-mix(in srgb,var(--ac) 40%,transparent);box-shadow:inset 3px 0 0 var(--ac)}
+.ap-where{margin-top:auto;padding-top:20px;font-size:12.5px;color:var(--mu)}
+.ap-main{padding:22px clamp(16px,2vw,28px) 0}
+.ap-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.ap-head h2{font:${dw} calc(26px * var(--ts))/1.1 var(--fd);letter-spacing:-.01em}
+.ap-sub{margin-top:6px;font-size:14px;color:var(--mu)}.ap-sub b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.ap-grid{display:grid;grid-template-columns:1.25fr 1fr 1fr;grid-auto-rows:minmax(150px,auto);gap:14px}
+.ap-media{grid-row:span 2;position:relative;min-height:300px}
+.ap-media .ph,.ap-media .stage{height:100%;min-height:300px;border-radius:16px;box-shadow:none}
+.ap-media .stage{position:relative;inset:auto;aspect-ratio:auto;width:100%}
+.ap-card{display:flex;flex-direction:column;gap:6px;padding:18px 18px 20px;border-radius:16px;border:1px solid var(--line);background:color-mix(in srgb,var(--ink) 4%,var(--bg2));text-decoration:none;color:var(--ink);font-size:15px;min-width:0}
+.ap-card>span{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mu)}
+.ap-card p{font-weight:600;overflow-wrap:anywhere;line-height:1.35}.ap-card p small{display:block;font-weight:400;color:var(--mu);font-size:12px}
+.ap-card a{margin-top:auto;font-size:13.5px;color:var(--ac);text-decoration:none;font-weight:600}
+.ap-card.hot{grid-column:span 2;justify-content:space-between;background:linear-gradient(135deg,var(--ac),color-mix(in srgb,var(--ac2) 55%,var(--ac)));color:var(--bg);border-color:transparent;position:relative;overflow:hidden;transition:transform .5s var(--ease),box-shadow .5s}
+.ap-card.hot::before{content:"";position:absolute;inset:-40% -20% auto auto;width:70%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.35),transparent 65%);pointer-events:none}
+.ap-card.hot>span{color:color-mix(in srgb,var(--bg) 70%,transparent)}
+.ap-card.hot b{font:${dw} calc(clamp(24px,2.4vw,34px) * var(--ts))/1.1 var(--fd);letter-spacing:-.01em}
+.ap-card.hot em{position:absolute;right:18px;bottom:18px;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--bg);color:var(--ink);transition:transform .5s var(--ease)}
+.ap-card.hot:hover{transform:translateY(-3px);box-shadow:0 24px 50px -22px var(--ac)}.ap-card.hot:hover em{transform:translateX(4px) rotate(-45deg)}
+/* botões: troca de letras, seta em círculo e preenchimento em círculo */
+.btn.roll{overflow:hidden;isolation:isolate;gap:10px}
+.btn.roll .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.rl{display:inline-flex;white-space:pre}
+.rl i{position:relative;display:inline-block;overflow:hidden;height:1.25em;line-height:1.25em;font-style:normal;vertical-align:top}
+.rl i span{display:block;transition:transform .5s var(--ease);transition-delay:calc(var(--i) * 14ms)}
+.rl i::after{content:attr(data-c);position:absolute;left:0;top:100%;transition:transform .5s var(--ease);transition-delay:calc(var(--i) * 14ms)}
+.btn.roll:hover .rl i span,.btn.roll:hover .rl i::after{transform:translateY(-100%)}
+.btn.hero-primary{background:var(--ink);color:var(--bg);border-color:var(--ink);padding-right:8px}
+.btn.hero-primary .ar{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--ink);transition:transform .5s var(--ease)}
+.btn.hero-primary:hover .ar{transform:translateX(3px)}
+.btn.roll:active{transform:scale(.97)!important}
+.btn.roll.ghost{z-index:0;background:color-mix(in srgb,var(--bg) 40%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:color .5s var(--ease),border-color .5s,transform .3s}
+.btn.roll.ghost::before{content:"";position:absolute;z-index:-1;left:50%;top:70%;width:170%;aspect-ratio:1;border-radius:50%;background:var(--ink);transform:translate(-50%,0) scale(0);transition:transform .7s var(--ease),top .7s var(--ease)}
+.btn.roll.ghost:hover{color:var(--bg);border-color:var(--ink)}.btn.roll.ghost:hover::before{top:-60%;transform:translate(-50%,0) scale(1)}
+.hero-copy{position:relative;z-index:2}
+.cinema{position:relative;display:flex;align-items:flex-end}
 .stage{inset:0;border-radius:var(--r);background:radial-gradient(70% 60% at 50% 42%,color-mix(in srgb,var(--ink) ${ivory ? 6 : 11}%,var(--bg2)),var(--bg2) 72%);overflow:hidden;box-shadow:var(--shadow)}
 .hero.stage .layer.stage{inset:4% 0 0 14%}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity 1.2s}
@@ -472,7 +563,19 @@ ${ivory ? "" : `body::after{content:"";position:fixed;inset:0;z-index:50;pointer
   .dock a{flex:1;display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:999px;text-decoration:none;font-weight:600;font-size:15px}
   .dock .dock-main{background:var(--ac);color:var(--bg)}
 }
+@media (max-width:980px){
+  .hero.arc{min-height:0;padding-top:28px}
+  .arc-panel{grid-template-columns:1fr;margin-bottom:-120px}
+  .ap-side{display:none}
+  .ap-grid{grid-template-columns:1fr 1fr;grid-auto-rows:auto}
+  .ap-media{grid-column:1/-1;grid-row:auto;min-height:0}.ap-media .ph,.ap-media .stage{min-height:0;aspect-ratio:4/3;height:auto}
+  .ap-card.hot{grid-column:1/-1;min-height:120px}
+}
 @media (max-width:640px){
+  .arc-copy .h1{font-size:calc(clamp(34px,10.5vw,52px) * var(--ts))}
+  .pill{font-size:13px}
+  .ap-grid{grid-template-columns:1fr}
+  .arc-panel{border-radius:20px 20px 0 0}
   body{font-size:16px}
   .brand{max-width:58vw;font-size:17px}
   .acts .btn{flex:1 1 100%}
@@ -482,6 +585,7 @@ ${ivory ? "" : `body::after{content:"";position:fixed;inset:0;z-index:50;pointer
   .contacts li,.hours div{flex-direction:column;gap:2px}.contacts a,.hours dd{text-align:left}
 }
 @media (prefers-reduced-motion:reduce){
+  .ap-ribbon.pole{animation:none}.btn.roll .rl i span,.btn.roll .rl i::after{transition:none}
   html{scroll-behavior:auto}.rv,.reveal{opacity:1;transform:none;clip-path:none;transition:none}
   .split .w>span{transform:none;transition:none}.layer.front .ph img,.cine-bg img{animation:none}
   .mq-track{animation:none}.status.is-open i{animation:none}.scroll-cue span{animation:none}
@@ -511,6 +615,7 @@ ${parts.join("\n")}
 </footer>
 ${dock.length ? `<nav class="dock" aria-label="Contato rápido">${dock.join("")}</nav>` : ""}
 <script>var __name=function(f){return f};(${motionRuntime.toString()})(${JSON.stringify({ amp })});</script>
+${kind === "arc" ? `<script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${arcRuntime.toString()})(${JSON.stringify(arcCfg)});});</script>` : ""}
 ${schedule && tz ? `<script>var __name=function(f){return f};(${hoursRuntime.toString()})(${JSON.stringify({ schedule, tz })});</script>` : ""}
 ${cfg3d ? `<script src="${esc(threeSrc)}" defer></script>
 <script src="${esc(vendor("GLTFLoader.js"))}" defer></script>

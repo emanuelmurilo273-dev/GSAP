@@ -134,3 +134,14 @@ describe("Biblioteca de fotos do app", () => {
     expect(imageSize(new Uint8Array(readFileSync("public/photos/pizza/1.jpg")))?.type).toBe("jpeg");
   });
 });
+
+describe("Capas diferentes para empresas do mesmo ramo", () => {
+  it("a capa evita as já usadas e só repete quando todas as melhores do ramo foram usadas", () => {
+    const avoid = new Set<string>();
+    const covers: string[] = [];
+    for (let i = 0; i < 6; i++) { const c = libraryImages("pizza", 7 + i, 4, avoid)[0]!.url; covers.push(c); avoid.add(c); }
+    expect(new Set(covers).size).toBe(6); // seis pizzarias, seis capas
+    expect(libraryImages("pizza", 3, 4, avoid)[0]!.url).toMatch(/^lib:pizza\//); // acabaram as capas livres: repete, sem quebrar
+    expect(new Set(libraryImages("pizza", 7, 8, avoid).map((i) => i.url)).size).toBe(8); // dentro de um site nunca repete
+  });
+});

@@ -126,3 +126,61 @@ describe("Direção de arte por ramo (premium)", () => {
     expect(lum(k.palette.bg)).toBeGreaterThan(0.8);
   });
 });
+
+import { NICHES, nicheFromText, nicheOf } from "@/lib/site/nicheProfile";
+import { arcRuntime } from "@/lib/site/immersive/arcRuntime";
+
+describe("Abertura com arco de luz e conteúdo por ramo", () => {
+  const html = (name: string, seg: string, category: string, extra: Partial<CompanyInfo> = {}) => renderSite(make(name, seg, { category, mapsUrl: "https://www.openstreetmap.org/node/1", hoursLines: [{ label: "Segunda a sábado", value: "09:00–18:00" }], ...extra }), { threeSrc: "https://app.test/vendor/three.min.js" });
+  it("arco de luz, pílula de status, dois botões com troca de letras e painel que sobe e é cortado na dobra", () => {
+    const h = html("Barbearia Navalha", "barbearia", "Barbearia");
+    expect(h).toContain("<canvas data-arc></canvas>");
+    expect(h).toMatch(/class="pill rv" href="#horarios"/);
+    expect(h).toContain("btn roll hero-primary mag");
+    expect(h).toContain("btn roll ghost");
+    expect(h).toMatch(/<span class="rl" aria-hidden="true">/); // troca de letras só visual
+    expect(h).toMatch(/<span class="sr">/); // texto completo para leitores de tela
+    expect(h).toContain("data-arc-panel");
+    expect(h).toContain("margin-bottom:-150px");
+  });
+  it("cada ramo tem seu efeito, seu detalhe visual e seu conteúdo (nada de modelo único)", () => {
+    expect(html("Barbearia Navalha", "barbearia", "Barbearia")).toContain("ap-ribbon pole"); // poste de barbeiro
+    expect(html("Forno Bom Pizzaria", "restaurante", "Pizzaria")).toContain("ap-ribbon checker"); // toalha xadrez
+    expect(html("Auto Silva", "oficina", "Oficina mecânica")).toContain("ap-ribbon stripe"); // faixa de oficina
+    const glow = (n: string, s: string, c: string) => /class="hero arc glow-(\w+)"/.exec(html(n, s, c))?.[1];
+    expect(glow("Forno Bom Pizzaria", "restaurante", "Pizzaria")).toBe("fire");
+    expect(glow("Barbearia Navalha", "barbearia", "Barbearia")).toBe("neon");
+    expect(glow("Auto Silva", "oficina", "Oficina mecânica")).toBe("sparks");
+    expect(glow("Clínica Sorriso", "odontologia", "Dentista")).toBe("halo");
+    expect(html("Barbearia Navalha", "barbearia", "Barbearia")).toContain("Cortes e estilos");
+    expect(html("Auto Silva", "oficina", "Oficina mecânica")).toContain("Serviços e orçamento");
+    expect(html("Forno Bom Pizzaria", "restaurante", "Pizzaria")).toContain("Cardápio em destaque");
+  });
+  it("tipologia do ramo entra na faixa em movimento e na revisão, sinalizada para confirmação", () => {
+    const c = make("Barbearia Navalha", "barbearia", { category: "Barbearia" });
+    expect(c.reviewNotes.join(" ")).toMatch(/itens típicos de barbearia \(Degradê, Corte social, Navalhado…\): confirme/);
+    expect(renderSite(c)).toContain("Navalhado");
+  });
+  it("horário de hoje e status ao vivo no painel; sem horário: 'Horário não informado'", () => {
+    const h = html("Barbearia Navalha", "barbearia", "Barbearia");
+    expect(h).toMatch(/Hoje · <b data-today>(09:00–18:00|Fechado hoje)<\/b>/);
+    const none = renderSite(make("Barbearia Navalha", "barbearia", { category: "Barbearia", hoursLines: null }));
+    expect(none).toContain("Horário não informado");
+    expect(none).not.toContain("data-today");
+  });
+  it("detecta o ramo pelo texto e pelo objeto do conceito", () => {
+    expect(nicheFromText("Pizzaria e Chopperia").key).toBe("pizzaria");
+    expect(nicheFromText("Auto Center Silva").key).toBe("oficina");
+    expect(nicheFromText("Construtora Alfa").key).toBe("construcao");
+    expect(nicheFromText("Algo sem categoria").key).toBe("generico");
+    expect(nicheOf("scissors", "Studio Bella salão de beleza").key).toBe("salao");
+    expect(nicheOf("scissors", "Barbearia do Zé").key).toBe("barbearia");
+    expect(Object.values(NICHES).every((n) => n.panelCta && n.offer && n.why)).toBe(true);
+  });
+  it("o runtime do arco é autossuficiente e leve (sem dependências, 30 quadros/s)", () => {
+    const src = arcRuntime.toString();
+    expect(src).not.toMatch(/\brequire\(|\bimport\(|__vite/);
+    expect(src).toContain("createRadialGradient");
+    expect(src).toContain("prefers-reduced-motion");
+  });
+});

@@ -74,7 +74,8 @@ describe("Mensagem de WhatsApp", () => {
     expect(m.basis).toBe("problem");
     expect(m.body).toMatch(/não mando mais/);
     expect(m.body).not.toMatch(/garant|aument|pediram|solicitou/i);
-    expect(m.body.length).toBeLessThan(600);
+    expect(m.body.length).toBeLessThan(720);
+    expect(m.body).toContain("Pensando em barbearia, a sugestão destaca cortes e estilos"); // ângulo do ramo
   });
   it("sem prévia publicada, oferece enviar o link em vez de inventar um", () => {
     const m = templateWhatsapp({ facts, opportunities: [], senderName: "Ana", previewUrl: null, hasPreview: true }, "pt-BR");
@@ -181,5 +182,24 @@ describe("Telefone como forma de contato (sem exigir WhatsApp)", () => {
   it("cadastro com vários números usa o primeiro válido", () => {
     expect(firstPhone("123; +55 48 3025-2121")).toBe("+55 48 3025-2121");
     expect(firstPhone("(48) 99111-2222 / (48) 3333-0000")).toBe("(48) 99111-2222");
+  });
+});
+
+describe("Abordagem por ramo", () => {
+  const mk = (name: string, category: string) => templateWhatsapp({ facts: { name: { value: name, status: "confirmed", source: "OpenStreetMap", confidence: 0.8, collectedAt: "2026-11-05" } }, opportunities: [], senderName: "Ana", previewUrl: null, hasPreview: false, category }, "pt-BR").body;
+  it("cada ramo recebe o que a sugestão de site destaca para ele", () => {
+    // sem WhatsApp confirmado, o canal citado é o telefone
+    expect(mk("Forno Bom", "Pizzaria")).toContain("Pensando em pizzaria, a sugestão destaca cardápio com fotos");
+    expect(mk("Auto Silva", "Oficina mecânica")).toContain("pedido de orçamento pelo telefone");
+    expect(mk("Studio Bella", "Salão de beleza")).toContain("agendamento pelo telefone");
+    expect(mk("Cantina Nonna", "Restaurante")).toContain("reserva pelo telefone");
+    expect(mk("Cantina Nonna", "Restaurante")).not.toContain("pelo WhatsApp");
+    // com WhatsApp confirmado, continua o WhatsApp
+    const withWa = templateWhatsapp({ facts: { name: { value: "Cantina Nonna", status: "confirmed", source: "OpenStreetMap", confidence: 0.8, collectedAt: "2026-11-05" }, whatsapp: { value: "5541998765432", status: "confirmed", source: "OpenStreetMap", confidence: 0.9, collectedAt: "2026-11-05" } }, opportunities: [], senderName: "Ana", previewUrl: null, hasPreview: false, category: "Restaurante" }, "pt-BR").body;
+    expect(withWa).toContain("reserva pelo WhatsApp");
+    expect(mk("Algo Qualquer", "Serviços")).not.toContain("Pensando em");
+  });
+  it("não afirma fatos sobre a empresa nem promete resultado", () => {
+    for (const [n, c] of [["Forno Bom", "Pizzaria"], ["Barba Azul", "Barbearia"], ["Auto Silva", "Oficina"]]) expect(mk(n!, c!)).not.toMatch(/garant|aument|perdendo|você tem|vocês têm/i);
   });
 });

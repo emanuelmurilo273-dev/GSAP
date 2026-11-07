@@ -9,6 +9,7 @@ import { DemoBadge, FactBadge, ScoreMeter } from "./FactBadge";
 import type { LeadView, ProviderRow, SearchRow } from "./types";
 import { CityPicker } from "./CityPicker";
 import { formatBrPhone, validBrPhone } from "@/lib/whatsapp";
+import { parseSchedule, statusAt, statusText, timezoneFor, timezoneFromAddress } from "@/lib/site/openHours";
 
 const coverageOf = (s: SearchRow) => (s.log ?? []).find((x) => x.step === "coverage")?.detail ?? null;
 
@@ -44,6 +45,20 @@ const STAGES = [
 ] as const;
 const STAGE_CLASS: Record<string, string> = { new: "bg-sky-500/15 text-sky-200", review: "bg-amber-500/15 text-amber-200", published: "bg-emerald-500/15 text-emerald-200", contacted: "bg-violet-500/15 text-violet-200" };
 const STAGE_TXT: Record<string, string> = { new: "Novo", review: "Prévia em revisão", published: "Prévia liberada", contacted: "Contatado" };
+/**
+ * Aberta ou fechada agora, só com horário publicado e confirmado e fuso do estado da empresa.
+ * Sem dados confiáveis: "Horário não informado" (nada é presumido).
+ */
+export function openStatusOf(l: LeadView, now = new Date()): { kind: "open" | "closed" | "unknown" | "none"; text: string } {
+  const lines = (l.facts.hours?.status === "confirmed" || l.facts.hours?.status === "user" ? l.hours : null)?.filter((x) => x.value.trim()) ?? [];
+  if (!lines.length) return { kind: "none", text: "Horário não informado" };
+  const tz = timezoneFor(l.state, l.city) ?? timezoneFromAddress(l.address ?? "");
+  const schedule = tz ? parseSchedule(lines) : null;
+  if (!tz || !schedule) return { kind: "unknown", text: "Confira os horários" };
+  const st = statusAt(schedule, true, now, tz);
+  return { kind: st.kind === "open" ? "open" : "closed", text: statusText(st) };
+}
+
 /** Formas de contato publicadas que o lead tem (para mostrar e filtrar). */
 export function contactsOf(l: LeadView): { key: "whatsapp" | "phone" | "email" | "site" | "instagram"; label: string }[] {
   const out: { key: "whatsapp" | "phone" | "email" | "site" | "instagram"; label: string }[] = [];
@@ -342,6 +357,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
                   </div>
                 )}
                 <ContactBox l={l} />
+                <OpenBadge l={l} />
                 <dl className="mt-3 space-y-1.5 text-sm">
                   {([
                     ["Endereço", l.address, l.facts.address],
@@ -377,6 +393,14 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
       </>}
     </div>
   );
+}
+
+function OpenBadge({ l }: { l: LeadView }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
+  const s = openStatusOf(l, now);
+  if (l.isDemo) return null;
+  return <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${s.kind === "open" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : s.kind === "closed" ? "border-rose-400/30 bg-rose-400/10 text-rose-200" : "border-white/10 bg-white/[0.03] text-slate-400"}`} data-open-badge={s.kind}><i className={`h-1.5 w-1.5 rounded-full ${s.kind === "open" ? "bg-emerald-400" : s.kind === "closed" ? "bg-rose-400" : "bg-slate-500"}`} />{s.text}</span>;
 }
 
 function ContactBox({ l }: { l: LeadView }) {
@@ -442,7 +466,7 @@ function SearchResults({ lastSearch, results, searches }: { lastSearch: SearchRo
               <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-white">{l.name}</p>
-                  <p className="truncate text-xs text-slate-500">{l.category ?? "—"}{l.city ? ` · ${l.city}` : ""} · <ContactLine l={l} /></p>
+                  <p className="truncate text-xs text-slate-500">{l.category ?? "—"}{l.city ? ` · ${l.city}` : ""} · <ContactLine l={l} /> · <span data-open-line>{openStatusOf(l).text}</span></p>
                 </div>
                 <Link href={`/app/leads/${l.id}`} className="btn-secondary px-3 py-1.5 text-xs">Abrir</Link>
               </li>
