@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildSiteContent, fallbackCopy, getSegment, type CompanyInfo } from "@/lib/site/templates";
 import { renderSite } from "@/lib/site/render";
 import { buildConcept, varyConcept } from "@/lib/site/immersive/concept";
-import { immersiveRuntime } from "@/lib/site/immersive/runtime";
+import { realRuntime } from "@/lib/site/immersive/realRuntime";
 import { SiteContentSchema } from "@/lib/site/types";
+import { libraryImages } from "@/lib/site/photoLibrary";
 
 const base: CompanyInfo = { name: "", category: null, address: "Rua A, 1", neighborhood: "Centro", city: "Curitiba", state: "PR", phone: "(41) 3333-1111", website: null, mapsUrl: null, lat: null, lng: null, hoursLines: null, whatsapp: "" };
 const make = (name: string, seg: string, extra: Partial<CompanyInfo> = {}) => {
@@ -46,26 +47,33 @@ describe("Vitrine 3D: conceito por empresa", () => {
   });
 });
 
-describe("Vitrine 3D: página", () => {
+describe("Vitrine: página profissional", () => {
   const c = make("CWB Sorriso", "odontologia", { category: "Dentista", hoursLines: [{ label: "Segunda a sexta", value: "09:00–19:30" }] });
+  c.sections = c.sections.map((x) => (x.type === "hero" ? { ...x, image: libraryImages("odonto", 0, 1)[0] } : x));
   const html = renderSite(c, { threeSrc: "https://app.test/vendor/three.min.js" });
-  it("usa three.js do próprio app, canvas decorativo e fallback sem WebGL", () => {
-    expect(html).toContain('<script src="https://app.test/vendor/three.min.js" defer></script>');
-    expect(html).toContain('<canvas id="stage3d" aria-hidden="true">');
-    expect(html).toContain('class="fallback"');
-    expect(html).toContain("prefers-reduced-motion");
-  });
-  it("capítulos com lados alternados, textos reais e aviso de objeto ilustrativo", () => {
-    expect(html.match(/data-ch="/g)!.length).toBeGreaterThanOrEqual(5);
-    expect(html).toMatch(/data-side="(left|right|center)"/);
+  it("seções em ordem lógica: proposta, serviços, sobre, contato e chamada final", () => {
+    const order = ["h-hero", "h-svc", "h-about", "h-visit", "h-final"].map((id) => html.indexOf(`id="${id}"`));
+    expect(order.every((i) => i > 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(html).toContain("09:00–19:30");
-    expect(html).toContain("Objetos 3D ilustrativos");
     expect(html).not.toContain("wa.me/55413333"); // sem WhatsApp confirmado
   });
-  it("o runtime serializado não depende de nada de fora", () => {
-    const src = immersiveRuntime.toString();
+  it("foto da biblioteca com srcset (versão de celular), dimensões reais e prioridade na abertura; sem 3D artificial", () => {
+    expect(html).toMatch(/<img src="https:\/\/app\.test\/photos\/odonto\/1\.jpg" srcset="https:\/\/app\.test\/photos\/odonto\/1-m\.jpg 640w, https:\/\/app\.test\/photos\/odonto\/1\.jpg \d+w"/);
+    expect(html).toMatch(/width="\d+" height="\d+"/);
+    expect(html).toContain('fetchpriority="high"');
+    expect(html).not.toContain("three.min.js");
+    expect(html).toContain("Fotos ilustrativas de bancos de imagens livres: não são fotos da empresa.");
+  });
+  it("acessível: pular para o conteúdo, menu no celular, foco visível e movimento reduzido", () => {
+    expect(html).toContain('class="skip" href="#conteudo"');
+    expect(html).toMatch(/<details class="menu"><summary>Menu<\/summary><nav aria-label="Seções">/);
+    expect(html).toContain(":focus-visible");
+    expect(html).toContain("prefers-reduced-motion");
+  });
+  it("o runtime 3D serializado não depende de nada de fora", () => {
+    const src = realRuntime.toString();
     expect(src).not.toMatch(/\brequire\(|\bimport\(|__vite/);
-    expect(html).toContain("var __name=function(f){return f}");
   });
 });
 

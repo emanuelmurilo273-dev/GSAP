@@ -7,11 +7,12 @@ import { consumeUsage, refundUsage } from "@/lib/usage";
 import { generateSiteCopy } from "@/lib/ai";
 import { buildSiteContent, getSegment } from "@/lib/site/templates";
 import { searchLicensedImages, trackImageDownload } from "@/lib/images";
+import { libraryImages, libraryKey } from "@/lib/site/photoLibrary";
+import { probeImage } from "@/lib/site/imageProbe";
 import type { ImageCandidate } from "@/lib/leads/types";
 import type { SiteImage } from "@/lib/site/types";
 import { OBJECT_QUERY } from "@/lib/site/stage";
 import { buildConcept, varyConcept } from "@/lib/site/immersive/concept";
-import { MODEL_QUERY } from "@/lib/site/immersive/kinds";
 import { snapshotVersion } from "@/lib/projects";
 import { audit } from "@/lib/logger";
 import { verifiedCompanyInfo } from "@/lib/leads/verified";
@@ -56,20 +57,18 @@ export const POST = route(async (req) => {
       url: i.url, alt: i.alt, origin: i.origin === "company" ? ("company" as const) : i.origin === "generated" ? ("generated" as const) : ("stock" as const),
       license: i.license ?? undefined, sourceUrl: i.sourceUrl ?? undefined, credit: i.credit ?? undefined,
     }));
-    const need = Math.max(0, 5 - fromLead.length);
-    // Na Vitrine 3D as fotos ilustrativas seguem o objeto do conceito (café → café, não "restaurante").
+    // Fotos da empresa precisam abrir e ter tamanho suficiente; as que não servem ficam só no lead.
+    const checked = await Promise.all(fromLead.map(async (i) => ({ i, probe: i.origin === "company" ? await probeImage(i.url) : { ok: true as const, width: null } })));
+    const usable = checked.filter((x) => x.probe.ok && (x.probe.width == null || x.probe.width >= 700)).map((x) => x.i);
+    const rejected = checked.length - usable.length;
+    // Completa com a biblioteca de fotos do app: escolhidas à mão por ramo, domínio público, sempre carregam.
     const draftConcept = buildConcept({ name: info.name, category: info.category, segmentKey: segment.key, description: info.ownDescription?.text ?? null });
-    const imageQuery = MODEL_QUERY[draftConcept.model] ?? segment.imageQuery;
-    const [{ copy, ai }, stock] = await Promise.all([
-      generateSiteCopy(info, segment, b.instructions, language),
-      need && !company.isDemo ? searchLicensedImages(imageQuery, need + 3, { curated: true, wide: true }).catch(() => []) : Promise.resolve([]),
-    ]);
-    const extra = stock.slice(0, need);
-    extra.forEach((i) => i.downloadLocation && void trackImageDownload(i.downloadLocation));
-    const content = buildSiteContent(info, segment, copy, [
-      ...fromLead,
-      ...extra.map((i) => ({ url: i.url, alt: i.alt, credit: i.credit, origin: "stock" as const, license: i.license, sourceUrl: i.sourceUrl })),
-    ]);
+    const need = Math.max(0, 7 - usable.length);
+    const extra = need && !company.isDemo ? libraryImages(libraryKey(draftConcept.model, segment.key), draftConcept.seed, need) : [];
+    const { copy, ai } = await generateSiteCopy(info, segment, b.instructions, language);
+    const content = buildSiteContent(info, segment, copy, [...usable, ...extra]);
+    content.libraryVersion = 1;
+    if (rejected) content.reviewNotes.push(`${rejected} foto(s) aprovada(s) da empresa não abriram ou são pequenas demais para o site (menos de 700 px): continuam no lead, mas ficaram fora da página.`);
     // Nunca repetir a mesma combinação (objeto + paleta + composição) de outra prévia do usuário.
     if (content.concept) {
       const others = await prisma.project.findMany({ where: { userId: user.id, companyId: { not: company.id } }, select: { content: true }, take: 200 });
@@ -95,7 +94,7 @@ export const POST = route(async (req) => {
     if (company.isDemo) content.reviewNotes.unshift("LEAD DE DEMONSTRAÇÃO: os dados da empresa são fictícios.");
     const used = JSON.stringify(content.sections);
     const usedExtra = extra.filter((i) => used.includes(i.url)).length;
-    if (usedExtra) content.reviewNotes.push(`${usedExtra} imagem(ns) de banco com licença (${extra[0]!.source}) entraram automaticamente, com crédito: confira se combinam com a empresa e troque se preciso.`);
+    if (usedExtra) content.reviewNotes.push(`${usedExtra} foto(s) ilustrativa(s) da biblioteca do app (domínio público, escolhidas para o ramo) entraram com crédito. Se a empresa tiver fotos próprias autorizadas, aprove-as no lead e gere de novo.`);
     if (!fromLead.length && !extra.length) content.reviewNotes.push("Nenhuma imagem com licença foi adicionada: use o banco de imagens, imagens autorizadas da empresa ou o assistente do Google Flow.");
     const project = await prisma.project.create({
       data: { userId: user.id, companyId: company.id, name: info.name, segment: segment.key, content: content as never, aiGenerated: ai },

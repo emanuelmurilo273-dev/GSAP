@@ -37,7 +37,7 @@ describe("Modo privado (conta proprietária)", () => {
     expect((await res.json()).code).toBe("signup_disabled");
   });
   it("só login, recuperação, webhooks e sites publicados são rotas públicas", () => {
-    for (const p of ["/login", "/api/auth/login", "/s/barbearia-x", "/api/webhooks/kiwify", "/api/health"]) expect(isPublicPath(p)).toBe(true);
+    for (const p of ["/login", "/api/auth/login", "/s/barbearia-x", "/api/webhooks/kiwify", "/api/health", "/models/croissant/model.gltf", "/photos/pizza/1.jpg"]) expect(isPublicPath(p)).toBe(true);
     for (const p of ["/", "/app", "/app/leads", "/api/leads", "/api/leads/searches", "/api/projects/1/publish", "/admin", "/api/admin/users/1", "/sx", "/loginx"]) expect(isPublicPath(p)).toBe(false);
   });
 });

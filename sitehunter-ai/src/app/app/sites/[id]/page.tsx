@@ -7,6 +7,8 @@ import { env } from "@/lib/env";
 import { imagesConfigured } from "@/lib/images";
 import { whatsappLink } from "@/lib/whatsapp";
 import { Editor } from "./Editor";
+import { conceptOf } from "@/lib/site/immersive/render";
+import { libraryKey, upgradeContentImages } from "@/lib/site/photoLibrary";
 import { getSegment } from "@/lib/site/templates";
 import type { PresenceReport } from "@/lib/leads/types";
 
@@ -17,12 +19,15 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
   if (!project) notFound();
   const parsed = SiteContentSchema.safeParse(project.content);
   if (!parsed.success) notFound();
+  // Prévias antigas: o editor já mostra as fotos da biblioteca que a página vai usar (salvar grava a troca).
+  const k = conceptOf(parsed.data);
+  const content = upgradeContentImages(parsed.data, libraryKey(k.model, project.segment ?? undefined), k.seed);
   const pub = project.publication;
   return (
     <Editor
       projectId={project.id}
       projectName={project.name}
-      initialContent={parsed.data}
+      initialContent={content}
       aiGenerated={project.aiGenerated}
       premium={user.access.premium}
       imagesEnabled={imagesConfigured()}

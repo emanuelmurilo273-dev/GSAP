@@ -31,12 +31,13 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
 }
 
 /** Explica a cobertura real da fonte usada; avisa quando a cidade não retornou nada. */
-export function coverageNote(providerId: string, found: number, location: string, niche: string, cityMatched: boolean, wa?: { verified: number; noWhatsapp: number; kept: number; duplicates?: number }, diag?: SearchDiagnostics | null): string {
+export type ContactTally = { kept: number; duplicates?: number; whatsapp: number; phoneOnly: number; otherContact: number; none: number };
+
+export function coverageNote(providerId: string, found: number, location: string, niche: string, cityMatched: boolean, t?: ContactTally, diag?: SearchDiagnostics | null): string {
   let waTxt = "";
-  if (wa && providerId !== "demo" && found) {
-    const dup = wa.duplicates ? ` ${wa.duplicates} já estavam na sua lista.` : "";
-    waTxt = ` Destas, ${wa.kept} têm WhatsApp comercial confirmado em fonte pública e entraram na lista; ${wa.noWhatsapp} ficaram de fora por não terem WhatsApp confirmado.${dup}`;
-    if (!wa.kept && wa.noWhatsapp) waTxt += " Dica: o WhatsApp só é confirmado quando aparece no cadastro do OSM ou no site da empresa; ramos com mais empresas com site (clínicas, imobiliárias, academias) costumam render mais. O Google Maps traz mais empresas com site.";
+  if (t && providerId !== "demo" && found) {
+    const dup = t.duplicates ? ` ${t.duplicates} já estavam na sua lista.` : "";
+    waTxt = ` ${t.kept} entraram na lista: ${t.whatsapp} com WhatsApp confirmado, ${t.phoneOnly} só com telefone, ${t.otherContact} com e-mail, site ou rede social e ${t.none} sem contato publicado (só endereço).${dup}`;
   }
   const ov = diag?.overpass === "failed" ? ` Atenção: o Overpass (consulta principal do OpenStreetMap) não respondeu (${diag.overpassError}); a busca usou só o Nominatim, que traz bem menos empresas com site. Tente de novo em alguns minutos.` : "";
   return baseCoverage(providerId, found, location, niche, cityMatched) + waTxt + ov;
@@ -71,8 +72,9 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
   const step = (s: string, detail?: string) => steps.push({ step: s, at: new Date().toISOString(), detail });
   try {
     step("discover", provider.label);
-    // Só entram empresas com WhatsApp comercial confirmado: busca um conjunto maior e filtra depois da verificação.
-    const pool = providerId === "import" || isDemo ? criteria.count : Math.min(80, Math.max(criteria.count * 6, 40));
+    // Todas as empresas reais entram (com ou sem WhatsApp). Pede um pouco mais que o necessário para
+    // sobrar depois de tirar as que já estão na lista do usuário.
+    const pool = providerId === "import" || isDemo ? criteria.count : Math.min(60, criteria.count * 2 + 10);
     let diag: SearchDiagnostics | null = null;
     const raw = await provider.search({ ...criteria, count: pool }, { rows, onDiagnostics: (d) => { diag = d; } });
     if (diag) step("sources", (diag as SearchDiagnostics).overpass === "ok" ? `Overpass (${(diag as SearchDiagnostics).overpassServer}) + Nominatim` : `Overpass indisponível (${(diag as SearchDiagnostics).overpassError ?? "não usado"}); só Nominatim`);
@@ -93,7 +95,7 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
 
     let enrichFailures = 0;
     step("enrich");
-    const enriched = await mapLimit(fresh, 4, async ({ r, keys }) => {
+    const enriched = await mapLimit(fresh, 6, async ({ r, keys }) => {
       const presence: PresenceReport = await checkPresence(r.website, { demo: isDemo }).catch(() => {
         enrichFailures++;
         return { checkedAt: new Date().toISOString(), url: r.website, kind: "site" as const, reachable: undefined, error: "falha na verificação" };
@@ -103,15 +105,21 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
     });
 
     const created: string[] = [];
-    let noWhatsapp = 0;
+    const tally = { whatsapp: 0, phoneOnly: 0, otherContact: 0, none: 0 };
+    // Quem tem mais formas de contato vem primeiro; quem não tem nenhuma entra por último (só endereço).
+    const contactRank = (r: RawBusiness, p: PresenceReport) => (p.whatsapp?.length || r.whatsapp ? 0 : r.phone ? 1 : r.website || r.email || r.socialLinks?.length ? 2 : 3);
+    enriched.sort((a, b) => contactRank(a.r, a.presence) - contactRank(b.r, b.presence));
     for (const { r, keys, presence } of enriched) {
       if (created.length >= criteria.count) break;
       const { facts, socials, email } = buildFacts(r, presence);
-      // Regra: WhatsApp comercial confirmado por fonte pública (tag no OSM, link wa.me ou indicação no site da empresa).
-      // Telefone fixo, celular sem indicação ou número de site que não é da empresa ficam de fora.
+      // WhatsApp só é marcado quando confirmado em fonte pública (tag no OSM, link wa.me ou indicação no site
+      // da empresa). Sem isso a empresa entra igual, com o telefone/e-mail/site que tiver publicado.
       const wa = facts.whatsapp;
       const whatsapp = wa?.value && wa.status === "confirmed" ? wa.value : null;
-      if (!whatsapp && !isDemo) { noWhatsapp++; continue; }
+      if (whatsapp) tally.whatsapp++;
+      else if (r.phone) tally.phoneOnly++;
+      else if (email || r.website || socials.length) tally.otherContact++;
+      else tally.none++;
       const opp = detectOpportunities(facts, presence);
       const commons = isDemo || process.env.IMAGE_SEARCH === "off" || process.env.COMMONS_SEARCH === "off" ? [] : await commonsCandidates(r.name, r.city, r.lat, r.lng);
       const images = [...sourceImageCandidates(r), ...companyImageCandidates(presence), ...commons];
@@ -121,8 +129,8 @@ export async function runLeadSearch({ userId, criteria, providerId, rows }: RunI
       });
       if (c) created.push(c.id);
     }
-    step("whatsapp", `${enriched.length} verificadas · ${noWhatsapp} sem WhatsApp comercial confirmado (excluídas)`);
-    step("coverage", coverageNote(providerId, raw.length, criteria.location, criteria.niche, !!city, { verified: enriched.length, noWhatsapp, kept: created.length, duplicates }, diag));
+    step("contacts", `${created.length} salvas · ${tally.whatsapp} com WhatsApp confirmado · ${tally.phoneOnly} só com telefone · ${tally.otherContact} com e-mail/site/rede social · ${tally.none} sem contato publicado`);
+    step("coverage", coverageNote(providerId, raw.length, criteria.location, criteria.niche, !!city, { kept: created.length, duplicates, ...tally }, diag));
     step("done", `${created.length} novos leads`);
     const updated = await prisma.leadSearch.update({
       where: { id: search.id },

@@ -84,7 +84,14 @@ export const googlePlacesProvider: BusinessSearchProvider = {
       if (!res.ok) {
         log("error", "places_search_failed", { status: res.status, body: (await res.text()).slice(0, 300) });
         if (out.length) break; // devolve o que já foi obtido
-        throw new HttpError(res.status === 429 ? 503 : 502, res.status === 429 ? "Limite de requisições do Google Places atingido. Tente mais tarde." : "O Google Places não respondeu corretamente.", "upstream");
+        const msg = res.status === 429
+          ? "Limite de requisições do Google Places atingido. Tente mais tarde."
+          : res.status === 403 || res.status === 401
+            ? "O Google recusou a chave GOOGLE_PLACES_API_KEY. No Google Cloud, confira: (1) a API \"Places API (New)\" está ativada no projeto da chave; (2) a cobrança (billing) está ativa; (3) se a chave tem restrição, ela permite a Places API (New) e o IP do servidor."
+            : res.status === 400
+              ? "O Google Places rejeitou a consulta (erro 400). Confira se a chave é da \"Places API (New)\" e tente outro termo de busca."
+              : "O Google Places não respondeu corretamente. Tente de novo em instantes.";
+        throw new HttpError(res.status === 429 ? 503 : 502, msg, "upstream");
       }
       const data = (await res.json()) as { places?: (Parameters<typeof mapPlace>[0] & { regularOpeningHours?: { weekdayDescriptions?: string[] }; internationalPhoneNumber?: string; photos?: GPhoto[] })[]; nextPageToken?: string };
       for (const p of data.places ?? []) {

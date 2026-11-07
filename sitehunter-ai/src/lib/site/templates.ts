@@ -192,6 +192,7 @@ export function buildSiteContent(company: CompanyInfo, segment: Segment, copy: S
 
   return {
     version: 1,
+    libraryVersion: 1,
     siteName: copy.siteName || company.name,
     seo: { title: copy.seoTitle || company.name, description: copy.seoDescription },
     theme,

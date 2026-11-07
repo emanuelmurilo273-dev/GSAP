@@ -45,18 +45,25 @@ export const MODEL_QUERY: Record<ModelKind, string> = {
 };
 
 // ---------- Recursos reais (licença livre), servidos em /models ----------
-/** Modelos 3D fotogramétricos do Poly Haven (CC0). Carregam por cima da versão procedural. */
+/**
+ * Modelos 3D escaneados de objetos reais (fotogrametria, Poly Haven, CC0). Só estes aparecem em 3D:
+ * ramo sem modelo escaneado usa fotografia, nunca uma forma 3D simplificada.
+ */
 export const GLTF_ASSETS: Record<string, { label: string; authors: string; url: string }> = {
   croissant: { label: "Croissant", authors: "Greg Zaal e Dario Barresi", url: "https://polyhaven.com/a/croissant" },
   carrot_cake: { label: "Bolo de cenoura", authors: "Greg Zaal e James Ray Cock", url: "https://polyhaven.com/a/carrot_cake" },
+  strawberry_chocolate_cake: { label: "Bolo de chocolate com morangos", authors: "Kuutti Siitonen", url: "https://polyhaven.com/a/strawberry_chocolate_cake" },
+  hamburger_buns: { label: "Pães", authors: "Alexander Shulha", url: "https://polyhaven.com/a/hamburger_buns" },
   combination_wrench: { label: "Chave combinada", authors: "BKS", url: "https://polyhaven.com/a/combination_wrench" },
+  cross_pein_hammer: { label: "Martelo", authors: "Tics", url: "https://polyhaven.com/a/cross_pein_hammer" },
 };
 
-/** Fotos reais de pratos vistas de cima (CC0/PDM), usadas como superfície do prato 3D. */
-export const DISHES: Record<string, { label: string; file: string; plate: "none" | "white" | "black" | "cup"; credit: string; license: string; source: string }> = {
-  pizza: { label: "pizza", file: "pizza.jpg", plate: "none", credit: "personalgraphic.official", license: "CC0", source: "https://www.flickr.com/photos/198895458@N04/53097409424" },
-  pasta: { label: "espaguete", file: "pasta.jpg", plate: "white", credit: "rawpixel", license: "CC0", source: "https://www.rawpixel.com/image/5918682/image-public-domain-food-white" },
-  salad: { label: "salada", file: "salad.jpg", plate: "white", credit: "f0976531950131", license: "Domínio público (PDM)", source: "https://www.flickr.com/photos/203130278@N08/54970565705" },
-  grill: { label: "carne grelhada com arroz", file: "grill.jpg", plate: "black", credit: "Alina Kakshapati", license: "CC0", source: "https://wordpress.org/photos/photo/731688e106/" },
-  latte: { label: "café com arte no leite", file: "latte.jpg", plate: "cup", credit: "rawpixel", license: "CC0", source: "https://www.rawpixel.com/image/5918906/image-heart-public-domain-coffee" },
-};
+/** Modelo escaneado para cada objeto do conceito (ausente = página com fotografia). */
+export function assetForModel(model: string, seed: number, segmentKey?: string): string | null {
+  if (segmentKey === "construcao") return "cross_pein_hammer";
+  if (model === "croissant") return "croissant";
+  if (model === "cake") return seed % 2 ? "strawberry_chocolate_cake" : "carrot_cake";
+  if (model === "loaf") return "hamburger_buns";
+  if (model === "wrench" || model === "gear" || model === "wheel") return "combination_wrench";
+  return null;
+}

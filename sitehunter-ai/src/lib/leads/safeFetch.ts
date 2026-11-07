@@ -19,7 +19,7 @@ export function isPrivateIp(ip: string): boolean {
   return v === "::1" || v === "::" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80") || v.startsWith("ff");
 }
 
-async function assertPublic(url: URL) {
+export async function assertPublic(url: URL) {
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new BlockedAddressError("protocolo não permitido");
   if (url.port && url.port !== "80" && url.port !== "443") throw new BlockedAddressError("porta não permitida");
   const host = url.hostname.replace(/^\[|\]$/g, "");

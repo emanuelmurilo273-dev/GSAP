@@ -1,5 +1,6 @@
 import type { Section, SiteButton, SiteContent, SiteImage } from "./types";
-import { renderImmersive } from "./immersive/render";
+import { conceptOf, renderImmersive } from "./immersive/render";
+import { libraryKey, resolveLibrary, upgradeContentImages } from "./photoLibrary";
 import { STYLE_INFO, contrast, googleFontsHref, mix, onColor, readableOn, type SiteStyle } from "./styles";
 import { objectKindFor, objectSvg, posesFor } from "./stage";
 
@@ -122,8 +123,12 @@ export function imageCaption(i: SiteImage, tag = "figcaption", cls = ""): string
   return "";
 }
 
+/** Caminho relativo de foto da biblioteca do app (sem esquema, só caracteres seguros). */
+const LIB_PATH = /^[\w./-]*photos\/[a-z]+\/\d+\.jpg$/;
+
 export function imgSrc(i: SiteImage | undefined): string | null {
   if (!i?.url) return null;
+  if (LIB_PATH.test(i.url) && !i.url.includes("..//")) return i.url;
   const src = safeUrl(i.url);
   return src === "#" ? null : src;
 }
@@ -800,6 +805,17 @@ function jsonLd(c: SiteContent) {
   return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
 }
 
+/**
+ * Antes de montar a página: prévias antigas trocam fotos automáticas fracas pelas da biblioteca do ramo
+ * e os endereços "lib:" viram o caminho real das fotos (app, site publicado, pacote estático ou embutido).
+ */
+export function prepareContent(c: SiteContent, opts: RenderOpts = {}): SiteContent {
+  const k = conceptOf(c);
+  const up = upgradeContentImages(c, libraryKey(k.model), k.seed);
+  const threeSrc = opts.threeSrc ?? "/vendor/three.min.js";
+  return resolveLibrary(up, opts.assetUrl ? (p: string) => opts.assetUrl!(p) : threeSrc.replace(/vendor\/three\.min\.js$/, ""));
+}
+
 export type RenderOpts = {
   footerCredit?: boolean; previewRibbon?: string | null; lang?: string; noindex?: boolean; threeSrc?: string;
   /** Pasta dos modelos/fotos 3D (padrão: ao lado do three.js, em "models/"). */
@@ -809,6 +825,7 @@ export type RenderOpts = {
 };
 
 export function renderSite(c: SiteContent, opts: RenderOpts = { footerCredit: true }): string {
+  c = prepareContent(c, opts);
   if (resolveStyle(c) === "immersive") return renderImmersive(c, opts);
   const th = c.theme;
   const style = resolveStyle(c);

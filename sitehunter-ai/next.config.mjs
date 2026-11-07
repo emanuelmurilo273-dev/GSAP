@@ -17,7 +17,7 @@ const nextConfig = {
       },
       // Bibliotecas e modelos 3D públicos (licenças MIT/CC0) usados pelos sites publicados, que rodam
       // em origem isolada: precisam de CORS para o WebGL usar as texturas.
-      ...["/vendor/:path*", "/models/:path*"].map((source) => ({
+      ...["/vendor/:path*", "/models/:path*", "/photos/:path*"].map((source) => ({
         source,
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },

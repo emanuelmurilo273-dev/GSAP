@@ -7,7 +7,7 @@ import { waMeLink } from "@/lib/whatsapp";
 
 export type WaItem = {
   id: string; name: string; city: string | null; category: string | null; isDemo: boolean;
-  whatsapp: string; waSource: string; waSourceUrl: string | null; waWarning: string | null;
+  whatsapp: string | null; phone: string | null; email: string | null; instagram: string | null; waSource: string; waSourceUrl: string | null; waWarning: string | null;
   stage: "new" | "review" | "published" | "contacted";
   suggested: string; saved: string | null; basis: "problem" | "opportunity"; needsEdit: boolean; observation: string | null;
   hasPreview: boolean; previewUrl: string | null; projectId: string | null;
@@ -33,7 +33,7 @@ export function AbordagensClient({ items }: { items: WaItem[] }) {
   }
 
   if (!items.length) {
-    return <div className="card p-10 text-center"><p className="text-lg font-semibold text-white">Nenhuma abordagem ainda</p><p className="mx-auto mt-1 max-w-md text-sm text-slate-400">As abordagens aparecem para cada lead com WhatsApp comercial confirmado. Comece em <Link href="/app/buscar" className="text-brand-300 underline">Buscar empresas</Link>.</p></div>;
+    return <div className="card p-10 text-center"><p className="text-lg font-semibold text-white">Nenhuma abordagem ainda</p><p className="mx-auto mt-1 max-w-md text-sm text-slate-400">As abordagens aparecem para cada lead com algum canal publicado (WhatsApp confirmado, telefone, e-mail ou Instagram). Comece em <Link href="/app/buscar" className="text-brand-300 underline">Buscar empresas</Link>.</p></div>;
   }
 
   return (
@@ -53,13 +53,14 @@ export function AbordagensClient({ items }: { items: WaItem[] }) {
         {shown.map((i) => {
           const st = state[i.id]!;
           const isOpen = open === i.id;
-          const link = waMeLink(i.whatsapp, st.text.trim());
+          const link = i.whatsapp ? waMeLink(i.whatsapp, st.text.trim()) : null;
+          const channel = i.whatsapp ? (i.isDemo ? "WhatsApp fictício (demo)" : `WhatsApp ${pretty(i.whatsapp)}`) : [i.phone && "Telefone", i.email && "E-mail", i.instagram && "Instagram"].filter(Boolean).join(" · ");
           return (
             <li key={i.id} id={`lead-${i.id}`} className="card scroll-mt-24 overflow-hidden">
               <button className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left" onClick={() => setOpen(isOpen ? null : i.id)} aria-expanded={isOpen}>
                 <div className="min-w-0">
                   <p className="font-semibold text-white">{i.name} {st.contacted && <span className="badge ml-1 bg-violet-500/15 text-violet-200">Contatado</span>}</p>
-                  <p className="text-xs text-slate-500">{[i.category, i.city].filter(Boolean).join(" · ")} · <span className="text-emerald-300">{i.isDemo ? "WhatsApp fictício (demo)" : pretty(i.whatsapp)}</span></p>
+                  <p className="text-xs text-slate-500">{[i.category, i.city].filter(Boolean).join(" · ")} · <span className={i.whatsapp ? "text-emerald-300" : "text-slate-400"}>{channel}</span></p>
                 </div>
                 <span className={`badge ${i.needsEdit ? "bg-amber-500/15 text-amber-200" : i.basis === "problem" ? "bg-sky-500/15 text-sky-200" : "bg-white/5 text-slate-300"}`}>
                   {i.needsEdit ? "Precisa da sua edição" : i.basis === "problem" ? "Começa por um problema observado" : "Começa por uma oportunidade"}
@@ -68,7 +69,8 @@ export function AbordagensClient({ items }: { items: WaItem[] }) {
               {isOpen && (
                 <div className="grid gap-4 border-t border-white/5 p-4 lg:grid-cols-2">
                   <div className="space-y-3">
-                    <p className="text-xs text-slate-500">WhatsApp confirmado · fonte: {i.waSourceUrl ? <a href={i.waSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">{i.waSource}</a> : i.waSource}</p>
+                    {i.whatsapp ? <p className="text-xs text-slate-500">WhatsApp confirmado · fonte: {i.waSourceUrl ? <a href={i.waSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">{i.waSource}</a> : i.waSource}</p>
+                      : <p className="text-xs text-slate-500">Sem WhatsApp confirmado em fonte pública. Use um dos canais publicados abaixo.</p>}
                     {i.waWarning && <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-2 text-xs text-amber-100">{i.waWarning}</p>}
                     {i.observation && <p className="rounded-lg bg-white/[0.03] p-2 text-xs text-slate-400"><b className="text-slate-300">Fato usado:</b> {i.observation}</p>}
                     <label className="block">
@@ -92,9 +94,14 @@ export function AbordagensClient({ items }: { items: WaItem[] }) {
                     ) : i.needsEdit && st.text.includes("[Escreva aqui") ? (
                       <button className="btn-primary w-full" disabled>Edite a mensagem antes de abrir</button>
                     ) : (
-                      <a href={link} target="_blank" rel="noopener noreferrer" className="btn-primary w-full justify-center" style={{ background: "#1fa855" }}>Abrir no WhatsApp para revisar e enviar</a>
+                      <div className="grid gap-2">
+                        {link && <a href={link} target="_blank" rel="noopener noreferrer" className="btn-primary w-full justify-center" style={{ background: "#1fa855" }}>Abrir no WhatsApp para revisar e enviar</a>}
+                        {!link && i.phone && <a href={`tel:${i.phone.replace(/[^\d+]/g, "")}`} className="btn-primary w-full justify-center">Ligar para {i.phone}</a>}
+                        {i.email && <a href={`mailto:${i.email}?subject=${encodeURIComponent(`Ideia para o site da ${i.name}`)}&body=${encodeURIComponent(st.text.trim())}`} className={`${link || i.phone ? "btn-secondary" : "btn-primary"} w-full justify-center`}>Abrir e-mail com o texto (você envia)</a>}
+                        {i.instagram && <a href={i.instagram} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full justify-center" onClick={() => navigator.clipboard.writeText(st.text).then(() => toast("Texto copiado: cole na mensagem direta do Instagram"))}>Copiar texto e abrir o Instagram</a>}
+                      </div>
                     )}
-                    <p className="text-[11px] text-slate-500">O botão só abre a conversa com o texto preenchido. Nada é enviado automaticamente.</p>
+                    <p className="text-[11px] text-slate-500">Os botões só abrem o canal com o texto pronto (ou copiado). Nada é enviado automaticamente.</p>
                     <div className="flex flex-wrap gap-2">
                       <button className="btn-secondary px-3 py-2 text-xs" onClick={() => navigator.clipboard.writeText(st.text).then(() => toast("Texto copiado"))}>Copiar texto</button>
                       <button className="btn-secondary px-3 py-2 text-xs" onClick={() => mark(i.id, !st.contacted)}>{st.contacted ? "Desmarcar contatado" : "Marcar como enviada"}</button>

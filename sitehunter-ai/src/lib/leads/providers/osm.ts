@@ -108,7 +108,7 @@ async function overpassSearch(phrase: string, city: City, deadline: number): Pro
         body: new URLSearchParams({ data: q }),
         headers: { "User-Agent": nominatimUserAgent(), Accept: "application/json" },
         cache: "no-store",
-        signal: AbortSignal.timeout(Math.min(35_000, left)),
+        signal: AbortSignal.timeout(Math.min(22_000, left)),
       });
       if (!res.ok) { errors.push(`${new URL(base).host}: HTTP ${res.status}`); continue; }
       const j = (await res.json()) as { elements?: OverpassEl[]; remark?: string };
@@ -236,7 +236,7 @@ export const osmProvider: BusinessSearchProvider = {
     // 0) Overpass primeiro: empresas do ramo com WhatsApp ou site cadastrados. Se todos os servidores
     //    falharem, segue com o Nominatim e o motivo aparece no resumo da busca.
     if (city && OSM_TAGS[phrase]) {
-      const ov = await overpassSearch(phrase, city, Date.now() + 60_000);
+      const ov = await overpassSearch(phrase, city, Date.now() + 45_000);
       diag.overpassServer = ov.server;
       diag.overpassError = ov.error;
       if (!ov.error) diag.overpass = "ok";
@@ -262,10 +262,10 @@ export const osmProvider: BusinessSearchProvider = {
         seen.add(r.sourceId);
         out.push(city && !r.state ? { ...r, state: city.uf } : r);
       }
-      if (out.filter((r) => r.whatsapp || r.website).length >= c.count) break;
+      if (out.length >= c.count) break;
     }
-    // Prioriza quem tem WhatsApp cadastrado, depois quem tem site (onde o WhatsApp costuma estar publicado).
-    const rank = (r: RawBusiness) => (r.whatsapp ? 0 : r.website ? 1 : 2);
+    // Prioriza quem tem contato publicado: WhatsApp, site (onde o WhatsApp costuma estar), telefone, e-mail/rede social.
+    const rank = (r: RawBusiness) => (r.whatsapp ? 0 : r.website ? 1 : r.phone ? 2 : r.email || r.socialLinks?.length ? 3 : 4);
     opts?.onDiagnostics?.(diag);
     return out.sort((a, b) => rank(a) - rank(b)).slice(0, c.count);
   },

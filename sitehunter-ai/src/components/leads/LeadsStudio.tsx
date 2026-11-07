@@ -43,6 +43,17 @@ const STAGES = [
 ] as const;
 const STAGE_CLASS: Record<string, string> = { new: "bg-sky-500/15 text-sky-200", review: "bg-amber-500/15 text-amber-200", published: "bg-emerald-500/15 text-emerald-200", contacted: "bg-violet-500/15 text-violet-200" };
 const STAGE_TXT: Record<string, string> = { new: "Novo", review: "Prévia em revisão", published: "Prévia liberada", contacted: "Contatado" };
+/** Formas de contato publicadas que o lead tem (para mostrar e filtrar). */
+export function contactsOf(l: LeadView): { key: "whatsapp" | "phone" | "email" | "site" | "instagram"; label: string }[] {
+  const out: { key: "whatsapp" | "phone" | "email" | "site" | "instagram"; label: string }[] = [];
+  if (l.waConfirmed || (l.isDemo && l.whatsapp)) out.push({ key: "whatsapp", label: "WhatsApp" });
+  if (l.phone) out.push({ key: "phone", label: "Telefone" });
+  if (l.email) out.push({ key: "email", label: "E-mail" });
+  if (l.website) out.push({ key: "site", label: "Site" });
+  if (l.socials.some((x) => x.network === "instagram")) out.push({ key: "instagram", label: "Instagram" });
+  return out;
+}
+
 export function prettyWa(n: string | null) {
   if (!n) return "";
   const m = n.match(/^55(\d{2})(\d{4,5})(\d{4})$/);
@@ -64,10 +75,11 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
   const [q, setQ] = useState("");
   const [opp, setOpp] = useState<(typeof OPP_FILTERS)[number]["key"]>("all");
   // Leads reais por padrão; os fictícios (demonstração) só aparecem quando escolhidos.
-  const [dataset, setDataset] = useState<"all" | "real" | "demo">(() => (initialLeads.some((l) => !l.isDemo && l.waConfirmed) ? "real" : "all"));
+  const [dataset, setDataset] = useState<"all" | "real" | "demo">(() => (initialLeads.some((l) => !l.isDemo) ? "real" : "all"));
   const [view, setView] = useState<"active" | "excluded">("active");
   const [searchFilter, setSearchFilter] = useState<string>(initialSearchId);
   const [stage, setStage] = useState<(typeof STAGES)[number]["key"]>("all");
+  const [contact, setContact] = useState<"all" | "whatsapp" | "phone" | "email" | "none">("all");
   const [lastSearch, setLastSearch] = useState<SearchRow | null>(null);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -78,7 +90,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
     () =>
       leads.filter(
         (l) =>
-          (l.waConfirmed || l.isDemo) &&
+          matchesContact(l, contact) &&
           (stage === "all" || l.stage === stage) &&
           (view === "active" ? !l.excluded : l.excluded) &&
           (dataset === "all" || (dataset === "demo" ? l.isDemo : !l.isDemo)) &&
@@ -86,11 +98,10 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
           matchesOpp(l, opp) &&
           `${l.name} ${l.category ?? ""} ${l.address ?? ""} ${l.city ?? ""}`.toLowerCase().includes(q.toLowerCase()),
       ),
-    [leads, view, dataset, searchFilter, opp, q, stage],
+    [leads, view, dataset, searchFilter, opp, q, stage, contact],
   );
-  const hiddenNoWa = leads.filter((l) => !l.waConfirmed && !l.isDemo && !l.excluded).length;
   const lastResults = lastSearch ? leads.filter((l) => l.searchId === lastSearch.id) : [];
-  const counts = { active: leads.filter((l) => !l.excluded && (l.waConfirmed || l.isDemo)).length, excluded: leads.filter((l) => l.excluded).length, demo: leads.filter((l) => l.isDemo).length };
+  const counts = { active: leads.filter((l) => !l.excluded).length, excluded: leads.filter((l) => l.excluded).length, demo: leads.filter((l) => l.isDemo).length };
 
   async function reload() {
     const [{ leads }, { searches }] = await Promise.all([api<{ leads: LeadView[] }>("/api/leads?view=all"), api<{ searches: SearchRow[] }>("/api/leads/searches")]);
@@ -117,11 +128,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
       setCoverage(coverageOf(r.search));
       setLastSearch(r.search);
       if (!r.createdIds.length && r.search.found) {
-        const wa = (r.search.log ?? []).find((x) => x.step === "whatsapp")?.detail ?? "";
-        const excluded = Number(/(\d+) sem WhatsApp/.exec(wa)?.[1] ?? 0);
-        setError(excluded
-          ? `Nenhuma empresa nova com WhatsApp comercial confirmado: ${excluded} encontrada(s) não tinham WhatsApp confirmado em fonte pública e ${r.search.duplicates} já estavam na sua lista. Veja o resumo abaixo.`
-          : "Todas as empresas encontradas já estavam na sua lista.");
+        setError("Todas as empresas encontradas já estavam na sua lista. Tente outro termo ou uma cidade vizinha.");
       }
     } catch (err) {
       setError((err as Error).message);
@@ -247,7 +254,6 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
       {mode === "search" && <SearchResults lastSearch={lastSearch} results={lastResults} searches={searches} />}
 
       {mode === "list" && <>
-      {hiddenNoWa > 0 && <Alert kind="info">{hiddenNoWa} lead(s) antigo(s) sem WhatsApp comercial confirmado em fonte pública estão ocultos. A lista mostra só empresas com WhatsApp confirmado.</Alert>}
       {/* ---------- Histórico ---------- */}
       {searches.length > 0 && (
         <section aria-label="Buscas recentes" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -273,7 +279,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
       <section className="card flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Status">
           {STAGES.map((f) => {
-            const n = f.key === "all" ? counts.active : leads.filter((l) => !l.excluded && (l.waConfirmed || l.isDemo) && l.stage === f.key).length;
+            const n = f.key === "all" ? counts.active : leads.filter((l) => !l.excluded && l.stage === f.key).length;
             return <button key={f.key} role="tab" aria-selected={stage === f.key} onClick={() => setStage(f.key)} className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${stage === f.key ? "bg-[var(--color-signal)] text-ink-950" : "border border-white/10 text-slate-300 hover:border-white/25"}`}>{f.label} <span className="opacity-70">{n}</span></button>;
           })}
         </div>
@@ -281,6 +287,13 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
           <input className="input w-52 py-2" placeholder="Buscar por nome, cidade…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar leads" />
           <select className="input w-auto py-2" value={opp} onChange={(e) => setOpp(e.target.value as typeof opp)} aria-label="Oportunidade">
             {OPP_FILTERS.map((f) => <option key={f.key} value={f.key}>{f.key === "all" ? "Todas as oportunidades" : f.label}</option>)}
+          </select>
+          <select className="input w-auto py-2" value={contact} onChange={(e) => setContact(e.target.value as typeof contact)} aria-label="Forma de contato">
+            <option value="all">Qualquer contato</option>
+            <option value="whatsapp">Com WhatsApp confirmado</option>
+            <option value="phone">Com telefone</option>
+            <option value="email">Com e-mail</option>
+            <option value="none">Sem contato publicado</option>
           </select>
           <select className="input w-auto py-2" value={dataset} onChange={(e) => setDataset(e.target.value as typeof dataset)} aria-label="Conjunto de dados">
             <option value="all">Reais + demo</option>
@@ -301,7 +314,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
           <p className="mx-auto mt-1 max-w-md text-sm text-slate-400">Comece na aba <Link href="/app/buscar" className="text-brand-300 underline">Buscar empresas</Link>: escolha o ramo, o estado e a cidade.</p>
         </div>
       ) : !shown.length ? (
-        <div className="card p-8 text-center text-sm text-slate-400">Nenhum lead com esses filtros. <button className="text-brand-300 underline" onClick={() => { setOpp("all"); setQ(""); setDataset("all"); setSearchFilter(""); setStage("all"); }}>Limpar filtros</button></div>
+        <div className="card p-8 text-center text-sm text-slate-400">Nenhum lead com esses filtros. <button className="text-brand-300 underline" onClick={() => { setOpp("all"); setQ(""); setDataset("all"); setSearchFilter(""); setStage("all"); setContact("all"); }}>Limpar filtros</button></div>
       ) : (
         <ul className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {shown.map((l, i) => (
@@ -327,14 +340,7 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
                     ))}
                   </div>
                 )}
-                <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-emerald-200">{l.isDemo ? "WhatsApp fictício (demonstração)" : prettyWa(l.whatsapp)}</p>
-                    <p className="truncate text-[11px] text-emerald-200/60">{l.isDemo ? "Lead de demonstração" : `WhatsApp confirmado · fonte: ${l.facts.whatsapp?.source ?? "—"}`}</p>
-                    {/Atenção: o DDD/.test(l.facts.whatsapp?.note ?? "") && <p className="text-[11px] text-amber-200">DDD diferente da cidade: confira</p>}
-                  </div>
-                  {!l.isDemo && l.facts.whatsapp?.sourceUrl && <a href={l.facts.whatsapp.sourceUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[11px] text-emerald-200/80 underline">ver fonte</a>}
-                </div>
+                <ContactBox l={l} />
                 <dl className="mt-3 space-y-1.5 text-sm">
                   {([
                     ["Endereço", l.address, l.facts.address],
@@ -372,23 +378,57 @@ export function LeadsStudio({ mode, initialLeads, initialSearches, providers, pr
   );
 }
 
-/** Aba Buscar: resultado da última busca (só empresas com WhatsApp confirmado) e buscas recentes. */
+function ContactBox({ l }: { l: LeadView }) {
+  const cs = contactsOf(l);
+  if (l.waConfirmed || (l.isDemo && l.whatsapp)) {
+    return (
+      <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-emerald-200">{l.isDemo ? "WhatsApp fictício (demonstração)" : prettyWa(l.whatsapp)}</p>
+          <p className="truncate text-[11px] text-emerald-200/60">{l.isDemo ? "Lead de demonstração" : `WhatsApp confirmado · fonte: ${l.facts.whatsapp?.source ?? "—"}`}</p>
+          {/Atenção: o DDD/.test(l.facts.whatsapp?.note ?? "") && <p className="text-[11px] text-amber-200">DDD diferente da cidade: confira</p>}
+        </div>
+        {!l.isDemo && l.facts.whatsapp?.sourceUrl && <a href={l.facts.whatsapp.sourceUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-[11px] text-emerald-200/80 underline">ver fonte</a>}
+      </div>
+    );
+  }
+  return (
+    <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+      <p className="text-[11px] text-slate-400">{cs.length ? "Sem WhatsApp confirmado. Contato publicado:" : "Nenhum contato publicado na fonte: só nome e endereço."}</p>
+      {cs.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">{cs.map((c) => <span key={c.key} className="badge bg-white/5 text-slate-200">{c.label}</span>)}</div>}
+    </div>
+  );
+}
+
+function ContactLine({ l }: { l: LeadView }) {
+  if (l.waConfirmed || (l.isDemo && l.whatsapp)) return <span className="text-emerald-300">{l.isDemo ? "WhatsApp fictício" : `WhatsApp ${prettyWa(l.whatsapp)}`}</span>;
+  const cs = contactsOf(l);
+  return <span className="text-slate-400">{cs.length ? cs.map((c) => c.label).join(" · ") : "sem contato publicado"}</span>;
+}
+
+function matchesContact(l: LeadView, f: "all" | "whatsapp" | "phone" | "email" | "none") {
+  if (f === "all") return true;
+  const keys = contactsOf(l).map((c) => c.key);
+  return f === "none" ? !keys.length : keys.includes(f);
+}
+
+/** Aba Buscar: resultado da última busca e buscas recentes. */
 function SearchResults({ lastSearch, results, searches }: { lastSearch: SearchRow | null; results: LeadView[]; searches: SearchRow[] }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
       <section className="card p-5 sm:p-6" aria-live="polite">
         <h2 className="font-semibold text-white">Resultado da busca</h2>
         {!lastSearch ? (
-          <p className="mt-2 text-sm text-slate-400">Escolha o ramo, o estado e a cidade e clique em <b>Iniciar busca</b>. Entram na lista só empresas com WhatsApp comercial confirmado em fonte pública.</p>
+          <p className="mt-2 text-sm text-slate-400">Escolha o ramo, o estado e a cidade e clique em <b>Iniciar busca</b>. Entram todas as empresas reais encontradas; cada uma mostra as formas de contato publicadas (WhatsApp confirmado, telefone, e-mail, site, Instagram).</p>
         ) : !results.length ? (
-          <p className="mt-2 text-sm text-slate-400">Nenhuma empresa nova com WhatsApp comercial confirmado nesta busca. Tente outro ramo, uma cidade vizinha ou a fonte Google Maps (requer chave).</p>
+          <p className="mt-2 text-sm text-slate-400">Nenhuma empresa nova nesta busca. Veja o resumo acima: tente outro termo, uma cidade vizinha ou a fonte Google Maps (requer chave).</p>
         ) : (
           <ul className="mt-4 divide-y divide-white/5">
             {results.map((l) => (
               <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-white">{l.name}</p>
-                  <p className="truncate text-xs text-slate-500">{l.category ?? "—"}{l.city ? ` · ${l.city}` : ""} · <span className="text-emerald-300">{l.isDemo ? "WhatsApp fictício" : prettyWa(l.whatsapp)}</span></p>
+                  <p className="truncate text-xs text-slate-500">{l.category ?? "—"}{l.city ? ` · ${l.city}` : ""} · <ContactLine l={l} /></p>
                 </div>
                 <Link href={`/app/leads/${l.id}`} className="btn-secondary px-3 py-1.5 text-xs">Abrir</Link>
               </li>
@@ -405,7 +445,7 @@ function SearchResults({ lastSearch, results, searches }: { lastSearch: SearchRo
               <li key={s.id}>
                 <Link href={`/app/leads?search=${s.id}`} className="block rounded-xl border border-white/10 px-3 py-2 text-xs hover:border-white/25">
                   <span className="flex items-center gap-1.5 font-semibold text-slate-200">{s.niche} · {s.location}{s.isDemo && <span className="rounded bg-amber-400/20 px-1 text-[10px] text-amber-200">DEMO</span>}{s.status === "FAILED" && <span className="rounded bg-red-500/20 px-1 text-[10px] text-red-200">falhou</span>}</span>
-                  <span className="text-slate-500">{new Date(s.startedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {s.created} com WhatsApp confirmado</span>
+                  <span className="text-slate-500">{new Date(s.startedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} · {s.created} empresa(s) nova(s)</span>
                   {coverageOf(s) && <span className="mt-1 block text-slate-500">{coverageOf(s)}</span>}
                 </Link>
               </li>

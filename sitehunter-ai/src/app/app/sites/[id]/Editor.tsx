@@ -109,7 +109,7 @@ function ImageEditor({ value, onChange, onSearch, label = "Imagem" }: { value?: 
       {value?.url && (
         <div className="relative overflow-hidden rounded-xl border border-white/10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value.url} alt={value.alt} className="h-28 w-full object-cover" />
+          <img src={value.url.startsWith("lib:") ? `/photos/${value.url.slice(4)}` : value.url} alt={value.alt} className="h-28 w-full object-cover" />
           {value.origin === "generated" && <span className="absolute left-2 top-2 rounded bg-black/75 px-2 py-0.5 text-[10px] font-semibold text-amber-200">GERADA POR IA · ilustrativa</span>}
           <button className="absolute right-2 top-2 rounded-lg bg-black/70 px-2 py-1 text-xs text-white" onClick={() => onChange(undefined)}>Remover</button>
         </div>

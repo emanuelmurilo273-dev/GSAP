@@ -1,14 +1,16 @@
-# Modelos e texturas usados nas prévias (Vitrine 3D)
+# Modelos 3D e luz de estúdio usados nos sites (Vitrine)
 
-Modelos 3D (fotogrametria) do Poly Haven, licença CC0 1.0 (domínio público, uso comercial livre, sem atribuição obrigatória; o crédito é dado mesmo assim):
+Só modelos escaneados de objetos reais (fotogrametria) do Poly Haven, licença CC0 1.0 (domínio público, uso comercial livre; o crédito aparece no rodapé mesmo assim). Ramo sem modelo escaneado adequado usa fotografia, nunca uma forma 3D simplificada.
 
 | Pasta | Modelo | Autores | Fonte |
 |---|---|---|---|
 | croissant | Croissant | Greg Zaal, Dario Barresi | https://polyhaven.com/a/croissant |
 | carrot_cake | Carrot Cake | Greg Zaal, James Ray Cock | https://polyhaven.com/a/carrot_cake |
+| strawberry_chocolate_cake | Strawberry Chocolate Cake | Kuutti Siitonen | https://polyhaven.com/a/strawberry_chocolate_cake |
 | hamburger_buns | Hamburger Buns | Alexander Shulha | https://polyhaven.com/a/hamburger_buns |
 | combination_wrench | Combination Wrench | BKS | https://polyhaven.com/a/combination_wrench |
+| cross_pein_hammer | Cross Pein Hammer | Tics | https://polyhaven.com/a/cross_pein_hammer |
 
-Texturas dos pratos (`dishes/`): fotos reais em domínio público (CC0 ou Public Domain Mark), recortadas e reduzidas. Autores e links em `dishes/credits.json`. Nas prévias elas aparecem como imagem ilustrativa (não são pratos da empresa).
+`hdri/studio_small_09_1k.hdr`: mapa de luz de estúdio (HDRI) do Poly Haven, CC0, https://polyhaven.com/a/studio_small_09 . Dá reflexos e luz difusa físicos aos materiais.
 
-`../vendor/GLTFLoader.js`: three.js r128, licença MIT (mesma de `three.min.js`).
+`../vendor/GLTFLoader.js` e `../vendor/RGBELoader.js`: three.js r128, licença MIT (mesma de `three.min.js`).

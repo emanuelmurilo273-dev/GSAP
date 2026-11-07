@@ -1,4 +1,4 @@
-import { MATERIAL_LABEL, MODEL_LABEL, type Material, type ModelKind } from "./kinds";
+import { GLTF_ASSETS, MATERIAL_LABEL, MODEL_LABEL, assetForModel, type Material, type ModelKind } from "./kinds";
 import type { Concept } from "../types";
 
 // Conceito visual por empresa. Cada escolha sai de um dado pesquisado (nome, ramo, bairro,
@@ -193,24 +193,12 @@ export function buildConcept(input: ConceptInput): Concept {
   secondary.push(...fam.secondary);
   const sec = [...new Set(secondary)].filter((k) => k !== model).slice(0, 2);
 
-  // 1b. Realismo: prato com foto real de referência (escolhida pelo cardápio/descrição) ou modelo fotogramétrico.
-  let dish: string | undefined, asset: string | undefined;
-  if (model === "pizza") dish = "pizza";
-  if (model === "cup") dish = "latte";
-  if (model === "plate") {
-    dish = /ital|massa|pasta|spaghet|espaguet|lasanh|tratt|cantina|nhoque|risot/.test(text) ? "pasta" : /salad|natural|vegan|vegetar|saudav|\bfit\b|poke|bowl/.test(text) ? "salad" : "grill";
-  }
-  if (model === "croissant") asset = "croissant";
-  if (model === "cake") asset = "carrot_cake";
-  const dishWhy: Record<string, string> = {
-    pizza: "foto real de pizza vista de cima (CC0) como superfície, com borda e relevo em 3D",
-    pasta: "foto real de espaguete (CC0), porque o cardápio/descrição indica cozinha italiana",
-    salad: "foto real de salada (CC0), porque a descrição indica comida natural ou saudável",
-    grill: "foto real de prato com carne grelhada e arroz (CC0), prato típico de restaurante",
-    latte: "foto real de café com arte no leite (CC0) na superfície da xícara",
-  };
-  if (dish) reasons.push(`Realismo: ${dishWhy[dish]}. A foto é ilustrativa, não é prato da empresa.`);
-  if (asset) reasons.push("Realismo: modelo 3D fotogramétrico real (Poly Haven, licença CC0), com a versão procedural de reserva enquanto carrega.");
+  // 1b. Realismo: 3D só com modelo escaneado de um objeto real (Poly Haven, CC0). Sem modelo adequado,
+  // a página usa fotografia em alta qualidade em vez de uma forma 3D simplificada.
+  const asset = assetForModel(model, seed, input.segmentKey) ?? undefined;
+  if (asset) reasons.push(`3D realista: modelo escaneado de um objeto real (${GLTF_ASSETS[asset]!.label}, Poly Haven, licença CC0), com iluminação de estúdio e sombra de contato.`);
+  else reasons.push(`Sem modelo 3D escaneado de ${MODEL_LABEL[model]} com qualidade suficiente: a página usa fotografia em vez de um objeto 3D artificial.`);
+  const dish: string | undefined = undefined;
 
   // 2. Paleta e material
   const tones = FAMILY_TONE[model] ?? ["cool"];
@@ -247,8 +235,8 @@ export function buildConcept(input: ConceptInput): Concept {
   if (!input.hasWhatsapp) reasons.push("Sem WhatsApp confirmado: o botão principal liga ou leva ao contato.");
 
   // Abertura: foto ampla com texto sobreposto (quando há foto boa) ou o objeto 3D. Varia por empresa.
-  const heroMode: "object" | "photo" = input.hasCompanyPhotos ? "photo" : input.hasWidePhoto && seed % 2 === 0 ? "photo" : "object";
-  reasons.push(heroMode === "photo" ? `Abertura editorial com foto ampla e texto sobreposto${input.hasCompanyPhotos ? " (foto da própria empresa)" : " (imagem ilustrativa identificada)"}; o objeto 3D entra no capítulo seguinte.` : "Abertura com o objeto 3D grande sobre fundo escuro.");
+  const heroMode: "object" | "photo" = asset ? "object" : "photo";
+  reasons.push(heroMode === "photo" ? `Abertura com fotografia${input.hasCompanyPhotos ? " da própria empresa" : " ilustrativa (identificada como tal)"} ao lado da proposta da empresa.` : "Abertura com o modelo 3D escaneado ao lado da proposta da empresa; as fotos entram nas seções seguintes.");
   return {
     name: `${MODEL_LABEL[model][0]!.toUpperCase()}${MODEL_LABEL[model].slice(1)}${matTxt} · ${pal[0]}`,
     summary: `${pal[0]}, tipografia ${font.display} e ${MODEL_LABEL[model]}${matTxt}${sec.length ? `, com ${sec.map((k) => MODEL_LABEL[k]).join(" e ")} entrando ao rolar` : ""}.`,
@@ -302,8 +290,8 @@ export function varyConcept(c: Concept): Concept {
 
 export function relabelModel(c: Concept, model: ModelKind): Concept {
   const matTxt = INTRINSIC.has(model) ? "" : ` em ${MATERIAL_LABEL[c.material]}`;
-  const dish = model === "pizza" ? "pizza" : model === "cup" ? "latte" : model === "plate" ? (c.dish && c.dish !== "pizza" && c.dish !== "latte" ? c.dish : "grill") : undefined;
-  const asset = model === "croissant" ? "croissant" : model === "cake" ? "carrot_cake" : undefined;
+  const dish = undefined;
+  const asset = assetForModel(model, c.seed) ?? undefined;
   // Trocar de ramo pode trocar a direção de arte (ex.: tesoura → dente): a paleta acompanha.
   const mood = moodFor(model);
   let palette = c.palette;
@@ -311,7 +299,7 @@ export function relabelModel(c: Concept, model: ModelKind): Concept {
     const pal = pick(palettesFor(mood, pick(FAMILY_TONE[model] ?? ["cool"], c.seed, 1)), c.seed, 2);
     palette = { bg: pal[1], bg2: pal[2], ink: pal[3], muted: pal[4], accent: pal[5], accent2: pal[6] };
   }
-  return { ...c, model, dish, asset, mood, palette, secondary: c.secondary.filter((k) => k !== model), name: `${MODEL_LABEL[model][0]!.toUpperCase()}${MODEL_LABEL[model].slice(1)}${matTxt} · ${c.name.split(" · ")[1] ?? ""}`, reasons: [...c.reasons.filter((r) => !r.startsWith("Objeto trocado")), `Objeto trocado no editor para ${MODEL_LABEL[model]}.`].slice(0, 14) };
+  return { ...c, model, dish, asset, heroMode: asset ? "object" : "photo", mood, palette, secondary: c.secondary.filter((k) => k !== model), name: `${MODEL_LABEL[model][0]!.toUpperCase()}${MODEL_LABEL[model].slice(1)}${matTxt} · ${c.name.split(" · ")[1] ?? ""}`, reasons: [...c.reasons.filter((r) => !r.startsWith("Objeto trocado")), `Objeto trocado no editor para ${MODEL_LABEL[model]}.`].slice(0, 14) };
 }
 
 /** Conceitos salvos antes da direção de arte por ramo: ganham o mood do ramo (e paleta clara, se for o caso). */

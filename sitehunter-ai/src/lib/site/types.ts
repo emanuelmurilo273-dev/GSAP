@@ -156,6 +156,8 @@ export const SiteContentSchema = z.object({
     })
     .optional(),
   concept: ConceptSchema.optional(),
+  /** 1 = imagens automáticas já trocadas pelas fotos da biblioteca do app (prévias antigas são atualizadas ao abrir). */
+  libraryVersion: z.number().int().optional(),
 });
 
 export type SiteContent = z.infer<typeof SiteContentSchema>;

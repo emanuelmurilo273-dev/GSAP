@@ -117,7 +117,12 @@ export async function checkPresence(website: string | null, opts: { demo?: boole
     // RFC 9309: 4xx no robots.txt = sem restrições; 5xx/erro de rede = assumir bloqueio total.
     let robots;
     try {
-      robots = await safeFetch(new URL("/robots.txt", url).toString(), { userAgent: ua, timeoutMs: 5000, maxBytes: 200_000 });
+      // 10 s e uma nova tentativa no estouro de tempo: servidores lentos acordam na segunda chamada.
+      const robotsUrl = new URL("/robots.txt", url).toString();
+      robots = await safeFetch(robotsUrl, { userAgent: ua, timeoutMs: 10_000, maxBytes: 200_000 }).catch((e) => {
+        if (e instanceof Error && e.name === "TimeoutError") return safeFetch(robotsUrl, { userAgent: ua, timeoutMs: 10_000, maxBytes: 200_000 });
+        throw e;
+      });
     } catch (e) {
       if (e instanceof BlockedAddressError) throw e;
       return { checkedAt, url: website, kind: "site", reachable: false, status: null, error: e instanceof Error && e.name === "TimeoutError" ? "o servidor do site não respondeu a tempo" : "o servidor do site não respondeu" };
@@ -126,7 +131,12 @@ export async function checkPresence(website: string | null, opts: { demo?: boole
     if (robots.status === 200 && !/text\/html/i.test(robots.contentType) && !isAllowed(parseRobots(robots.body), url.pathname || "/")) {
       return { checkedAt, url: website, kind: "site", skipped: "robots_disallowed" };
     }
-    const r = await safeFetch(url.toString(), { userAgent: ua, timeoutMs: 7000 });
+    // Sites pequenos em hospedagem barata costumam levar 6 a 10 s na primeira resposta: 12 s e uma
+    // segunda tentativa quando estoura o tempo (um WhatsApp real ficava de fora por isso).
+    const r = await safeFetch(url.toString(), { userAgent: ua, timeoutMs: 12_000 }).catch((e) => {
+      if (e instanceof Error && e.name === "TimeoutError") return safeFetch(url.toString(), { userAgent: ua, timeoutMs: 12_000 });
+      throw e;
+    });
     const ok = r.status >= 200 && r.status < 400;
     const analysis = ok && /html/i.test(r.contentType || "text/html") ? analyzeHtml(r.body, r.finalUrl) : {};
     const report: PresenceReport = {

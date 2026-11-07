@@ -276,6 +276,6 @@ describe("Overpass com servidores de reserva", () => {
     await osmProvider.search({ niche: "dentista", location: "Chapecó - SC", cityIbge: 4204202, language: "pt-BR", count: 5 }, { onDiagnostics: (d) => { diag = d; } });
     expect(diag!.overpass).toBe("failed");
     expect(diag!.overpassError).toMatch(/HTTP 503/);
-    expect(coverageNote("osm", 3, "Chapecó - SC", "dentista", true, { verified: 3, noWhatsapp: 3, kept: 0 }, diag as never)).toMatch(/Overpass .* não respondeu/);
+    expect(coverageNote("osm", 3, "Chapecó - SC", "dentista", true, { kept: 3, whatsapp: 0, phoneOnly: 3, otherContact: 0, none: 0 }, diag as never)).toMatch(/Overpass .* não respondeu/);
   });
 });
