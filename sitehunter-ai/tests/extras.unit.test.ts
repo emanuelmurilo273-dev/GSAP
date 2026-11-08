@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chapterNavHtml, extrasRuntime, motionButtonHtml, paletteHtml, storyHtml, FX_FOR } from "@/lib/site/immersive/extras";
+import { chapterNavHtml, extrasCss, extrasRuntime, motionButtonHtml, paletteHtml, storyHtml, FX_FOR } from "@/lib/site/immersive/extras";
 import { buildSiteContent, fallbackCopy, getSegment, type CompanyInfo } from "@/lib/site/templates";
 import { renderSite } from "@/lib/site/render";
 import { realRuntime } from "@/lib/site/immersive/realRuntime";
@@ -45,6 +45,15 @@ describe("Extras de experiência dos sites", () => {
       expect(h).toContain("data-pal");
       expect(h).toContain("data-motion-toggle");
     }
+  });
+  it("animações de rolagem: cascata e máscara só com movimento, e pausa mostra tudo", () => {
+    const css = extrasCss("showroom", 700);
+    expect(css).toContain(".sx{opacity:0");
+    expect(css).toContain(".paused .sx{opacity:1;transform:none");
+    expect(css).toContain("@supports (animation-timeline:view())");
+    const rt = extrasRuntime.toString();
+    expect(rt).toMatch(/if \(!reduce && "IntersectionObserver" in w\)/); // nada de cascata com movimento reduzido
+    expect(rt).toContain("aria-label"); // título dividido em palavras continua legível para leitor de tela
   });
   it("o 3D respeita a pausa do visitante", () => {
     expect(String(realRuntime)).toContain("paused");

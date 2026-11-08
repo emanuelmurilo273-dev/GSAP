@@ -97,6 +97,22 @@ export function extrasCss(arch: Archetype, dw: number | string): string {
 .paused .mq-track,.paused .hx-sticker,.paused .hx-disc::before,.paused .scroll-cue span{animation:none!important}
 .paused .status.is-open i{animation:none}
 ${arch === "arc" || arch === "spec" ? "" : `.a-${arch} .split .w>span{filter:blur(9px);transition:transform 1s var(--ease),filter 1.1s var(--ease)}.ready .a-${arch} .split .w>span,.a-${arch}.ready .split .w>span{filter:none}`}
+/* ---- animações de rolagem (só transform/opacity; sem JS ou pausado, tudo aparece pronto) ---- */
+.sx{opacity:0;transform:translate3d(0,38px,0) scale(.985);transition:opacity .8s var(--ease),transform 1s var(--ease);transition-delay:calc(var(--sd,0) * 80ms)}
+.sx.in{opacity:1;transform:none}
+.h2.hs{opacity:1;transform:none}
+.hs .w{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:.12em;margin-bottom:-.12em}
+.hs .w>span{display:inline-block;transform:translate3d(0,108%,0);transition:transform .95s var(--ease);transition-delay:calc(var(--wi,0) * 55ms)}
+.hs.in .w>span{transform:none}
+@supports (animation-timeline:view()){
+  @keyframes hx-settle{from{scale:1.16}to{scale:1}}
+  @keyframes hx-lift{from{translate:0 var(--lift,34px)}to{translate:0 0}}
+  .about-media img,.card-img img,.gal-col img,.hx-sheet img{animation:hx-settle linear both;animation-timeline:view();animation-range:entry 0% cover 60%}
+  .final-copy{--lift:46px;animation:hx-lift linear both;animation-timeline:view();animation-range:entry 0% cover 45%}
+}
+.paused .sx{opacity:1;transform:none;transition:none}
+.paused .hs .w>span{transform:none;transition:none}
+.paused .about-media img,.paused .card-img img,.paused .gal-col img,.paused .hx-sheet img,.paused .final-copy{animation:none!important}
 @media(prefers-reduced-transparency:reduce){.pal,.top.solid,.pill,.btn.ghost,.btn.roll.ghost,.hx-float,.status{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}.pal{background:rgba(0,0,0,.8)}.top.solid{background:var(--bg)}.pill,.btn.ghost,.btn.roll.ghost{background:var(--bg2)}}
 @media(prefers-reduced-motion:reduce){.split .w>span{filter:none!important}.story-steps li{transition:none}}
 `;
@@ -120,6 +136,31 @@ export function extrasRuntime(cfg: { fx: { preset: string; color: string } | nul
   function setPaused(v: boolean) { userPaused = v; try { localStorage.setItem(KEY, v ? "1" : "0"); } catch (e) { /* ok */ } applyMotion(); }
   toggles.forEach(function (b) { b.addEventListener("click", function () { setPaused(!userPaused); }); });
   applyMotion();
+
+  // ---- animações de rolagem: grupos em cascata e títulos que sobem por uma máscara ----
+  if (!reduce && "IntersectionObserver" in w) {
+    var sio = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); sio.unobserve(e.target); } }); }, { rootMargin: "0px 0px -10% 0px" });
+    // listas com 3+ itens (menos o trilho horizontal fixado, onde os cartões são movidos pela rolagem)
+    d.querySelectorAll("main ol, main ul, .menu-grid, .nums, .gal-cols").forEach(function (g) {
+      if (g.closest("[data-rail],.rail,.pal,.story,nav,footer")) return;
+      var kids = Array.prototype.slice.call(g.children).filter(function (k) { return !k.classList.contains("rv") && !k.classList.contains("reveal") && !k.hasAttribute("data-par"); }) as HTMLElement[];
+      if (kids.length < 3) return;
+      kids.forEach(function (k, i) { k.classList.add("sx"); k.style.setProperty("--sd", String(i % 4)); sio.observe(k); });
+    });
+    d.querySelectorAll(".sec-head .h2, .final .h2").forEach(function (h) {
+      if (h.children.length || !h.textContent) return;
+      var txt = h.textContent.trim(), i = 0;
+      h.setAttribute("aria-label", txt);
+      h.textContent = "";
+      txt.split(/\s+/).forEach(function (wd, n) {
+        var o = d.createElement("span"), inn = d.createElement("span");
+        o.className = "w"; o.setAttribute("aria-hidden", "true"); inn.textContent = wd; inn.style.setProperty("--wi", String(i++)); o.appendChild(inn);
+        if (n) h.appendChild(d.createTextNode(" "));
+        h.appendChild(o);
+      });
+      h.classList.add("hs");
+    });
+  }
 
   // ---- paleta de atalhos (Ctrl/⌘ + K ou "/") ----
   var pal = d.querySelector("[data-pal]") as HTMLElement | null;

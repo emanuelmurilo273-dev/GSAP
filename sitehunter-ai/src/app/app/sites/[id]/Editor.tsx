@@ -9,6 +9,7 @@ import { renderSite } from "@/lib/site/render";
 import { FONTS, IMAGE_ORIGINS, type ImageOrigin, type Section, type SiteButton, type SiteContent, type SiteImage } from "@/lib/site/types";
 import { emptySection, themeForStyle } from "@/lib/site/templates";
 import { ConceptPanel } from "@/components/studio/ConceptPanel";
+import { ClaudeEdit } from "@/components/studio/ClaudeEdit";
 import { SITE_STYLES, STYLE_INFO, contrast, type SiteStyle } from "@/lib/site/styles";
 import { OBJECT_KINDS, OBJECT_LABEL, type ObjectKind } from "@/lib/site/stage";
 
@@ -488,6 +489,7 @@ export function Editor(props: {
                 {!props.aiGenerated && <p className="mt-2 text-amber-200/70">Este site foi gerado pelo modelo padrão (IA não configurada).</p>}
               </div>
             )}
+            <ClaudeEdit projectId={props.projectId} content={content} disabled={!props.premium} onApply={(c) => setContent(c)} />
             <div className="grid grid-cols-5 gap-1 rounded-xl border border-white/10 p-1 text-[11px]">
               {([["sections", "Seções"], ["design", "Design"], ["business", "Empresa"], ["publish", "Publicar"], ["sales", "Vendas"]] as const).map(([k, l]) => (
                 <button key={k} onClick={() => setTab(k)} className={`rounded-lg px-1 py-1.5 ${tab === k ? "bg-brand-500/20 text-white" : "text-slate-400 hover:text-white"}`}>{l}</button>
