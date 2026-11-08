@@ -30,6 +30,7 @@ export type ArchCtx = {
   layout: string;
   hasPhoto: boolean;
   arrow: string;
+  geo?: { lat: number; lng: number } | null;
 };
 
 const rom = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
@@ -99,6 +100,7 @@ export function archHero(a: Archetype, c: ArchCtx): string {
       <div><dt>Hoje</dt><dd>${c.statusHtml}</dd></div>
       ${addrShort ? `<div><dt>Endereço</dt><dd>${addrShort}</dd></div>` : ""}
       ${c.contacts[0] ? `<div><dt>${e(c.contacts[0].t)}</dt><dd>${e(c.contacts[0].v)}</dd></div>` : ""}
+      ${c.geo ? `<div><dt>Coordenadas</dt><dd class="mono" title="Posição publicada na fonte dos dados">${c.geo.lat.toFixed(4)}, ${c.geo.lng.toFixed(4)}</dd></div>` : ""}
     </dl>
   </div>
   <aside class="hx-sheet rv" style="--d:2" aria-label="${e(c.niche.panelTitle)}">
@@ -268,7 +270,7 @@ export function archCss(a: Archetype, dw: number | string, up: boolean): string 
 .hx-cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border:1px solid var(--line);margin-top:30px}
 .hx-cells div{padding:14px 16px;border-right:1px solid var(--line);min-width:0}.hx-cells div:last-child{border-right:0}
 .hx-cells dt{font:600 11px ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--mu)}.hx-cells dd{margin:6px 0 0;font-weight:600;overflow-wrap:anywhere}
-.hx-cells .status{margin:0;padding:0;border:0;background:transparent}
+.hx-cells .status{margin:0;padding:0;border:0;background:transparent}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
 .hx-sheet{border:1px solid var(--line);background:var(--bg2);border-radius:6px;overflow:hidden;box-shadow:0 30px 60px -36px #000}
 .hx-sheet header{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);font:600 11px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--mu)}.hx-sheet header b{color:var(--ink)}
 .hx-sheet-media{aspect-ratio:16/10;background:var(--bg)}.hx-sheet-media .ph,.hx-sheet-media .stage{height:100%;border-radius:0;box-shadow:none;position:relative;inset:auto;aspect-ratio:auto}

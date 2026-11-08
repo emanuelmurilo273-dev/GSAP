@@ -126,23 +126,29 @@ export function realRuntime(cfg) {
     ty = ((e.clientY - r.top) / r.height - 0.5) * 2;
   }, { passive: true });
 
-  var raf = 0;
+  var raf = 0, lastR = 0, forced = false;
+  var paused = function () { return document.body.classList.contains("paused"); };
   function frame() {
     if (raf || !model) return;
-    raf = requestAnimationFrame(function () {
+    raf = requestAnimationFrame(function (now) {
       raf = 0;
+      // Cerca de 33 quadros por segundo bastam para um giro lento e poupam bateria no celular.
+      if (!forced && now - lastR < 30) { if (visible && !reduce && !paused()) frame(); return; }
+      lastR = now; forced = false;
       var t = (performance.now() - t0) / 1000;
       var r = stage.getBoundingClientRect();
       var scroll = Math.max(-1, Math.min(1, -r.top / Math.max(1, r.height)));
       px += (tx - px) * 0.06; py += (ty - py) * 0.06;
       // Giro lento de vitrine + rolagem da página + leve inclinação pelo mouse.
-      pivot.rotation.y = (reduce ? -0.3 : t * 0.18 - 0.4) + scroll * 1.1 + px * 0.25; // começa de lado (objetos compridos aparecem inteiros)
+      pivot.rotation.y = (reduce || paused() ? -0.3 + scroll * 0 : t * 0.18 - 0.4) + scroll * 1.1 + px * 0.25; // começa de lado (objetos compridos aparecem inteiros)
       var d = camera.userData.dist * camera.userData.fit, el = camera.userData.elev + py * 0.05;
       var tg = camera.userData.target;
       camera.position.set(Math.sin(0.35) * d * Math.cos(el), tg.y + d * Math.sin(el), Math.cos(0.35) * d * Math.cos(el));
       camera.lookAt(tg);
       renderer.render(scene, camera);
-      if (visible && !reduce) frame();
+      if (visible && !reduce && !paused()) frame();
     });
   }
+  // "Pausar animações" (ou voltar a animar): um quadro parado ou o giro de volta.
+  window.addEventListener("hx:motion", function () { forced = true; frame(); });
 }

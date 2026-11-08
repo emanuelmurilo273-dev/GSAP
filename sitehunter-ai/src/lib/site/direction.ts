@@ -58,6 +58,7 @@ const R = {
 const D: Record<string, DesignDirection> = {
   concessionaria: {
     key: "concessionaria", archetype: "showroom", structure: 'Foto em tela cheia com título enorme na base e faixa de dados, serviços em linhas editoriais e galeria em faixa horizontal. Inspirada em Apex Roadster (tipografia editorial, camadas e narrativa fixada).',
+    steps: [{ t: 'Veja as opções', d: 'Peça informações do estoque pelo contato publicado.' }, { t: 'Conte o que procura', d: 'Modelo, ano e se há um veículo para a troca.' }, { t: 'Combine a visita', d: 'Confirme horário e condições com a equipe.' }],
     name: "Showroom noturno", audience: "quem compara carros no celular antes de ir à loja",
     mood: "noir", tones: ["cool", "warm"], fonts: ["Space Grotesk", "Sora", "Syne"], layouts: ["left", "editorial"],
     composition: "foto grande e limpa na abertura, depois vitrine, condições (avaliação do usado, financiamento) e visita; muito espaço e poucos elementos para a foto do carro mandar",
@@ -77,6 +78,7 @@ const D: Record<string, DesignDirection> = {
   },
   autopecas: {
     key: "autopecas", archetype: "display", structure: 'Bloco de cor vivo com título gigante, faixa em movimento e cartões numerados que empilham ao rolar. Inspirada em Lumo (tipografia gigante, ticker, recursos numerados fixos).',
+    steps: [{ t: 'Diga o veículo', d: 'Marca, modelo e ano.' }, { t: 'Informe a peça', d: 'O nome ou o código, se souber.' }, { t: 'Combine a retirada', d: 'Confirme prazo e forma de retirada ou entrega.' }],
     name: "Catálogo por veículo", audience: "quem sabe a peça (ou o carro) e quer saber se tem e quando chega",
     mood: "noir", tones: ["cool", "bold"], fonts: ["Space Grotesk", "Sora", "Archivo Black"], layouts: ["editorial", "left"],
     composition: "categorias de peças em grade, consulta por modelo e ano em destaque e contato direto",
@@ -86,6 +88,7 @@ const D: Record<string, DesignDirection> = {
   },
   pneus: {
     key: "pneus", archetype: "display", structure: 'Bloco de cor vivo com título gigante, faixa em movimento e cartões numerados que empilham ao rolar. Inspirada em Lumo (tipografia gigante, ticker, recursos numerados fixos).',
+    steps: [{ t: 'Informe o veículo', d: 'Marca, modelo e ano, ou a medida do pneu.' }, { t: 'Receba as opções', d: 'Peça preço e prazo pelo contato publicado.' }, { t: 'Agende a troca', d: 'Combine o dia e o horário com a loja.' }],
     name: "Pneu certo, hoje", audience: "quem precisa trocar pneu e quer preço e prazo",
     mood: "noir", tones: ["bold", "warm"], fonts: ["Anton", "Archivo Black", "Syne"], layouts: ["left", "center"],
     composition: "medida do pneu ou modelo do veículo na primeira dobra, serviços (alinhamento, balanceamento) e orçamento rápido",
@@ -105,6 +108,7 @@ const D: Record<string, DesignDirection> = {
   },
   lavagem: {
     key: "lavagem", archetype: "arc", structure: 'Abertura com arco de luz e partículas sobre fundo escuro, no espírito de Sorvine (tudo feito de luz sobre preto), com o brilho em azul frio.',
+    steps: [{ t: 'Escolha o serviço', d: 'Lavagem, polimento ou higienização.' }, { t: 'Agende', d: 'Combine o horário pelo contato publicado.' }, { t: 'Leve o veículo', d: 'Compareça no horário combinado.' }],
     name: "Brilho e resultado", audience: "quem quer o carro impecável e procura um horário",
     mood: "noir", tones: ["cool"], fonts: ["Syne", "Unbounded", "Sora"], layouts: ["center", "editorial"],
     composition: "foto de brilho e espuma na abertura, pacotes de serviço claros, galeria por tipo de serviço e agendamento",
@@ -124,6 +128,7 @@ const D: Record<string, DesignDirection> = {
   },
   barbearia: {
     key: "barbearia", archetype: "poster", structure: 'Pôster editorial em capítulos, com foto em arco e serviços em lista com pontilhado. Inspirada em Vigil (percurso noturno em capítulos, texto como ensaio).',
+    steps: [{ t: 'Escolha o serviço', d: 'Corte, barba ou os dois.' }, { t: 'Reserve o horário', d: 'Combine pelo contato publicado.' }, { t: 'Venha no dia', d: 'Chegue no horário combinado.' }],
     name: "Editorial escuro e dourado", audience: "homens que escolhem a barbearia pelo estilo e pelo ambiente",
     mood: "noir", tones: ["warm", "bold"], fonts: ["Instrument Serif", "Fraunces", "Syne"], layouts: ["editorial", "left"],
     composition: "ambiente e cortes em fotografia grande, serviços em lista enxuta e agendamento no topo",
@@ -133,6 +138,7 @@ const D: Record<string, DesignDirection> = {
   },
   pizzaria: {
     key: "pizzaria", archetype: "plate", structure: 'Prato em destaque num disco central sobre fundo escuro, com cardápio em lista. Inspirada em Brasca (produto revelado sobre preto, comida como protagonista).',
+    steps: [{ t: 'Veja o cardápio', d: 'Escolha os sabores e as bebidas.' }, { t: 'Peça ou reserve', d: 'Faça o pedido pelo contato publicado.' }, { t: 'Receba ou venha', d: 'Confirme com a casa se atende no local, retirada ou entrega.' }],
     name: "Forno aceso", audience: "quem está com fome e quer ver a pizza e pedir",
     mood: "noir", tones: ["warm", "bold"], fonts: ["Bricolage Grotesque", "Fraunces", "Anton"], layouts: ["center", "right"],
     composition: "foto grande da pizza, cardápio claro, horário ao vivo (aberta ou fechada) e botão de pedido",
@@ -142,6 +148,7 @@ const D: Record<string, DesignDirection> = {
   },
   hamburgueria: {
     key: "hamburgueria", archetype: "plate", structure: 'Prato em destaque num disco central sobre fundo escuro, com cardápio em lista. Inspirada em Brasca (produto revelado sobre preto, comida como protagonista).',
+    steps: [{ t: 'Veja o cardápio', d: 'Escolha o lanche e os acompanhamentos.' }, { t: 'Faça o pedido', d: 'Use o contato publicado.' }, { t: 'Receba ou retire', d: 'Confirme com a casa como será a entrega.' }],
     name: "Chapa e fartura", audience: "quem quer um lanche e decide pela foto",
     mood: "noir", tones: ["bold", "warm"], fonts: ["Anton", "Archivo Black", "Bricolage Grotesque"], layouts: ["right", "center"],
     composition: "foto do hambúrguer em destaque, cardápio direto e botão de pedido",
@@ -151,6 +158,7 @@ const D: Record<string, DesignDirection> = {
   },
   restaurante: {
     key: "restaurante", archetype: "plate", structure: 'Prato em destaque num disco central, com cardápio em lista e horário em evidência. Inspirada em Brasca (comida como protagonista).',
+    steps: [{ t: 'Veja o cardápio', d: 'Confira os pratos e o horário de hoje.' }, { t: 'Peça ou reserve', d: 'Fale pelo contato publicado.' }, { t: 'Venha nos visitar', d: 'Confirme o endereço e o horário.' }],
     name: "Mesa posta", audience: "quem escolhe onde comer pelo prato, pelo ambiente e pelo horário",
     mood: "noir", tones: ["warm", "earth"], fonts: ["Fraunces", "Instrument Serif", "Bricolage Grotesque"], layouts: ["editorial", "left", "center"],
     composition: "foto de prato e de ambiente, cardápio legível, horário e reserva",
@@ -160,6 +168,7 @@ const D: Record<string, DesignDirection> = {
   },
   odonto: {
     key: "odonto", archetype: "calm", structure: 'Abertura clara com foto arredondada e cartões flutuantes de horário e endereço, serviços em cartões suaves.',
+    steps: [{ t: 'Escolha o horário', d: 'Combine a consulta pelo contato publicado.' }, { t: 'Conte o motivo', d: 'Descreva o que você precisa tratar.' }, { t: 'Compareça', d: 'Vá no dia e no horário combinados.' }],
     name: "Calma e clareza", audience: "pacientes que sentem receio e querem confiança e facilidade para agendar",
     mood: "ivory", tones: ["cool"], fonts: ["Sora", "Manrope", "Bricolage Grotesque"], layouts: ["left", "center"],
     composition: "abertura simples com foto real, tratamentos em ordem, equipe e agendamento acessível em um toque",
@@ -169,6 +178,7 @@ const D: Record<string, DesignDirection> = {
   },
   clinica: {
     key: "clinica", archetype: "calm", structure: 'Abertura clara com foto arredondada e cartões flutuantes de horário e endereço, serviços em cartões suaves.',
+    steps: [{ t: 'Escolha o horário', d: 'Combine o atendimento pelo contato publicado.' }, { t: 'Conte o motivo', d: 'Descreva o que você precisa.' }, { t: 'Compareça', d: 'Vá no dia e no horário combinados.' }],
     name: "Cuidado sem ruído", audience: "pacientes que procuram atendimento e querem saber como chegar e marcar",
     mood: "ivory", tones: ["cool", "earth"], fonts: ["Sora", "Manrope", "Bricolage Grotesque"], layouts: ["left", "center"],
     composition: "especialidades, equipe, horário e agendamento",
@@ -178,6 +188,7 @@ const D: Record<string, DesignDirection> = {
   },
   academia: {
     key: "academia", archetype: "display", structure: 'Bloco de cor vivo com título gigante e cartões numerados. Inspirada em Lumo (energia, tipografia gigante).',
+    steps: [{ t: 'Conheça a estrutura', d: 'Veja as fotos e as modalidades.' }, { t: 'Peça a aula experimental', d: 'Combine pelo contato publicado.' }, { t: 'Escolha o seu plano', d: 'Converse com a equipe sobre as opções.' }],
     name: "Energia em preto e acento", audience: "quem quer começar ou voltar a treinar e procura motivação e estrutura",
     mood: "noir", tones: ["bold", "cool"], fonts: ["Anton", "Syne", "Archivo Black"], layouts: ["left", "editorial"],
     composition: "título enorme, fotos da estrutura, modalidades e chamada para a aula experimental",

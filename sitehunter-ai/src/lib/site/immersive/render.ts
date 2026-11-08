@@ -5,6 +5,7 @@ import { realRuntime } from "./realRuntime";
 import { arcRuntime } from "./arcRuntime";
 import { isAutoRetailText, nicheOf } from "../nicheProfile";
 import { designDirectionFor } from "../direction";
+import { FX_FOR, chapterNavHtml, extrasCss, extrasRuntime, motionButtonHtml, paletteHtml, storyHtml, type PalAction } from "./extras";
 import { GALLERY_CLASS, WITH_MARQUEE, archCss, archHero, archServices, readableOn, type ArchCtx } from "./archetypes";
 import { SPLINE_VIEWER_SRC, isSplineUrl, splineRuntime } from "../spline";
 import { GLTF_ASSETS, assetForModel } from "./kinds";
@@ -201,7 +202,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     esc, heroId: hero?.id ?? "inicio", proposal, wordsHtml: words(proposal), brandFull: brandFull ?? "", brand, lede, where, pill, acts, media,
     bgPic: heroImg ? picture(heroImg, "100vw", { eager: true }) : "", caption: heroImg ? imageCaption(heroImg, "p", "cine-cap") : "",
     statusHtml: statusPill("in-hero"), todayStr: todayStr ?? "", address: b.address ?? null, mapsHref: mapsHref(c) ?? "", contacts: contactLines,
-    niche: { label: niche.label, panelTitle: niche.panelTitle, panelCta: niche.panelCta, chips: niche.chips }, svcItems, steps: dirX.steps ?? [],
+    niche: { label: niche.label, panelTitle: niche.panelTitle, panelCta: niche.panelCta, chips: niche.chips }, svcItems, steps: [], geo: b.lat != null && b.lng != null ? { lat: b.lat, lng: b.lng } : null,
     seed, layout: k.layout, hasPhoto: !!heroImg, arrow,
   };
   const heroKind = arch === "arc" ? kind : "x";
@@ -230,7 +231,11 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   ${panel}
 </section>`;
 
-  const heroOut = arch === "arc" ? heroHtml : archHero(arch, archCtx);
+  const fxPreset = FX_FOR[arch];
+  const fxColor = arch === "display" ? readableOn(P.accent) : P.accent;
+  const heroRaw = arch === "arc" ? heroHtml : archHero(arch, archCtx);
+  // Campo de partículas do herói (atrás do conteúdo): reage ao ponteiro, pausa fora da tela e quando o visitante pede.
+  const heroOut = fxPreset === "none" ? heroRaw : heroRaw.replace(/^(\s*<section[^>]*>)/, `$1\n  <canvas class="fx" data-fx aria-hidden="true"></canvas>`);
 
   // ---------- faixa em movimento: serviços reais + tipologia do ramo ----------
   const marqueeWords = [...chips, ...k.highlights].filter(Boolean).slice(0, 10);
@@ -252,6 +257,11 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
       ? `<section id="${esc(svc.id)}" class="rail" aria-labelledby="h-svc" data-rail style="--n:${Math.min(svcItems.length, 6)}"><div class="rail-sticky">${head}<ol class="rail-track" data-rail-track>${cards}</ol><div class="rail-bar" aria-hidden="true"><i data-rail-bar></i></div></div></section>`
       : `<section id="${esc(svc.id)}" class="sec" aria-labelledby="h-svc">${head}<ol class="cards">${cards}</ol></section>`);
   }
+  // ---------- passos fixados na rolagem (o que o visitante faz, em ordem) ----------
+  const stepsTitle = ["oficina", "funilaria", "vistoria", "construcao"].includes(dirX.key) ? "Como pedir o orçamento" : ["restaurante", "pizzaria", "hamburgueria"].includes(dirX.key) ? "Como pedir" : "Como funciona";
+  const story = storyHtml(dirX.steps ?? [], stepsTitle, "Em poucos passos");
+  if (story) parts.push(story);
+
   // ---------- frase de destaque: as palavras acendem conforme a rolagem (sem texto novo: usa a frase do ramo e o nome) ----------
   const stmt = `${niche.tagline.replace(/[.!?]+$/, "")}. ${brand}.`;
   parts.push(`<section class="stmt" data-stmt aria-label="${esc(stmt)}"><p class="stmt-text" aria-hidden="true">${stmt.split(/\s+/).filter(Boolean).map((w) => `<span class="sw">${esc(w)}</span>`).join(" ")}</p></section>`);
@@ -361,7 +371,20 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     b.address ? `<a href="${esc(mapsHref(c))}" target="_blank" rel="noopener noreferrer">Como chegar</a>` : "",
   ].filter(Boolean);
 
-  const nav = navItems.slice(0, 5).map((x) => `<a href="#${esc(x.id)}">${esc(x.label)}</a>`).join("");
+  const nav = navItems.slice(0, 5).map((x) => `<a href="#${esc(x.id)}">${esc(x.label)}</a>`).join("") + `<button type="button" class="pal-btn" data-pal-open aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">Atalhos <kbd>Ctrl K</kbd></button>`;
+  const palRaw: (PalAction | null)[] = [
+    wa ? { label: "Chamar no WhatsApp", hint: prettyPhone(wa), href: `https://wa.me/${wa}?text=${encodeURIComponent(`Olá! Vim pelo site da ${b.name}.`)}`, external: true, keys: "whatsapp zap mensagem conversar" } : null,
+    b.phone ? { label: "Ligar agora", hint: showPhone(b.phone), href: telHref(b.phone), keys: "telefone ligar chamar" } : null,
+    b.address ? { label: "Como chegar", hint: b.address.split("·").slice(0, 2).join(" ·"), href: mapsHref(c) ?? undefined, external: true, keys: "mapa endereço rota localização chegar" } : null,
+    b.email ? { label: "Enviar e-mail", hint: b.email, href: `mailto:${b.email}`, keys: "email correio" } : null,
+    b.instagram ? { label: "Ver no Instagram", href: safeUrl(b.instagram), external: true, keys: "instagram redes social" } : null,
+    { label: "Ver horários", hint: "Funcionamento", href: `#${hours?.id ?? contactId}`, keys: "horario aberto fechado funcionamento" },
+    ...navItems.filter((x) => x.id !== contactId).slice(0, 5).map((x) => ({ label: x.label, hint: "Ir para a seção", href: `#${x.id}`, keys: "seção ir ver" })),
+    b.phone ? { label: "Copiar telefone", hint: showPhone(b.phone), action: "copy" as const, copy: showPhone(b.phone), keys: "copiar número telefone" } : null,
+    { label: "Pausar animações", hint: "Lembrado neste aparelho", action: "motion" as const, keys: "movimento animação reduzir pausar parar" },
+  ];
+  const palActions = palRaw.filter((x): x is PalAction => !!x && (!!x.href || !!x.action));
+  const cnav = chapterNavHtml([{ id: hero?.id ?? "inicio", label: "Início" }, ...navItems]);
   const shown = [...used].map((src) => pool.find((p) => p.src === src)!).filter(Boolean);
   const credits = [...new Map(shown.map((i) => [i.src, i])).values()];
   const assetInfo = asset ? GLTF_ASSETS[asset] : null;
@@ -683,6 +706,8 @@ ${ivory ? "" : `body::after{content:"";position:fixed;inset:0;z-index:50;pointer
 }
 :root{--on-ac:${readableOn(P.accent)}}
 ${archCss(arch, dw, up)}
+${extrasCss(arch, dw)}
+body.pal-open{overflow:hidden}.menu nav .pal-btn{margin:6px 8px;justify-content:center}
 </style>
 </head>
 <body class="no-js a-${arch}${heroKind === "cinema" ? " on-cinema" : ""}">
@@ -690,6 +715,7 @@ ${opts.previewRibbon ? `<div class="ribbon">${esc(opts.previewRibbon)}</div>` : 
 <a class="skip" href="#conteudo">Pular para o conteúdo</a>
 <div class="progress" aria-hidden="true"></div>
 <header class="top"><a class="brand" href="#${esc(hero?.id ?? "inicio")}">${esc(brand)}</a><nav class="nav" aria-label="Seções">${nav}</nav>${statusPill()}${mainBtn ? button(mainBtn, c, "btn") : ""}<details class="menu"><summary>Menu</summary><nav aria-label="Seções">${nav}${mainBtn ? button(mainBtn, c, "") : ""}</nav></details></header>
+${cnav}
 <main id="conteudo">
 ${heroOut}
 ${marquee}
@@ -703,11 +729,14 @@ ${parts.join("\n")}
   ${splineUrl ? `<p>Cena 3D interativa criada no <a href="https://spline.design" target="_blank" rel="noopener noreferrer">Spline</a>, ilustrativa (não é produto da empresa).</p>` : ""}
   ${assetInfo ? `<p>Modelo 3D escaneado de um objeto real: ${esc(assetInfo.label)}, por ${esc(assetInfo.authors)} (Poly Haven, CC0), <a href="${esc(assetInfo.url)}" target="_blank" rel="noopener noreferrer">fonte</a>. Ilustrativo, não é produto da empresa.</p>` : ""}
   ${schedule ? `<p>Status de aberto/fechado calculado pelo horário publicado, no fuso ${esc(tz!)}; feriados não são considerados.</p>` : ""}
+  <p>${motionButtonHtml}</p>
   <p>© ${new Date().getFullYear()} ${esc(b.name)}</p>
   ${opts.footerCredit ? `<p>Site criado com SiteHunter AI</p>` : ""}
 </footer>
 ${dock.length ? `<nav class="dock" aria-label="Contato rápido">${dock.join("")}</nav>` : ""}
 <script>var __name=function(f){return f};(${motionRuntime.toString()})(${JSON.stringify({ amp })});</script>
+${paletteHtml(palActions)}
+<script>var __name=function(f){return f};(${extrasRuntime.toString()})(${JSON.stringify({ fx: fxPreset === "none" ? null : { preset: fxPreset, color: fxColor } })});</script>
 ${splineUrl ? `<script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${splineRuntime.toString()})(${JSON.stringify({ src: SPLINE_VIEWER_SRC, url: splineUrl, skip: "" })});});</script>` : ""}
 ${heroKind === "arc" ? `<script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${arcRuntime.toString()})(${JSON.stringify(arcCfg)});});</script>` : ""}
 ${schedule && tz ? `<script>var __name=function(f){return f};(${hoursRuntime.toString()})(${JSON.stringify({ schedule, tz })});</script>` : ""}

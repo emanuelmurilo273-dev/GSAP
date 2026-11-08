@@ -73,6 +73,7 @@ export function arcRuntime(cfg) {
 
   function frame(now) {
     raf = 0;
+    if (document.body.classList.contains("paused") && !reduce) { raf = visible ? requestAnimationFrame(frame) : 0; return; } // animações pausadas pelo visitante
     if (!glowL) { if (!reduce && visible) raf = requestAnimationFrame(frame); return; } // ainda sem layout: tenta no próximo quadro
     if (now - lastDraw < 30) { if (!reduce && visible) raf = requestAnimationFrame(frame); return; }
     lastDraw = now;
