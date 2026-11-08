@@ -356,7 +356,7 @@ function ImagePicker({ onPick, onClose }: { onPick: (i: SiteImage) => void; onCl
 
 // ---------- Editor principal ----------
 export function Editor(props: {
-  projectId: string; projectName: string; initialContent: SiteContent; aiGenerated: boolean; premium: boolean; imagesEnabled: boolean; rootDomain: string;
+  projectId: string; projectName: string; initialContent: SiteContent; aiGenerated: boolean; premium: boolean; imagesEnabled: boolean; rootDomain: string; hosting?: { kind: "vercel" | "github"; prefix: string } | null;
   companyPhone: string | null; initialOutreach: string; initialWhatsapp: string | null; publication: Pub; updatedAt: string;
   companyImages?: CompanyImage[]; segmentLabel?: string; niche?: string | null; isDemo?: boolean; leadId?: string | null; lang?: string;
 }) {
@@ -589,7 +589,7 @@ export function Editor(props: {
               </div>
             )}
 
-            {tab === "publish" && <PublishPanel projectId={props.projectId} pub={pub} setPub={setPub} publish={publish} unpublish={unpublish} busy={busy} premium={props.premium} rootDomain={props.rootDomain} defaultSlug={content.siteName} onRestored={() => location.reload()} />}
+            {tab === "publish" && <PublishPanel projectId={props.projectId} pub={pub} setPub={setPub} publish={publish} unpublish={unpublish} busy={busy} premium={props.premium} rootDomain={props.rootDomain} hosting={props.hosting ?? null} defaultSlug={content.siteName} onRestored={() => location.reload()} />}
 
             {tab === "sales" && <SalesPanel projectId={props.projectId} premium={props.premium} hasPhone={!!props.companyPhone} initialMessage={props.initialOutreach} initialWhatsapp={props.initialWhatsapp} />}
           </div>
@@ -616,7 +616,8 @@ export function Editor(props: {
   );
 }
 
-function PublishPanel({ projectId, pub, setPub, publish, unpublish, busy, premium, rootDomain, defaultSlug, onRestored }: {
+function PublishPanel({ projectId, pub, setPub, publish, unpublish, busy, premium, rootDomain, hosting, defaultSlug, onRestored }: {
+  hosting?: { kind: "vercel" | "github"; prefix: string } | null;
   projectId: string; pub: Pub; setPub: (p: Pub) => void; publish: (slug?: string) => Promise<void>; unpublish: () => Promise<void>; busy: boolean; premium: boolean; rootDomain: string; defaultSlug: string; onRestored: () => void;
 }) {
   const [slug, setSlug] = useState(pub?.slug ?? defaultSlug.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48));
@@ -654,7 +655,7 @@ function PublishPanel({ projectId, pub, setPub, publish, unpublish, busy, premiu
 
   return (
     <div className="space-y-4">
-      <VisibilityCard pub={pub} slug={slug} setSlug={setSlug} rootDomain={rootDomain} busy={busy} premium={premium} publish={publish} unpublish={unpublish} />
+      <VisibilityCard pub={pub} slug={slug} setSlug={setSlug} rootDomain={rootDomain} hosting={hosting ?? null} busy={busy} premium={premium} publish={publish} unpublish={unpublish} />
 
       <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
         <span className="label">Domínio próprio (opcional)</span>
@@ -697,13 +698,15 @@ function ContrastNote({ theme }: { theme: SiteContent["theme"] }) {
 }
 
 /** Visibilidade: prévia privada (padrão) × site público por link. Publicar ou retirar exige confirmação. */
-function VisibilityCard({ pub, slug, setSlug, rootDomain, busy, premium, publish, unpublish }: {
+function VisibilityCard({ pub, slug, setSlug, rootDomain, hosting, busy, premium, publish, unpublish }: {
+  hosting: { kind: "vercel" | "github"; prefix: string } | null;
   pub: Pub; slug: string; setSlug: (s: string) => void; rootDomain: string; busy: boolean; premium: boolean; publish: (slug?: string) => Promise<void>; unpublish: () => Promise<void>;
 }) {
   const [step, setStep] = useState<null | "publish" | "unpublish">(null);
   const isPublic = pub?.status === "PUBLISHED";
   const suspended = pub?.status === "SUSPENDED";
-  const preview = `${slug || "seu-site"}.${rootDomain}`;
+  const vercel = hosting?.kind === "vercel";
+  const preview = vercel ? `${hosting!.prefix}-${slug || "seu-site"}.vercel.app` : `${slug || "seu-site"}.${rootDomain}`;
   return (
     <div className={`relative overflow-hidden rounded-xl border p-4 transition-colors duration-500 ${isPublic ? "border-emerald-400/30 bg-emerald-500/[0.06]" : "border-white/10 bg-white/[0.02]"}`}>
       <div className="flex items-start gap-3">
@@ -737,7 +740,7 @@ function VisibilityCard({ pub, slug, setSlug, rootDomain, busy, premium, publish
           <span className="label">Endereço do link (quando liberar)</span>
           <div className="flex items-center gap-1 text-sm">
             <input className="input" value={slug} maxLength={48} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} aria-label="Endereço do link" />
-            <span className="shrink-0 text-slate-500">.{rootDomain}</span>
+            <span className="shrink-0 text-slate-500">{vercel ? `.vercel.app (começa com ${hosting!.prefix}-)` : `.${rootDomain}`}</span>
           </div>
         </label>
       )}
@@ -746,7 +749,7 @@ function VisibilityCard({ pub, slug, setSlug, rootDomain, busy, premium, publish
         <div className="mt-4 space-y-3 rounded-xl border border-amber-400/30 bg-amber-500/[0.07] p-3 text-sm animate-fade-up" role="alertdialog" aria-label="Confirmar link público">
           <p className="font-semibold text-amber-100">Liberar link público?</p>
           <ul className="list-disc space-y-1 pl-5 text-xs text-amber-100/90">
-            <li>Fica público: <b>somente esta página</b>, em {preview}.</li>
+            <li>Fica público: <b>somente esta página</b>, em {preview}{vercel ? ", um endereço da Vercel que abre em qualquer celular" : ""}.</li>
             <li>Continuam privados: painel, leads, rascunhos, outras prévias e configurações.</li>
             <li>A página pede aos buscadores que não a indexem. Você pode retirar o acesso a qualquer momento.</li>
           </ul>

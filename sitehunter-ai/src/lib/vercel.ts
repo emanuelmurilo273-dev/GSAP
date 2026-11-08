@@ -23,6 +23,23 @@ export function vercelConfig(): VercelConfig | null {
   return { token, teamId: team && /^[\w-]{3,64}$/.test(team) ? team : null, prefix: (env.vercelProjectPrefix ?? "hunter").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 20) || "hunter" };
 }
 
+const teamCache = new Map<string, string | null>();
+/** Sem VERCEL_TEAM_ID, descobre o escopo da conta pelo próprio token (a API exige o teamId até em conta pessoal). */
+export async function withTeam(cfg: VercelConfig, f: Fetcher): Promise<VercelConfig> {
+  if (cfg.teamId) return cfg;
+  const key = createHash("sha256").update(cfg.token).digest("hex");
+  if (!teamCache.has(key)) {
+    let id: string | null = null;
+    try {
+      const r = await f(`${API}/v2/user`, { headers: { Authorization: `Bearer ${cfg.token}` }, signal: AbortSignal.timeout(20_000) });
+      if (r.ok) { const d = (await r.json()) as { user?: { defaultTeamId?: string | null } }; id = d.user?.defaultTeamId ?? null; }
+      else if (r.status === 401 || r.status === 403) throw explain(r.status, null, "ler a conta do token");
+    } catch (e) { if (e instanceof VercelError) throw e; }
+    teamCache.set(key, id);
+  }
+  return { ...cfg, teamId: teamCache.get(key) ?? null };
+}
+
 export class VercelError extends Error {
   constructor(message: string, readonly status: number, readonly code: string | null = null) { super(message); }
 }
@@ -95,9 +112,10 @@ export type VercelDeploy = { url: string; project: string; deploymentId: string;
 
 /** Envia a prévia (nova ou atualização) e devolve a URL pública estável, já verificada. */
 export async function deployPreview(content: SiteContent, slug: string, known: string | null, deps: { cfg?: VercelConfig | null; f?: Fetcher; wait?: (ms: number) => Promise<void> } = {}): Promise<VercelDeploy | null> {
-  const cfg = deps.cfg === undefined ? vercelConfig() : deps.cfg;
-  if (!cfg) return null;
+  const base = deps.cfg === undefined ? vercelConfig() : deps.cfg;
+  if (!base) return null;
   const f = deps.f ?? fetch, wait = deps.wait ?? sleep;
+  const cfg = await withTeam(base, f);
   const project = await pickProject(cfg, slug, known, f);
   const bundle = await buildRootBundle(content);
   bundle.push({ path: "vercel.json", data: Buffer.from(VERCEL_JSON) });
@@ -123,9 +141,11 @@ export async function deployPreview(content: SiteContent, slug: string, known: s
   const pr = await call(cfg, f, "PATCH", `/v9/projects/${encodeURIComponent(project)}`, { json: { ssoProtection: null } });
   if (!pr.ok) log("warn", "vercel_protection_not_disabled", { status: pr.status });
 
-  // URL estável do projeto (domínio de produção); o endereço único do deploy serve de reserva.
-  const alias = (dep.alias ?? []).filter((a) => /\.vercel\.app$/.test(a)).sort((a, b) => a.length - b.length)[0];
-  const url = `https://${alias ?? `${project}.vercel.app`}`;
+  // URL estável do projeto: o domínio curto <projeto>.vercel.app (domínios do projeto + aliases do deploy; o mais curto vence).
+  const dr = await call(cfg, f, "GET", `/v9/projects/${encodeURIComponent(project)}/domains`);
+  const domains = dr.ok ? ((await dr.json()) as { domains?: { name: string }[] }).domains?.map((d) => d.name) ?? [] : [];
+  const pick = [...domains, ...(dep.alias ?? [])].filter((a) => /\.vercel\.app$/.test(a)).sort((a, b) => a.length - b.length)[0];
+  const url = `https://${pick ?? `${project}.vercel.app`}`;
   const v = await verifyPublicUrl(url, { f, wait });
   return { url, project, deploymentId: dep.id, verified: v.ok, verifiedStatus: v.status };
 }
@@ -147,8 +167,10 @@ export async function verifyPublicUrl(url: string, deps: { f?: Fetcher; wait?: (
 
 /** Apaga o projeto do site na Vercel (a URL deixa de abrir). */
 export async function removePreview(project: string, deps: { cfg?: VercelConfig | null; f?: Fetcher } = {}): Promise<void> {
-  const cfg = deps.cfg === undefined ? vercelConfig() : deps.cfg;
-  if (!cfg) return;
-  const r = await call(cfg, deps.f ?? fetch, "DELETE", `/v9/projects/${encodeURIComponent(project)}`);
+  const base = deps.cfg === undefined ? vercelConfig() : deps.cfg;
+  if (!base) return;
+  const f = deps.f ?? fetch;
+  const cfg = await withTeam(base, f);
+  const r = await call(cfg, f, "DELETE", `/v9/projects/${encodeURIComponent(project)}`);
   if (!r.ok && r.status !== 404) log("warn", "vercel_remove_failed", { status: r.status });
 }

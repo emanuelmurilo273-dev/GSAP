@@ -4,6 +4,8 @@ import { pageUser } from "@/lib/pageAuth";
 import { SiteContentSchema } from "@/lib/site/types";
 import { publicUrlFor, pathUrlFor, shareUrlFor } from "@/lib/publish";
 import { env } from "@/lib/env";
+import { vercelConfig } from "@/lib/vercel";
+import { hostingConfig } from "@/lib/previewHosting";
 import { imagesConfigured } from "@/lib/images";
 import { whatsappLink } from "@/lib/whatsapp";
 import { Editor } from "./Editor";
@@ -32,6 +34,7 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
       premium={user.access.premium}
       imagesEnabled={imagesConfigured()}
       rootDomain={env.rootDomain}
+      hosting={vercelConfig() ? { kind: "vercel" as const, prefix: vercelConfig()!.prefix } : hostingConfig() ? { kind: "github" as const, prefix: "" } : null}
       companyPhone={project.company?.phone ?? null}
       initialOutreach={project.outreachMessage ?? ""}
       initialWhatsapp={whatsappLink(project.company?.phone, project.outreachMessage ?? undefined)}

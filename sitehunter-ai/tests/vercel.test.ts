@@ -21,6 +21,7 @@ function fakeVercel(opts: { projectExists?: boolean; deployStatus?: number; veri
     const j = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json" } });
     if (url.hostname !== "api.vercel.com") return new Response(opts.verifyStatus && opts.verifyStatus !== 200 ? "erro" : "<!doctype html><title>Zé Pneus</title>", { status: opts.verifyStatus ?? 200 });
     const p = url.pathname, m = init.method ?? "GET";
+    if (m === "GET" && p.endsWith("/domains")) return j({ domains: [{ name: "hunter-ze-pneus.vercel.app" }] });
     if (m === "GET" && p.startsWith("/v9/projects/")) return opts.projectExists ? j({ id: "prj_x" }) : j({ error: { code: "not_found" } }, 404);
     if (m === "POST" && p === "/v2/files") { uploaded.add(headers["x-vercel-digest"]!); return j({}); }
     if (m === "POST" && p === "/v13/deployments") return (opts.deployStatus ?? 200) === 200 ? j({ id: "dpl_1", url: "hunter-ze-x1-team.vercel.app", readyState: "QUEUED" }) : j({ error: { code: "forbidden", message: `token ${TOKEN} sem permissão` } }, opts.deployStatus);
@@ -74,7 +75,7 @@ describe("Publicação de prévias na Vercel (API oficial simulada)", () => {
     const v = fakeVercel({ projectExists: true });
     const r = (await deployPreview(content(), "ze-pneus", "hunter-ze-pneus", { cfg, f: v.f, wait: noWait }))!;
     expect(r.url).toBe("https://hunter-ze-pneus.vercel.app");
-    expect(v.calls.filter((c) => c.method === "GET" && c.url.pathname.startsWith("/v9/projects/"))).toHaveLength(0);
+    expect(v.calls.filter((c) => c.method === "GET" && c.url.pathname.startsWith("/v9/projects/") && !c.url.pathname.endsWith("/domains"))).toHaveLength(0);
   });
 
   it("nome de projeto: evita sobrescrever um projeto alheio de mesmo nome", async () => {
