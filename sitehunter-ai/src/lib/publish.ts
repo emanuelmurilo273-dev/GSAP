@@ -103,7 +103,7 @@ export async function publishProject(project: Project, userId: string, desiredSl
 export async function unpublishProject(projectId: string, userId: string) {
   const pub = await prisma.publication.findFirst({ where: { projectId, userId } });
   if (!pub) throw new HttpError(404, "Este site ainda não foi publicado.");
-  await prisma.publication.update({ where: { id: pub.id }, data: { status: "UNPUBLISHED", externalUrl: null, externalProvider: null, externalVerifiedAt: null } });
+  await prisma.publication.update({ where: { id: pub.id }, data: { status: "UNPUBLISHED", externalUrl: null, externalProvider: null, externalVerifiedAt: null, vercelProject: null } });
   if (pub.vercelProject) await removePreview(pub.vercelProject).catch((e) => log("warn", "vercel_remove_failed", { error: String(e).slice(0, 200) }));
   await unpublishExternal(pub.slug).catch((e) => log("warn", "external_unpublish_failed", { error: String(e).slice(0, 200) }));
   await audit("site_unpublished", { userId, meta: { projectId } });

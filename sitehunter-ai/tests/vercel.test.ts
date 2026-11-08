@@ -133,7 +133,7 @@ describe("Publicar e despublicar pelo fluxo do Hunter com a Vercel", () => {
     expect(v.calls.filter((c) => c.method === "POST" && c.url.pathname === "/v13/deployments")).toHaveLength(2);
     await unpublishProject(project.id, u.id);
     const gone = await prisma.publication.findUniqueOrThrow({ where: { projectId: project.id } });
-    expect(gone).toMatchObject({ status: "UNPUBLISHED", externalUrl: null, externalProvider: null });
+    expect(gone).toMatchObject({ status: "UNPUBLISHED", externalUrl: null, externalProvider: null, vercelProject: null }); // projeto apagado: o próximo envio cria um novo, sem herdar o nome
     expect(v.calls.some((c) => c.method === "DELETE" && c.url.pathname === `/v9/projects/${pub.vercelProject}`)).toBe(true);
   });
 

@@ -165,13 +165,17 @@ export function readableOn(hex: string): string {
 
 export function archCss(a: Archetype, dw: number | string, up: boolean): string {
   const caps = up ? "text-transform:uppercase;" : "";
-  const common = `.hx{position:relative}
+  const common = `@media(max-width:860px){.a-display .about,.a-poster .about,.a-plate .about,.a-spec .about,.a-calm .about,.a-showroom .about{grid-template-columns:1fr}.a-display .about-media,.a-poster .about-media{order:0}.a-poster .about-media .ph{aspect-ratio:4/4.4}}
+.hx{position:relative}
 .hx .h1{overflow-wrap:break-word}
 @keyframes hxspin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.hx-disc::before,.hx-sticker{animation:none}.hx-card{transform:none}.gal-strip{scroll-behavior:auto}}`;
   const per: Record<Archetype, string> = {
     arc: "",
-    showroom: `.a-showroom .top:not(.solid){color:#fff}.a-showroom .top:not(.solid) .nav{color:rgba(255,255,255,.85)}
+    showroom: `.a-showroom .about{grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);gap:clamp(24px,4vw,64px)}
+.a-showroom .about-media .ph{aspect-ratio:16/10}.a-showroom .about-copy .h2{${caps}letter-spacing:-.03em}
+.a-showroom .stmt-text{text-align:left;max-width:none;margin:0;${caps}font-size:calc(clamp(40px,8.4vw,150px) * var(--ts))}.a-showroom .stmt{place-items:start;padding-inline:var(--gut)}
+.a-showroom .top:not(.solid){color:#fff}.a-showroom .top:not(.solid) .nav{color:rgba(255,255,255,.85)}
 .hx-showroom{min-height:100svh;margin-top:-76px;display:flex;align-items:flex-end;overflow:hidden;color:#fff}
 .hx-bg{position:absolute;inset:-6% 0;will-change:transform}.hx-bg img{width:100%;height:100%;object-fit:cover}
 .hx-bg.none{background:radial-gradient(80% 60% at 70% 30%,color-mix(in srgb,var(--ac) 40%,var(--bg)),var(--bg))}
@@ -191,8 +195,11 @@ export function archCss(a: Archetype, dw: number | string, up: boolean): string 
 .sv-rows .n{font:500 14px var(--fb);color:var(--ac);letter-spacing:.12em}
 .sv-rows h3{font:${dw} calc(clamp(26px,3.6vw,54px) * var(--ts))/1 var(--fd);letter-spacing:-.02em;${caps}}
 .sv-rows p{color:var(--mu)}.sv-rows i{color:var(--ac);transition:transform .4s var(--ease)}.sv-rows li:hover i{transform:translateX(6px)}
-@media(max-width:820px){.sv-rows li{grid-template-columns:44px 1fr;gap:6px 16px}.sv-rows p{grid-column:2}.sv-rows i{display:none}}`,
-    display: `.a-display .top:not(.solid){color:var(--on-ac);background:var(--ac)}.a-display .top:not(.solid) .brand,.a-display .top:not(.solid) .nav,.a-display .top:not(.solid) .nav a{color:var(--on-ac)}.a-display .top:not(.solid) .nav{opacity:.9}
+@media(max-width:820px){.a-showroom .about{grid-template-columns:1fr}.sv-rows li{grid-template-columns:44px 1fr;gap:6px 16px}.sv-rows p{grid-column:2}.sv-rows i{display:none}}`,
+    display: `.a-display .about{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}.a-display .about-media{transform:rotate(-2.4deg);order:2}.a-display .about-media .ph{aspect-ratio:1;box-shadow:12px 12px 0 var(--ac)}
+.a-display .about-copy{order:1}.a-display .about-copy .h2{${caps}font-size:calc(clamp(34px,5.4vw,92px) * var(--ts));line-height:.9}
+.a-display .stmt-text{${caps}font-size:calc(clamp(44px,10vw,180px) * var(--ts));line-height:.88;max-width:14ch}.a-display .stmt-js .sw.on{color:var(--ac)}
+.a-display .top:not(.solid){color:var(--on-ac);background:var(--ac)}.a-display .top:not(.solid) .brand,.a-display .top:not(.solid) .nav,.a-display .top:not(.solid) .nav a{color:var(--on-ac)}.a-display .top:not(.solid) .nav{opacity:.9}
 .a-display .top:not(.solid) .status{background:transparent;border-color:color-mix(in srgb,var(--on-ac) 40%,transparent);color:var(--on-ac)}
 .a-display .top:not(.solid) .btn{background:var(--on-ac);color:var(--ac);border-color:var(--on-ac)}
 .a-display .top:not(.solid) .menu summary{color:var(--on-ac)}
@@ -216,7 +223,10 @@ export function archCss(a: Archetype, dw: number | string, up: boolean): string 
 .sv-stack .big{font:${dw} clamp(70px,11vw,190px)/.8 var(--fd);color:transparent;-webkit-text-stroke:2px var(--ac)}
 .sv-stack h3{font:${dw} calc(clamp(26px,3.4vw,52px) * var(--ts))/1 var(--fd);letter-spacing:-.02em;${caps}margin-bottom:12px}.sv-stack p{color:var(--mu);max-width:48ch}
 @media(max-width:700px){.hx-row{grid-template-columns:1fr}.sv-stack li{grid-template-columns:1fr;position:relative;top:auto}.hx-sticker{display:none}}`,
-    poster: `.hx-poster{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(24px,5vw,88px);align-items:center;max-width:1520px;margin:0 auto;padding:clamp(28px,4vw,56px) var(--gut) clamp(40px,6vw,96px);min-height:calc(100svh - 76px)}
+    poster: `.a-poster .about{grid-template-columns:minmax(0,1fr) minmax(0,.8fr)}.a-poster .about-media{order:2}.a-poster .about-media .ph{border-radius:999px 999px 24px 24px;aspect-ratio:3/4}
+.a-poster .about-copy .prose p:first-child::first-letter{font:${dw} 4.6em/.8 var(--fd);float:left;padding:.08em .12em 0 0;color:var(--ac)}
+.a-poster .stmt-text{font-style:italic;font-weight:400;max-width:18ch}
+.hx-poster{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(24px,5vw,88px);align-items:center;max-width:1520px;margin:0 auto;padding:clamp(28px,4vw,56px) var(--gut) clamp(40px,6vw,96px);min-height:calc(100svh - 76px)}
 .hx-poster.flip .hx-text{order:2}
 .hx-poster .h1{font-size:calc(clamp(44px,6.8vw,124px) * var(--ts));line-height:.94;font-weight:500;letter-spacing:-.025em}
 .hx-chap{display:flex;gap:14px;align-items:center;font:600 12px var(--fb);letter-spacing:.22em;text-transform:uppercase;color:var(--ac);margin-bottom:22px}
@@ -235,7 +245,9 @@ export function archCss(a: Archetype, dw: number | string, up: boolean): string 
 .sv-leaders .r{font:italic 500 18px var(--fd);color:var(--ac);letter-spacing:.08em}
 .sv-leaders p{grid-column:1/-1;margin-top:6px;color:var(--mu);max-width:58ch}
 @media(max-width:860px){.hx-poster{grid-template-columns:1fr;min-height:0}.hx-poster.flip .hx-text{order:0}.hx-arch-in{aspect-ratio:4/4.4;outline-offset:8px}.hx-vert{display:none}}`,
-    plate: `.hx-plate{display:grid;justify-items:center;text-align:center;overflow:hidden;padding:clamp(24px,4vw,56px) var(--gut) clamp(40px,6vw,88px)}
+    plate: `.a-plate .about{grid-template-columns:minmax(0,.8fr) minmax(0,1fr)}.a-plate .about-media .ph{border-radius:50%;aspect-ratio:1;box-shadow:0 0 0 10px color-mix(in srgb,var(--ac) 22%,transparent)}
+.a-plate .about-copy{text-align:left}.a-plate .stmt-text{max-width:16ch}
+.hx-plate{display:grid;justify-items:center;text-align:center;overflow:hidden;padding:clamp(24px,4vw,56px) var(--gut) clamp(40px,6vw,88px)}
 .hx-plate .pill{margin-bottom:10px}
 .hx-disc{position:relative;width:min(74vw,600px);aspect-ratio:1;margin:18px auto 0}
 .hx-disc::before{content:"";position:absolute;inset:-5%;border:1px dashed color-mix(in srgb,var(--ac) 65%,transparent);border-radius:50%;animation:hxspin 70s linear infinite}
@@ -246,7 +258,10 @@ export function archCss(a: Archetype, dw: number | string, up: boolean): string 
 .sv-leaders-wrap{max-width:900px;margin-inline:auto}.sv-leaders-wrap .sec-head{text-align:center}.sv-leaders-wrap .kicker{justify-content:center}
 .a-plate .sv-leaders li{grid-template-columns:auto 1fr auto}
 .a-plate .gal-strip,.a-showroom .gal-strip{margin-top:8px}`,
-    spec: `.hx-spec{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(20px,3vw,52px);align-items:start;max-width:1520px;margin:0 auto;padding:0 var(--gut) clamp(40px,5vw,72px)}
+    spec: `.a-spec .about{grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);border:1px solid var(--line);padding:clamp(20px,3vw,40px);gap:clamp(20px,3vw,48px)}
+.a-spec .about-media .ph{aspect-ratio:4/3;border-radius:4px;filter:saturate(.85) contrast(1.05)}.a-spec .about-copy .h2{${caps}font-size:calc(clamp(28px,3.6vw,56px) * var(--ts))}
+.a-spec .about-copy .kicker{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.a-spec .stmt-text{${caps}text-align:left;font-size:calc(clamp(34px,6.4vw,110px) * var(--ts));max-width:none}.a-spec .stmt{place-items:start;padding-inline:var(--gut)}
+.hx-spec{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(20px,3vw,52px);align-items:start;max-width:1520px;margin:0 auto;padding:0 var(--gut) clamp(40px,5vw,72px)}
 .hx-hazard{grid-column:1/-1;height:12px;margin:0 calc(-1 * var(--gut)) clamp(22px,3vw,44px);background:repeating-linear-gradient(-45deg,var(--ac) 0 14px,#111 14px 28px)}
 .hx-os{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}.hx-os span{font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--ac);color:var(--ac);padding:6px 10px}
 .hx-spec .h1{font-size:calc(clamp(42px,6.2vw,112px) * var(--ts));line-height:.95;text-transform:uppercase;letter-spacing:-.02em}
@@ -266,7 +281,9 @@ export function archCss(a: Archetype, dw: number | string, up: boolean): string 
 .steps{margin-top:clamp(36px,5vw,72px)}.steps ol{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:clamp(16px,2vw,28px);margin-top:18px}
 .steps li{padding-top:18px;border-top:3px solid var(--ac)}.steps b{font:500 44px/1 ui-monospace,monospace;color:var(--ac)}.steps h3{font:${dw} calc(22px * var(--ts))/1.2 var(--fd);margin:10px 0 6px}.steps p{color:var(--mu)}
 @media(max-width:900px){.hx-spec{grid-template-columns:1fr}}`,
-    calm: `.hx-calm{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,5vw,80px);align-items:center;max-width:1520px;margin:0 auto;padding:clamp(20px,4vw,64px) var(--gut) clamp(40px,6vw,88px);min-height:calc(100svh - 90px)}
+    calm: `.a-calm .about-media .ph{border-radius:40px;aspect-ratio:4/4.6}.a-calm .about{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}
+.a-calm .about-copy{padding:clamp(8px,2vw,24px)}.a-calm .stmt{min-height:44vh}.a-calm .stmt-text{font-weight:500;max-width:22ch;font-size:calc(clamp(30px,5vw,80px) * var(--ts))}
+.hx-calm{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,5vw,80px);align-items:center;max-width:1520px;margin:0 auto;padding:clamp(20px,4vw,64px) var(--gut) clamp(40px,6vw,88px);min-height:calc(100svh - 90px)}
 .hx-calm.flip .hx-text{order:2}
 .hx-calm .h1{font-size:calc(clamp(38px,5.2vw,80px) * var(--ts));line-height:1.02;letter-spacing:-.025em}
 .hx-calm .pill{margin-bottom:22px}
