@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requirePremium, requireUser } from "@/lib/auth";
 import { json, parseJson, route } from "@/lib/http";
 import { ownProject } from "@/lib/projects";
-import { pathUrlFor, publicUrlFor, publishProject, unpublishProject } from "@/lib/publish";
+import { pathUrlFor, publicUrlFor, publishProject, shareUrlFor, unpublishProject } from "@/lib/publish";
 import { rateLimit } from "@/lib/rateLimit";
 import { HttpError } from "@/lib/http";
 
@@ -20,7 +20,7 @@ export const POST = route<Ctx>(async (req, { params }) => {
   if (b.confirmPublic !== true) throw new HttpError(400, "Confirme a liberação do link público.", "confirmation_required");
   const pub = await publishProject(project, user.id, b.slug);
   // Link para compartilhar: o público fora do app (GitHub) quando configurado; senão o do próprio app.
-  return json({ publication: { ...pub, html: undefined, url: pub.externalUrl ?? publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt), appUrl: publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt), externalUrl: pub.externalUrl, pathUrl: pathUrlFor(pub.slug) } });
+  return json({ publication: { ...pub, html: undefined, url: shareUrlFor(pub), appUrl: publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt), externalUrl: pub.externalUrl, pathUrl: pathUrlFor(pub.slug) } });
 });
 
 /** Despublicar: permitido mesmo sem assinatura ativa. */

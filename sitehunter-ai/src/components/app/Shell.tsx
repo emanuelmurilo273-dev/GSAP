@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "./Sidebar";
 import { Toaster } from "@/components/ui";
+import { AssistantPanel } from "./AssistantPanel";
 import { AmbientBackdrop, Spotlight } from "@/components/hunter/Ambient";
 import { env } from "@/lib/env";
 import { getUsage } from "@/lib/usage";
@@ -53,6 +54,7 @@ export async function Shell({ children, admin = false }: { children: React.React
         <main className="px-4 pb-28 pt-6 sm:px-8 sm:py-8 lg:pb-8">{children}</main>
       </div>
       </div>
+      <AssistantPanel />
       <Toaster />
       </div>
     </div>

@@ -283,6 +283,7 @@ export function LeadProfile({ initialLead, segments, guessedSegment, initialDraf
                     <p className="font-display mt-1 text-base font-semibold text-white">{d.name}</p>
                     <p className="mt-1 text-xs text-slate-400"><b className="text-slate-300">Público:</b> {d.audience}.</p>
                     <p className="mt-1 text-xs text-slate-400"><b className="text-slate-300">Por que combina:</b> {d.why}</p>
+                    <p className="mt-1 text-xs text-slate-400"><b className="text-slate-300">Estrutura da página:</b> {d.structure}</p>
                     <p className="mt-1 text-xs text-slate-400"><b className="text-slate-300">Composição:</b> {d.composition}. <b className="text-slate-300">Movimento:</b> {d.motion}.</p>
                     {d.refs.length > 0 ? (
                       <details className="mt-2 text-xs text-slate-400">

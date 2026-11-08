@@ -4,6 +4,8 @@ import { buildConcept, withMood } from "./concept";
 import { realRuntime } from "./realRuntime";
 import { arcRuntime } from "./arcRuntime";
 import { isAutoRetailText, nicheOf } from "../nicheProfile";
+import { designDirectionFor } from "../direction";
+import { GALLERY_CLASS, WITH_MARQUEE, archCss, archHero, archServices, readableOn, type ArchCtx } from "./archetypes";
 import { SPLINE_VIEWER_SRC, isSplineUrl, splineRuntime } from "../spline";
 import { GLTF_ASSETS, assetForModel } from "./kinds";
 import { libraryMetaBySrc } from "../photoLibrary";
@@ -192,6 +194,17 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   </div>`;
   const acts = hero?.buttons.length ? `<div class="acts rv" style="--d:4">${hero.buttons.map((x, i) => (i ? rollBtn(x, "ghost") : rollBtn(x, "hero-primary mag", true))).join("")}</div>` : "";
   const pill = `<a class="pill rv" href="#${esc(hours ? hours.id : "contato")}">${statusPill("in-pill")}<em aria-hidden="true">${arrow}</em></a>`;
+  // Estrutura da página (arquétipo) vem da direção visual do ramo; cada arquétipo troca abertura, serviços e galeria.
+  const dirX = designDirectionFor(niche.key, `${b.name} ${c.siteName} ${c.seo.description}`);
+  const arch = dirX.archetype;
+  const archCtx: ArchCtx = {
+    esc, heroId: hero?.id ?? "inicio", proposal, wordsHtml: words(proposal), brandFull: brandFull ?? "", brand, lede, where, pill, acts, media,
+    bgPic: heroImg ? picture(heroImg, "100vw", { eager: true }) : "", caption: heroImg ? imageCaption(heroImg, "p", "cine-cap") : "",
+    statusHtml: statusPill("in-hero"), todayStr: todayStr ?? "", address: b.address ?? null, mapsHref: mapsHref(c) ?? "", contacts: contactLines,
+    niche: { label: niche.label, panelTitle: niche.panelTitle, panelCta: niche.panelCta, chips: niche.chips }, svcItems, steps: dirX.steps ?? [],
+    seed, layout: k.layout, hasPhoto: !!heroImg, arrow,
+  };
+  const heroKind = arch === "arc" ? kind : "x";
   const heroHtml = kind === "cinema" && heroImg
     ? `<section id="${esc(hero?.id ?? "inicio")}" class="hero cinema" aria-labelledby="h-hero">
   <div class="cine-bg" data-par="-0.18" aria-hidden="true">${picture(heroImg, "100vw", { eager: true })}</div>
@@ -217,9 +230,11 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
   ${panel}
 </section>`;
 
+  const heroOut = arch === "arc" ? heroHtml : archHero(arch, archCtx);
+
   // ---------- faixa em movimento: serviços reais + tipologia do ramo ----------
   const marqueeWords = [...chips, ...k.highlights].filter(Boolean).slice(0, 10);
-  const marquee = marqueeWords.length >= 3 ? `<div class="marquee" aria-hidden="true"><div class="mq-track">${[0, 1].map(() => `<span>${marqueeWords.map((w) => `${esc(w)}<i>✦</i>`).join("")}</span>`).join("")}</div></div>` : "";
+  const marquee = WITH_MARQUEE[arch] && marqueeWords.length >= 3 ? `<div class="marquee" aria-hidden="true"><div class="mq-track">${[0, 1].map(() => `<span>${marqueeWords.map((w) => `${esc(w)}<i>✦</i>`).join("")}</span>`).join("")}</div></div>` : "";
 
   // ---------- serviços: trilho horizontal fixado (computador) / deslizar (celular) ----------
   const parts: string[] = [];
@@ -229,11 +244,11 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     navItems.push({ id: svc.id, label: svc.title || "Serviços" });
     // Foto em todos os cartões ou em nenhum (cartões desiguais parecem inacabados); guarda fotos para a galeria.
     const nCards = Math.min(svcItems.length, 6);
-    const cardImgs = pool.length - used.size >= nCards + 4 ? svcItems.slice(0, nCards).map(() => take()) : [];
+    const cardImgs = arch === "arc" && pool.length - used.size >= nCards + 4 ? svcItems.slice(0, nCards).map(() => take()) : [];
     const head = `<header class="sec-head"><p class="kicker rv">${esc(svc.title || "Serviços")}</p>${svc.intro && svc.intro.length <= 70 ? `<h2 id="h-svc" class="h2 rv" style="--d:1">${esc(svc.intro)}</h2>` : `<h2 id="h-svc" class="h2 rv" style="--d:1">${esc(svc.title && fold(svc.title) !== "servicos" ? svc.title : "O que oferecemos")}</h2>${svc.intro ? `<p class="lede rv" style="--d:2">${esc(svc.intro)}</p>` : ""}`}</header>`;
     const cards = svcItems.slice(0, 6).map((it, n) => `<li class="card" data-tilt-card>${cardImgs[n] ? `<div class="card-img">${picture(cardImgs[n]!, "(max-width: 900px) 80vw, 30vw")}</div>` : ""}<div class="card-body"><span class="num" aria-hidden="true">${String(n + 1).padStart(2, "0")}</span><h3>${esc(it.title)}</h3>${it.description ? `<p>${esc(it.description)}</p>` : ""}</div></li>`).join("");
     const pinned = svcItems.length >= 4;
-    parts.push(pinned
+    parts.push(arch !== "arc" ? archServices(arch, svc.id, head, archCtx) : pinned
       ? `<section id="${esc(svc.id)}" class="rail" aria-labelledby="h-svc" data-rail style="--n:${Math.min(svcItems.length, 6)}"><div class="rail-sticky">${head}<ol class="rail-track" data-rail-track>${cards}</ol><div class="rail-bar" aria-hidden="true"><i data-rail-bar></i></div></div></section>`
       : `<section id="${esc(svc.id)}" class="sec" aria-labelledby="h-svc">${head}<ol class="cards">${cards}</ol></section>`);
   }
@@ -277,7 +292,7 @@ export function renderImmersive(c: SiteContent, opts: RenderOpts = {}): string {
     const colImgs = Array.from({ length: cols }, (_, ci) => gimgs.filter((_, n) => n % cols === ci));
     parts.push(`<section id="${esc(gallery?.id ?? "galeria")}" class="sec gal" aria-labelledby="h-gal">
   <header class="sec-head"><p class="kicker rv">${esc(gallery?.title || "Galeria")}</p><h2 id="h-gal" class="h2 rv" style="--d:1">Um pouco do ambiente</h2></header>
-  <div class="gal-cols c${cols}">${colImgs.map((col, ci) => `<div class="gal-col" data-par="${[0.05, -0.1, 0.12][ci]}">${col.map((i) => `<div class="reveal">${figure(i, `(max-width: 900px) 50vw, ${Math.round(100 / cols)}vw`, "ph")}</div>`).join("")}</div>`).join("")}</div>
+  <div class="${GALLERY_CLASS[arch] ? `gal-${GALLERY_CLASS[arch]}` : `gal-cols c${cols}`}">${colImgs.map((col, ci) => `<div class="gal-col" data-par="${[0.05, -0.1, 0.12][ci]}">${col.map((i) => `<div class="reveal">${figure(i, `(max-width: 900px) 50vw, ${Math.round(100 / cols)}vw`, "ph")}</div>`).join("")}</div>`).join("")}</div>
 </section>`);
   }
 
@@ -370,7 +385,7 @@ ${opts.noindex ? '<meta name="robots" content="noindex, nofollow">' : ""}
 <meta name="color-scheme" content="${ivory ? "light" : "dark"}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${fontsHref([k.display, k.body])}">
-${heroImg && !asset ? preloadImage(heroImg, kind === "cinema" ? "100vw" : "(max-width: 900px) 100vw, 40vw") : ""}
+${heroImg && !asset ? preloadImage(heroImg, kind === "cinema" || arch === "showroom" ? "100vw" : "(max-width: 900px) 100vw, 40vw") : ""}
 <style>
 :root{--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mu:${P.muted};--ac:${P.accent};--ac2:${P.accent2};--fd:'${k.display}',Georgia,serif;--fb:'${k.body}',system-ui,sans-serif;--ts:${ts};--line:color-mix(in srgb,var(--ink) 13%,transparent);--card:color-mix(in srgb,var(--ink) ${ivory ? 4 : 6}%,var(--bg));--shadow:${ivory ? "0 30px 70px -34px rgba(40,30,20,.4)" : "0 40px 90px -40px rgba(0,0,0,.95)"};--r:${ivory ? "12px" : "18px"};--gut:clamp(16px,5vw,72px);--ease:cubic-bezier(.2,.75,.15,1);color-scheme:${ivory ? "light" : "dark"}}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -666,15 +681,17 @@ ${ivory ? "" : `body::after{content:"";position:fixed;inset:0;z-index:50;pointer
   .mq-track{animation:none}.status.is-open i{animation:none}.scroll-cue span{animation:none}
   .rail{height:auto}.rail-sticky{position:relative;height:auto}.rail-track{width:auto;flex-wrap:wrap}.rail-track .card{width:clamp(260px,30vw,420px)}
 }
+:root{--on-ac:${readableOn(P.accent)}}
+${archCss(arch, dw, up)}
 </style>
 </head>
-<body class="no-js${kind === "cinema" ? " on-cinema" : ""}">
+<body class="no-js a-${arch}${heroKind === "cinema" ? " on-cinema" : ""}">
 ${opts.previewRibbon ? `<div class="ribbon">${esc(opts.previewRibbon)}</div>` : ""}
 <a class="skip" href="#conteudo">Pular para o conteúdo</a>
 <div class="progress" aria-hidden="true"></div>
 <header class="top"><a class="brand" href="#${esc(hero?.id ?? "inicio")}">${esc(brand)}</a><nav class="nav" aria-label="Seções">${nav}</nav>${statusPill()}${mainBtn ? button(mainBtn, c, "btn") : ""}<details class="menu"><summary>Menu</summary><nav aria-label="Seções">${nav}${mainBtn ? button(mainBtn, c, "") : ""}</nav></details></header>
 <main id="conteudo">
-${heroHtml}
+${heroOut}
 ${marquee}
 ${parts.join("\n")}
 </main>
@@ -692,7 +709,7 @@ ${parts.join("\n")}
 ${dock.length ? `<nav class="dock" aria-label="Contato rápido">${dock.join("")}</nav>` : ""}
 <script>var __name=function(f){return f};(${motionRuntime.toString()})(${JSON.stringify({ amp })});</script>
 ${splineUrl ? `<script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${splineRuntime.toString()})(${JSON.stringify({ src: SPLINE_VIEWER_SRC, url: splineUrl, skip: "" })});});</script>` : ""}
-${kind === "arc" ? `<script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${arcRuntime.toString()})(${JSON.stringify(arcCfg)});});</script>` : ""}
+${heroKind === "arc" ? `<script>var __name=function(f){return f};window.addEventListener("DOMContentLoaded",function(){(${arcRuntime.toString()})(${JSON.stringify(arcCfg)});});</script>` : ""}
 ${schedule && tz ? `<script>var __name=function(f){return f};(${hoursRuntime.toString()})(${JSON.stringify({ schedule, tz })});</script>` : ""}
 ${cfg3d ? `<script src="${esc(threeSrc)}" defer></script>
 <script src="${esc(vendor("GLTFLoader.js"))}" defer></script>

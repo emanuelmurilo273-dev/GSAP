@@ -3,7 +3,7 @@ import { pageUser } from "@/lib/pageAuth";
 import { PageHeader } from "@/components/app/Shell";
 import { templateWhatsapp } from "@/lib/leads/outreach";
 import { hasConfirmedWhatsapp, leadStage, verifiedCompanyInfo } from "@/lib/leads/verified";
-import { publicUrlFor } from "@/lib/publish";
+import { publicUrlFor, shareUrlFor } from "@/lib/publish";
 import { LanguageSchema, type Facts, type Language, type Opportunity } from "@/lib/leads/types";
 import { AbordagensClient, type WaItem } from "./AbordagensClient";
 
@@ -22,7 +22,7 @@ export default async function AbordagensPage() {
     .filter(({ c, info }) => hasConfirmedWhatsapp(c) || c.isDemo || !!info.phone || !!info.email || !!info.instagram)
     .map(({ c, info }) => {
       const pub = c.projects.find((p) => p.publication?.status === "PUBLISHED")?.publication;
-      const previewUrl = pub ? publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt) : null;
+      const previewUrl = pub ? shareUrlFor(pub) : null;
       const facts = (c.facts ?? {}) as Facts;
       const lang = (LanguageSchema.safeParse(c.language).data ?? "pt-BR") as Language;
       const draft = templateWhatsapp({ facts, opportunities: (c.opportunities ?? []) as Opportunity[], senderName: sender, previewUrl, hasPreview: c.projects.length > 0, category: c.category, city: c.city }, lang);

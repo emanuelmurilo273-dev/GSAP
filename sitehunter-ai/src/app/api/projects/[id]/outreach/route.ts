@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rateLimit";
 import { ownProject } from "@/lib/projects";
 import { generateOutreach } from "@/lib/ai";
 import { getSegment } from "@/lib/site/templates";
-import { publicUrlFor } from "@/lib/publish";
+import { publicUrlFor, shareUrlFor } from "@/lib/publish";
 import { whatsappLink } from "@/lib/whatsapp";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -18,7 +18,7 @@ export const POST = route<Ctx>(async (_req, { params }) => {
   const project = await ownProject(user.id, (await params).id);
   if (!project.company) throw new HttpError(400, "Este projeto não está associado a uma empresa.");
   const pub = project.publication;
-  const previewUrl = pub?.status === "PUBLISHED" ? publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt) : null;
+  const previewUrl = pub?.status === "PUBLISHED" ? shareUrlFor(pub) : null;
   const { message, ai } = await generateOutreach(project.company, getSegment(project.segment), { senderName: user.name.split(" ")[0] ?? user.name, previewUrl });
   await prisma.project.update({ where: { id: project.id }, data: { outreachMessage: message } });
   return json({ message, ai, whatsapp: whatsappLink(project.company.phone, message) });

@@ -36,3 +36,11 @@ export async function buildPreviewBundle(content: SiteContent, slug: string, dir
   for (const f of await assetFilesFor(content)) out.push({ path: `${dir}/_assets/${f}`, data: await readFile(path.join(process.cwd(), "public", f)) });
   return out;
 }
+
+/** Pacote de UMA prévia com a página na raiz (index.html) e os recursos em _assets/: um projeto de hospedagem por site. */
+export async function buildRootBundle(content: SiteContent): Promise<BundleFile[]> {
+  const html = renderSite(content, { footerCredit: true, noindex: true, threeSrc: "./_assets/vendor/three.min.js", assetBase: "./_assets/models/" });
+  const out: BundleFile[] = [{ path: "index.html", data: Buffer.from(html, "utf8") }];
+  for (const f of await assetFilesFor(content)) out.push({ path: `_assets/${f}`, data: await readFile(path.join(process.cwd(), "public", f)) });
+  return out;
+}

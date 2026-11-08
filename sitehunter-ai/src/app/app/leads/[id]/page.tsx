@@ -7,7 +7,7 @@ import { SEGMENTS, getSegment } from "@/lib/site/templates";
 import { aiConfigured } from "@/lib/ai";
 import { LeadProfile } from "@/components/leads/LeadProfile";
 import { templateWhatsapp } from "@/lib/leads/outreach";
-import { publicUrlFor } from "@/lib/publish";
+import { publicUrlFor, shareUrlFor } from "@/lib/publish";
 import { LanguageSchema, type Facts, type Language, type Opportunity } from "@/lib/leads/types";
 
 export default async function LeadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +17,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
   if (!c) notFound();
   const drafts = await prisma.outreachDraft.findMany({ where: { userId: user.id, companyId: c.id }, orderBy: { createdAt: "desc" } });
   const pub = c.projects[0]?.publication;
-  const previewUrl = pub?.status === "PUBLISHED" ? publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt) : null;
+  const previewUrl = pub?.status === "PUBLISHED" ? shareUrlFor(pub) : null;
   const lang = (LanguageSchema.safeParse(c.language).data ?? "pt-BR") as Language;
   const wa = templateWhatsapp(
     { facts: (c.facts ?? {}) as Facts, opportunities: (c.opportunities ?? []) as Opportunity[], senderName: user.name.split(" ")[0] || user.name, previewUrl, hasPreview: c.projects.length > 0, category: c.category, city: c.city },

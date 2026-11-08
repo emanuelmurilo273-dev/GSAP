@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { pageUser } from "@/lib/pageAuth";
 import { SiteContentSchema } from "@/lib/site/types";
-import { publicUrlFor, pathUrlFor } from "@/lib/publish";
+import { publicUrlFor, pathUrlFor, shareUrlFor } from "@/lib/publish";
 import { env } from "@/lib/env";
 import { imagesConfigured } from "@/lib/images";
 import { whatsappLink } from "@/lib/whatsapp";
@@ -40,7 +40,9 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
           ? {
               status: pub.status,
               slug: pub.slug,
-              url: publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt),
+              url: shareUrlFor(pub),
+              provider: pub.externalUrl ? pub.externalProvider : null,
+              verified: !!pub.externalVerifiedAt,
               pathUrl: pathUrlFor(pub.slug),
               customDomain: pub.customDomain,
               customDomainVerified: !!pub.customDomainVerifiedAt,

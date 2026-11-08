@@ -133,7 +133,7 @@ import { arcRuntime } from "@/lib/site/immersive/arcRuntime";
 describe("Abertura com arco de luz e conteúdo por ramo", () => {
   const html = (name: string, seg: string, category: string, extra: Partial<CompanyInfo> = {}) => renderSite(make(name, seg, { category, mapsUrl: "https://www.openstreetmap.org/node/1", hoursLines: [{ label: "Segunda a sábado", value: "09:00–18:00" }], ...extra }), { threeSrc: "https://app.test/vendor/three.min.js" });
   it("arco de luz, pílula de status, dois botões com troca de letras e painel que sobe e é cortado na dobra", () => {
-    const h = html("Barbearia Navalha", "barbearia", "Barbearia");
+    const h = html("Lava Rápido Brilho", "barbearia", "Lava-rápido");
     expect(h).toContain("<canvas data-arc></canvas>");
     expect(h).toMatch(/class="pill rv" href="#horarios"/);
     expect(h).toContain("btn roll hero-primary mag");
@@ -143,18 +143,19 @@ describe("Abertura com arco de luz e conteúdo por ramo", () => {
     expect(h).toContain("data-arc-panel");
     expect(h).toContain("margin-bottom:-150px");
   });
-  it("cada ramo tem seu efeito, seu detalhe visual e seu conteúdo (nada de modelo único)", () => {
-    expect(html("Barbearia Navalha", "barbearia", "Barbearia")).toContain("ap-ribbon pole"); // poste de barbeiro
-    expect(html("Forno Bom Pizzaria", "restaurante", "Pizzaria")).toContain("ap-ribbon checker"); // toalha xadrez
-    expect(html("Auto Silva", "oficina", "Oficina mecânica")).toContain("ap-ribbon stripe"); // faixa de oficina
+  it("cada ramo tem a sua estrutura de página (arquétipo), não só outra cor", () => {
+    const cls = (n: string, s: string, c: string) => /<body class="no-js a-(\w+)/.exec(html(n, s, c))?.[1];
+    expect(cls("Barbearia Navalha", "barbearia", "Barbearia")).toBe("poster");
+    expect(cls("Forno Bom Pizzaria", "restaurante", "Pizzaria")).toBe("plate");
+    expect(cls("Auto Silva", "oficina", "Oficina mecânica")).toBe("spec");
+    expect(cls("Auto Show", "concessionaria", "Concessionária / revenda")).toBe("showroom");
+    expect(cls("Pneu Já", "pneus", "Pneus e borracharia")).toBe("display");
+    expect(cls("Clínica Sorriso", "odontologia", "Dentista")).toBe("calm");
+    expect(cls("Lava Rápido Brilho", "lavagem", "Lava-rápido")).toBe("arc");
     const glow = (n: string, s: string, c: string) => /class="hero arc glow-(\w+)"/.exec(html(n, s, c))?.[1];
-    expect(glow("Forno Bom Pizzaria", "restaurante", "Pizzaria")).toBe("fire");
-    expect(glow("Barbearia Navalha", "barbearia", "Barbearia")).toBe("neon");
-    expect(glow("Auto Silva", "oficina", "Oficina mecânica")).toBe("sparks");
-    expect(glow("Clínica Sorriso", "odontologia", "Dentista")).toBe("halo");
+    expect(glow("Lava Rápido Brilho", "lavagem", "Lava-rápido")).toBe("neon");
     expect(html("Barbearia Navalha", "barbearia", "Barbearia")).toContain("Cortes e estilos");
     expect(html("Auto Silva", "oficina", "Oficina mecânica")).toContain("Serviços e orçamento");
-    expect(html("Forno Bom Pizzaria", "restaurante", "Pizzaria")).toContain("Cardápio em destaque");
   });
   it("tipologia do ramo entra na faixa em movimento e na revisão, sinalizada para confirmação", () => {
     const c = make("Barbearia Navalha", "barbearia", { category: "Barbearia" });
@@ -162,9 +163,9 @@ describe("Abertura com arco de luz e conteúdo por ramo", () => {
     expect(renderSite(c)).toContain("Navalhado");
   });
   it("horário de hoje e status ao vivo no painel; sem horário: 'Horário não informado'", () => {
-    const h = html("Barbearia Navalha", "barbearia", "Barbearia");
+    const h = html("Lava Rápido Brilho", "barbearia", "Lava-rápido");
     expect(h).toMatch(/Hoje · <b data-today>(09:00–18:00|Fechado hoje)<\/b>/);
-    const none = renderSite(make("Barbearia Navalha", "barbearia", { category: "Barbearia", hoursLines: null }));
+    const none = renderSite(make("Lava Rápido Brilho", "barbearia", { category: "Lava-rápido", hoursLines: null }));
     expect(none).toContain("Horário não informado");
     expect(none).not.toContain("data-today");
   });

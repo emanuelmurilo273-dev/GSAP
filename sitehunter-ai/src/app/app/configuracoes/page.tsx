@@ -6,6 +6,7 @@ import { aiConfigured } from "@/lib/ai";
 import { isPrivateMode } from "@/lib/owner";
 import { CITIES } from "@/lib/br/cities";
 import { hostingConfig, pagesBaseFor } from "@/lib/previewHosting";
+import { vercelConfig } from "@/lib/vercel";
 
 type Row = { name: string; what: string; state: "on" | "off" | "partial"; status: string; how?: string; coverage?: string };
 
@@ -31,6 +32,8 @@ export default async function SettingsPage() {
   ];
   const other: Row[] = [
     { name: "Textos com IA (Claude)", what: "Textos dos sites e das abordagens", state: aiConfigured() ? "on" : "off", status: aiConfigured() ? "Chave configurada." : "Sem chave: o app usa textos-modelo por setor, sem fatos inventados.", how: "ANTHROPIC_API_KEY=…" },
+    { name: "Claude dentro do Hunter", what: "Painel de conversa (botão Claude) para tirar dúvidas, resumir empresas e redigir abordagens", state: aiConfigured() ? "on" : "off", status: aiConfigured() ? "Ativo: usa a API oficial da Anthropic, só no servidor, com a mesma chave dos textos com IA." : "Desligado: falta a chave da API.", how: "ANTHROPIC_API_KEY=… (chave da API em console.anthropic.com; é separada da assinatura Pro/Max do app Claude). Opcional: ASSISTANT_MODEL=…" },
+    { name: "Link público das prévias (Vercel)", what: "Cada site gerado vira uma URL pública e estável (https://…vercel.app), que abre em qualquer celular e se atualiza quando você altera o site", state: vercelConfig() ? "on" : "off", status: vercelConfig() ? `Ativo: token configurado${vercelConfig()!.teamId ? " (conta de equipe)" : ""}. O servidor confere que a URL abre depois de cada publicação.` : "Desligado: falta o token da Vercel. Sem ele, o link só abre no computador onde o Hunter roda (ou pelo GitHub Pages, se configurado).", how: "VERCEL_TOKEN=… (crie em vercel.com/account/tokens). Conta de equipe: VERCEL_TEAM_ID=team_… . Opcional: VERCEL_PROJECT_PREFIX=hunter" },
     { name: "WhatsApp", what: "Abordagens", state: "on", status: "O app só monta o link wa.me com o texto preenchido; você abre, revisa e envia. Não há envio automático nem verificação de conta pelo WhatsApp (isso exigiria mandar mensagens)." },
     { name: "3D dos sites (three.js + modelos reais)", what: "Vitrine 3D das prévias", state: "on", status: "three.js (MIT), modelos fotogramétricos do Poly Haven (CC0) e fotos reais de pratos (CC0/domínio público), servidos pelo próprio app; sem chave." },
     { name: "Painel privado", what: "Acesso ao app", state: "on", status: isPrivateMode() ? `Modo privado: só a conta proprietária (${env.ownerEmail ?? user.email}) entra. Sem cadastro público.` : "Modo multiusuário (ACCESS_MODE=saas)." },

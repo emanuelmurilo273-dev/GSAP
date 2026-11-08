@@ -5,7 +5,7 @@ import { HttpError, json, parseJson, route } from "@/lib/http";
 import { rateLimit } from "@/lib/rateLimit";
 import { generateOutreachDraft } from "@/lib/leads/outreach";
 import { LanguageSchema, type Facts, type Language, type Opportunity, type PresenceReport } from "@/lib/leads/types";
-import { publicUrlFor } from "@/lib/publish";
+import { publicUrlFor, shareUrlFor } from "@/lib/publish";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -34,7 +34,7 @@ export const POST = route<Ctx>(async (req, { params }) => {
   const langs = b.languages ?? [...new Set<Language>(["pt-BR", leadLang])];
   const project = c.projects[0];
   const pub = project?.publication;
-  const previewUrl = pub?.status === "PUBLISHED" ? publicUrlFor(pub.slug, pub.customDomain, !!pub.customDomainVerifiedAt) : null;
+  const previewUrl = pub?.status === "PUBLISHED" ? shareUrlFor(pub) : null;
   const input = {
     facts: (c.facts ?? { name: { value: c.name, status: "confirmed", source: "Google Places", confidence: 0.9, collectedAt: c.fetchedAt.toISOString() } }) as Facts,
     opportunities: (c.opportunities ?? []) as Opportunity[],

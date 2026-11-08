@@ -67,3 +67,53 @@ describe("Filtros administrativos de empresas", () => {
     expect(filtersToQuery({ q: "a b", uf: "" })).toBe("?q=a+b");
   });
 });
+
+describe("Arquétipos de página: estrutura própria por ramo", () => {
+  const page = (seg: string, name: string, cat: string, extra: Partial<CompanyInfo> = {}) => {
+    const s = getSegment(seg), c = co(name, cat, extra);
+    return renderSite(buildSiteContent(c, s, fallbackCopy(c, s), []), { lang: "pt-BR" } as never);
+  };
+  const cases: [string, string, string, string, string][] = [
+    ["concessionaria", "Auto Show", "Concessionária / revenda", "showroom", "hx-showroom"],
+    ["pneus", "Pneu Já", "Pneus e borracharia", "display", "hx-display"],
+    ["barbearia", "Navalha Club", "Barbearia", "poster", "hx-poster"],
+    ["restaurante", "Forno Bom Pizzaria", "Pizzaria", "plate", "hx-plate"],
+    ["oficina", "Auto Silva", "Oficina mecânica", "spec", "hx-spec"],
+    ["odontologia", "Sorriso Bom", "Dentista", "calm", "hx-calm"],
+    ["lavagem", "Brilho Car", "Lava-rápido", "arc", "arc-copy"],
+  ];
+  it("cada arquétipo gera a sua abertura e só ela (nada de abertura única)", () => {
+    for (const [seg, n, cat, arch, marker] of cases) {
+      const h = page(seg, n, cat);
+      expect(h, arch).toContain(`<body class="no-js a-${arch}`);
+      expect(h, arch).toContain(marker);
+      for (const other of cases) if (other[3] !== arch && other[3] !== "arc") expect(h.includes(`class="hx ${other[4]}`), `${arch} não deve conter ${other[3]}`).toBe(false);
+      // só o arco desenha o canvas do arco de luz
+      expect(h.includes("<canvas data-arc></canvas>"), arch).toBe(arch === "arc");
+    }
+  });
+  it("serviços e galeria mudam de forma por arquétipo", () => {
+    expect(page("concessionaria", "Auto Show", "Concessionária")).toContain("sv-rows");
+    expect(page("pneus", "Pneu Já", "Pneus")).toContain("sv-stack");
+    expect(page("barbearia", "Navalha Club", "Barbearia")).toContain("sv-leaders");
+    expect(page("oficina", "Auto Silva", "Oficina mecânica")).toContain("sv-grid");
+    expect(page("odontologia", "Sorriso Bom", "Dentista")).toContain("sv-soft");
+    expect(page("lavagem", "Brilho Car", "Lava-rápido")).toContain("rail-track");
+    expect(page("oficina", "Auto Silva", "Oficina mecânica")).toContain("Como pedir");
+    expect(page("barbearia", "Navalha Club", "Barbearia")).not.toContain("Como pedir");
+  });
+  it("o bloco de cor usa texto legível sobre o destaque e respeita movimento reduzido", async () => {
+    const { readableOn } = await import("@/lib/site/immersive/archetypes");
+    expect(readableOn("#ffd23f")).toBe("#0b0a09");
+    expect(readableOn("#0b3d91")).toBe("#ffffff");
+    const h = page("pneus", "Pneu Já", "Pneus");
+    expect(h).toMatch(/--on-ac:#[0-9a-f]{6}/i);
+    expect(h).toContain("prefers-reduced-motion");
+  });
+  it("direções de ramos diferentes apontam para estruturas diferentes", () => {
+    const arch = (k: string) => designDirectionFor(k).archetype;
+    const set = new Set(["concessionaria", "pneus", "barbearia", "restaurante", "oficina", "odonto", "lavagem"].map(arch));
+    expect(set.size).toBe(7);
+    for (const k of ["oficina", "funilaria", "vistoria", "construcao"]) expect(designDirectionFor(k).steps?.length, k).toBe(3);
+  });
+});

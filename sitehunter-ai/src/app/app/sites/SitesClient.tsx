@@ -91,7 +91,7 @@ export function SitesClient({ projects: initial, premium }: { projects: P[]; pre
                   <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
                     <a href={p.url} target="_blank" rel="noopener noreferrer" className="truncate text-brand-300 hover:underline">{p.url.replace(/^https?:\/\//, "")}</a>
                     <button className="text-slate-400 hover:text-white" onClick={() => { navigator.clipboard.writeText(p.url!); toast("Endereço copiado"); }}>Copiar</button>
-                    <span className="text-slate-500">· {p.external ? "link público (GitHub)" : `${p.visits} visita(s)`}</span>
+                    <span className="text-slate-500">· {p.external ? "link público" : `${p.visits} visita(s)`}</span>
                   </p>
                 )}
                 <div className="mt-auto flex flex-wrap gap-2 pt-4">

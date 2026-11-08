@@ -12,7 +12,7 @@ import { ConceptPanel } from "@/components/studio/ConceptPanel";
 import { SITE_STYLES, STYLE_INFO, contrast, type SiteStyle } from "@/lib/site/styles";
 import { OBJECT_KINDS, OBJECT_LABEL, type ObjectKind } from "@/lib/site/stage";
 
-type Pub = { status: string; slug: string; url: string; pathUrl: string; customDomain: string | null; customDomainVerified: boolean; lastDeployAt: string | null } | null;
+type Pub = { status: string; slug: string; url: string; pathUrl: string; customDomain: string | null; customDomainVerified: boolean; lastDeployAt: string | null; provider?: string | null; verified?: boolean } | null;
 
 const SECTION_LABELS: Record<Section["type"], string> = {
   hero: "Capa (topo)",
@@ -420,7 +420,7 @@ export function Editor(props: {
     setError(null);
     try {
       const r = await api<{ publication: NonNullable<Pub> & { customDomainVerifiedAt?: string } }>(`/api/projects/${props.projectId}/publish`, { body: { slug, confirmPublic: true } });
-      setPub({ ...r.publication, customDomainVerified: !!r.publication.customDomainVerifiedAt });
+      setPub({ ...r.publication, customDomainVerified: !!r.publication.customDomainVerifiedAt, provider: (r.publication as { externalProvider?: string | null }).externalProvider ?? null, verified: !!(r.publication as { externalVerifiedAt?: string | null }).externalVerifiedAt });
       toast(pub?.status === "PUBLISHED" ? "Link público atualizado com as alterações" : "Link público liberado");
     } catch (e) {
       setError((e as Error).message);
@@ -719,6 +719,11 @@ function VisibilityCard({ pub, slug, setSlug, rootDomain, busy, premium, publish
       {isPublic && pub && (
         <div className="mt-4 space-y-2 animate-fade-up">
           <a href={pub.url} target="_blank" rel="noopener noreferrer" className="block truncate rounded-lg bg-black/30 px-3 py-2 text-sm text-emerald-200 hover:underline">{pub.url}</a>
+          {pub.provider === "vercel" && (
+            <p className={`text-xs ${pub.verified ? "text-emerald-300" : "text-amber-300"}`} data-link-status>
+              {pub.verified ? "Link na Vercel verificado: o servidor abriu esta URL pela internet e a página respondeu." : "Link na Vercel criado, mas ainda não confirmado: aguarde alguns segundos e use Atualizar, ou abra o link para conferir."}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <button className="btn-secondary px-3 py-1.5 text-xs" onClick={async () => { try { await navigator.clipboard.writeText(pub.url); toast("Link copiado"); } catch { toast(pub.url); } }}>Copiar link</button>
             <button className="btn-secondary px-3 py-1.5 text-xs" disabled={busy || !premium} onClick={() => publish(slug)}>{busy ? <Spinner /> : null}Atualizar com as alterações</button>

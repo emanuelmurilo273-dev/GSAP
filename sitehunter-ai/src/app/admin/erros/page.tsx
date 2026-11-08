@@ -6,6 +6,7 @@ import { AdminNav } from "@/components/admin/AdminNav";
 import { HealthCheck } from "@/components/admin/HealthCheck";
 import { providerStatus } from "@/lib/leads/providers";
 import { env } from "@/lib/env";
+import { vercelConfig } from "@/lib/vercel";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function AdminErrors() {
     { label: "Banco de dados", ok: true, hint: "Conectado (esta página leu os dados)." },
     { label: "Busca real: OpenStreetMap", ok: true, hint: "Não precisa de chave. O servidor público oscila: use “Testar fontes agora”." },
     { label: "Busca real: Google Maps", ok: providers.some((p) => p.id === "google_places" && p.configured), hint: "Opcional. Defina GOOGLE_PLACES_API_KEY no servidor." },
+    { label: "Link público das prévias (Vercel)", ok: !!vercelConfig(), hint: "Recomendado. Defina VERCEL_TOKEN (e VERCEL_TEAM_ID se for conta de equipe)." },
     { label: "Link público das prévias (GitHub Pages)", ok: !!env.githubPreviewsToken && !!env.githubPreviewsRepo, hint: "Opcional. Defina GITHUB_PREVIEWS_TOKEN e GITHUB_PREVIEWS_REPO." },
     { label: "E-mail (verificação e recuperação de senha)", ok: !!env.smtp, hint: "Opcional. Defina as variáveis SMTP_*." },
     { label: "Pagamentos (webhook da Kiwify)", ok: env.kiwifyWebhookTokens.length > 0, hint: "Só para vender assinaturas. Defina KIWIFY_WEBHOOK_TOKENS." },

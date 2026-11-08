@@ -302,6 +302,9 @@ model Publication {
   status        PublicationStatus @default(DRAFT)
   html          String?           // snapshot publicado (servido aos visitantes)
   externalUrl   String?           // link público fora do app (GitHub/githack ou Pages), quando configurado
+  externalProvider String?        // "vercel" | "github": quem hospeda o link público
+  vercelProject String?           // nome do projeto na Vercel (um por site: a URL fica estável)
+  externalVerifiedAt DateTime?    // quando o servidor confirmou que a URL pública abre
   publishedAt   DateTime?
   lastDeployAt  DateTime?
   suspendedAt   DateTime?

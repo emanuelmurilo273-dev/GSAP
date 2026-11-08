@@ -36,6 +36,9 @@ export const env = {
   get githubPreviewsBranch() { return opt("GITHUB_PREVIEWS_BRANCH"); },
   get githubPreviewsDir() { return opt("GITHUB_PREVIEWS_DIR"); },
   get githubPagesUrl() { return opt("GITHUB_PAGES_URL"); },
+  get vercelToken() { return opt("VERCEL_TOKEN"); },
+  get vercelTeamId() { return opt("VERCEL_TEAM_ID"); },
+  get vercelProjectPrefix() { return opt("VERCEL_PROJECT_PREFIX"); },
   // Cenas do Spline por ramo (JSON). O Spline é um editor 3D: as cenas são criadas e publicadas lá; aqui só se informa o endereço.
   get splineScenes() { return parseSplineScenes(opt("SPLINE_SCENES")); },
   get osmContactEmail() { return opt("OSM_CONTACT_EMAIL"); },
