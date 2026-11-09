@@ -52,7 +52,7 @@ async function main() {
   if (check.data?.role !== 'owner') { console.error('✖ Verificação falhou: role não ficou owner.'); process.exit(1); }
 
   const { data: link, error: lerr } = await sb.auth.admin.generateLink({ type: 'magiclink', email });
-  const url = link?.properties?.hashed_token ? `${app}/auth/callback?token_hash=${link.properties.hashed_token}&type=magiclink&next=${process.env.OWNER_REQUIRE_2FA === 'false' ? '/app' : '/owner/security'}` : null;
+  const url = link?.properties?.hashed_token ? `${app}/auth/callback?token_hash=${link.properties.hashed_token}&type=magiclink&next=${process.env.OWNER_REQUIRE_2FA === 'false' ? '/b3' : '/owner/security'}` : null;
   if (lerr || !url) { console.error(`✖ Conta ok, mas não gerei o link: ${lerr?.message}`); process.exit(1); }
 
   let mailed = false;
@@ -65,6 +65,6 @@ async function main() {
   console.log(`\n✔ Conta de dono ${created ? 'CRIADA' : 'já existia — reparada'}: ${email}  (role=owner, sem assinatura, nunca bloqueada)`);
   console.log(mailed ? `✔ Link de acesso enviado para ${email}.` : `\nAbra este link (uso único) para entrar agora:\n\n${url}\n`);
   console.log('Depois do link: 1) defina uma senha (12+ caracteres)  2) escaneie o QR no Google Authenticator  3) você cai no painel do robô.');
-  console.log('Próximo passo: Config → conectar sua Binance (testnet ou real com valor pequeno) → backtest → termo → ligar.');
+  console.log('Próximo passo: instale o conector (connector/Instalar-Conector-Windows.bat) e abra o painel B3.');
 }
 main().catch((e) => { console.error('✖', e?.message ?? e); process.exit(1); });

@@ -1,0 +1,146 @@
+"""Uso:  python -m hexadesk_connector [configurar | testar | rodar | status]"""
+from __future__ import annotations
+
+import argparse
+import getpass
+import os
+import re
+import sys
+from pathlib import Path
+
+from . import __version__
+from .config import Config, default_state_dir
+from .secrets_io import load_secrets, save_secrets  # noqa: F401  (re-export de secure)
+
+DEFAULT_SERVER = "ClearInvestimentos-DEMO"
+
+
+def ask(prompt: str, default: str = "", secret: bool = False) -> str:
+    suffix = f" [{default}]" if default and not secret else ""
+    v = (getpass.getpass if secret else input)(f"{prompt}{suffix}: ").strip()
+    return v or default
+
+
+def find_env() -> dict:
+    """Procura o .env do painel (pasta acima) para reaproveitar URL e chave do Supabase local."""
+    for base in [Path.cwd(), Path(__file__).resolve().parents[2], Path(__file__).resolve().parents[1]]:
+        p = base / ".env"
+        if p.exists():
+            out = {}
+            for line in p.read_text(encoding="utf-8", errors="ignore").splitlines():
+                m = re.match(r"^([A-Z_]+)=([^#\s]*)", line)
+                if m:
+                    out[m.group(1)] = m.group(2)
+            return out
+    return {}
+
+
+def configurar(a) -> None:
+    d = default_state_dir()
+    cfg, sec = Config.load(d), load_secrets(d)
+    env = find_env()
+    print("\n=== Configuração do conector HEXADESK B3 ===\n(as senhas ficam SÓ neste computador, criptografadas)\n")
+    url = os.environ.get("HEXADESK_SUPABASE_URL") or env.get("NEXT_PUBLIC_SUPABASE_URL") or cfg.supabase_url
+    cfg.supabase_url = ask("Endereço do painel (Supabase URL)", url)
+    key = os.environ.get("HEXADESK_SUPABASE_KEY") or env.get("SUPABASE_KEY") or sec.get("supabase_key", "")
+    if key:
+        print("Chave do painel (service_role): encontrada automaticamente." if not sec.get("supabase_key") else "Chave do painel: já salva.")
+    else:
+        key = ask("Chave service_role do Supabase", secret=True)
+    sec["supabase_key"] = key
+    print("\n--- Conta DEMO da Clear (modo SIMULADOR) ---")
+    d0 = sec.get("demo", {})
+    sec["demo"] = {"login": int(ask("Login (número da conta demo)", str(d0.get("login", "")))),
+                   "password": ask("Senha da conta demo", secret=True) or d0.get("password", ""),
+                   "server": ask("Servidor", d0.get("server", DEFAULT_SERVER))}
+    print("\n--- Conta REAL (deixe em branco por enquanto; só use depois que o site liberar) ---")
+    login = ask("Login real (Enter para pular)", str(sec.get("real", {}).get("login", "")))
+    if login:
+        sec["real"] = {"login": int(login), "password": ask("Senha real", secret=True), "server": ask("Servidor real", sec.get("real", {}).get("server", ""))}
+    cfg.mt5_path = ask("Caminho do terminal64.exe (Enter = automático)", cfg.mt5_path or "") or None
+    if a.permitir_real:
+        if input('Para permitir operar em conta REAL nesta máquina digite "PERMITIR REAL": ').strip() == "PERMITIR REAL":
+            cfg.allow_real = True
+    cfg.save(d)
+    save_secrets(d, sec)
+    print(f"\nSalvo em {d}. Próximo passo: python -m hexadesk_connector testar")
+
+
+def _load():
+    d = default_state_dir()
+    return d, Config.load(d), load_secrets(d)
+
+
+def testar(a) -> None:
+    from .contracts import current_contract
+    from .gateway import Credentials, RealMt5Gateway
+    from .store import SupabaseStore
+    from datetime import datetime
+    from .engine import SP
+    d, cfg, sec = _load()
+    ok = True
+    print("1) Painel (Supabase)…")
+    try:
+        st = SupabaseStore(cfg.supabase_url, sec["supabase_key"])
+        print("   OK, configurações:", "encontradas" if st.get_settings() else "AINDA NÃO CRIADAS (abra o painel B3 uma vez)")
+    except Exception as e:
+        ok = False; print("   FALHOU:", e)
+    print("2) MetaTrader 5 (conta DEMO)…")
+    gw = RealMt5Gateway(cfg.mt5_path)
+    try:
+        c = sec["demo"]
+        gw.connect(Credentials(int(c["login"]), c["password"], c["server"]))
+        acc = gw.account()
+        print(f"   conectado: conta {acc.login} em {acc.server} · tipo {acc.mode.upper()} · saldo R$ {acc.balance:,.2f}")
+        if acc.mode != "demo":
+            ok = False; print("   ATENÇÃO: esta NÃO é uma conta DEMO! O simulador recusará operar.")
+        today = datetime.now(SP).date()
+        for root in ("WIN", "WDO"):
+            av = gw.symbols(root + "*")
+            cur = current_contract(root, today, (), cfg.roll_days[root], av or None)
+            gw.select(cur)
+            sp, t = gw.spec(cur), gw.tick(cur)
+            print(f"   {root}: contrato vigente {cur} · R$ {sp.brl_per_point:.2f}/ponto · cotação {t.bid if t else 'sem cotação (mercado fechado?)'}")
+            print(f"        candles M5 disponíveis: {len(gw.candles(cur, 'M5', 50))}")
+    except Exception as e:
+        ok = False; print("   FALHOU:", e)
+    finally:
+        gw.shutdown()
+    print("\n" + ("TUDO CERTO. Pode rodar: python -m hexadesk_connector rodar" if ok else "Há problemas acima. Veja o guia (seção 'Se der erro')."))
+    sys.exit(0 if ok else 1)
+
+
+def rodar(a) -> None:
+    from .engine import Engine
+    from .gateway import RealMt5Gateway
+    from .store import SupabaseStore
+    d, cfg, sec = _load()
+    if not sec.get("demo") or not sec.get("supabase_key"):
+        sys.exit("Rode primeiro: python -m hexadesk_connector configurar")
+    store = SupabaseStore(cfg.supabase_url, sec["supabase_key"])
+    eng = Engine(RealMt5Gateway(cfg.mt5_path), store, cfg, sec)
+    print(f"HEXADESK B3 conector v{__version__} rodando. Ctrl+C para parar (posições já têm stop na corretora).")
+    try:
+        eng.run_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            store.upsert_status({"state": "stopped"})
+            store.log("warn", "logger", "Conector parado.")
+        except Exception:
+            pass
+        eng.gw.shutdown()
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(prog="hexadesk_connector")
+    sub = p.add_subparsers(dest="cmd")
+    c = sub.add_parser("configurar"); c.add_argument("--permitir-real", action="store_true")
+    sub.add_parser("testar"); sub.add_parser("rodar")
+    a = p.parse_args()
+    {"configurar": configurar, "testar": testar, "rodar": rodar}.get(a.cmd, lambda _: p.print_help())(a)
+
+
+if __name__ == "__main__":
+    main()

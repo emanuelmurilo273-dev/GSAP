@@ -2,12 +2,17 @@
   "name": "tradedesk",
   "private": true,
   "version": "1.0.0",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "dev:web": "npm run dev -w @desk/web",
     "dev:worker": "npm run dev -w @desk/worker",
     "build": "npm run build -w @desk/web",
     "typecheck": "npm run typecheck -w @desk/core && npm run typecheck -w @desk/worker && npm run typecheck -w @desk/web",
-    "test": "npm test -w @desk/core"
+    "test": "npm test -w @desk/core",
+    "test:connector": "cd connector && python3 -m unittest discover -s tests -t .",
+    "test:all": "npm test && npm run test -w @desk/worker && npm run test:connector"
   }
 }

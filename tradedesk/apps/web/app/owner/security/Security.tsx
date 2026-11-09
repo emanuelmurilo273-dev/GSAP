@@ -41,7 +41,7 @@ export default function Security() {
     if (v.error) return setMsg('Código inválido.');
     const r = await fetch('/api/owner/session', { method: 'POST' });
     const j = await r.json().catch(() => ({}));
-    location.href = j.home ?? '/app';
+    location.href = j.home ?? '/b3';
   }
 
   if (!ready) return <p className="text-sm text-dim">carregando…</p>;

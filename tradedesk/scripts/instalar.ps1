@@ -70,18 +70,6 @@ Set-Env 'WEB_PORT' "$port"
 Set-Env 'NEXT_PUBLIC_APP_URL' "http://localhost:$port"
 $siteUrl = "http://localhost:$port"
 
-# ---------- corretora ----------
-if (-not (Get-Env 'EXCHANGES_ENABLED')) {
-  Write-Host ""
-  Write-Host "Qual corretora voce vai usar?" -ForegroundColor Cyan
-  Write-Host "  1) Bybit"
-  Write-Host "  2) Binance"
-  Write-Host "  3) As duas"
-  $c = Read-Host "Digite 1, 2 ou 3 [1]"
-  $list = switch ($c.Trim()) { '2' { 'binance' } '3' { 'bybit,binance' } default { 'bybit' } }
-  Set-Env 'EXCHANGES_ENABLED' $list
-}
-
 # ---------- Supabase: ja configurado? ----------
 function Supabase-Configured {
   foreach ($n in 'NEXT_PUBLIC_SUPABASE_URL','NEXT_PUBLIC_SUPABASE_ANON_KEY','SUPABASE_URL','SUPABASE_KEY') {
@@ -200,7 +188,7 @@ Write-Host ""
 if ($configured -and $local) {
   Write-Host "PRONTO! Abrindo o site ja logado como DONO: $siteUrl" -ForegroundColor Green
   Write-Host "Proximas vezes: rode este instalador de novo (ou entre em $siteUrl/owner/login com e-mail e senha)."
-  Write-Host "Primeiro passo no site: Config -> conectar a corretora (use o TESTNET para testar) -> backtest -> termo -> ligar."
+  Write-Host "Painel do day trade B3: $siteUrl/b3  (instale o conector em connector\Instalar-Conector-Windows.bat)"
 } elseif ($configured) {
   Write-Host "Pronto! Site + robo rodando em $siteUrl" -ForegroundColor Green
   Write-Host "Conta de dono: duplo clique em Criar-Dono-Windows.bat."

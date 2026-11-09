@@ -29,6 +29,7 @@ before(async () => {
   const strip = (s: string) => s.replace(/create extension if not exists pgcrypto;/g, '');
   await db.exec(strip(readFileSync(new URL('../../../supabase/migrations/001_init.sql', import.meta.url), 'utf8')));
   await db.exec(readFileSync(new URL('../../../supabase/migrations/002_owner_audit_health.sql', import.meta.url), 'utf8'));
+  await db.exec(readFileSync(new URL('../../../supabase/migrations/003_b3.sql', import.meta.url), 'utf8'));
   // grants padrão do Supabase: sem eles o teste passaria por falta de permissão, não por RLS
   await db.exec('grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role; grant execute on all functions in schema public to anon, authenticated;');
   await db.exec(`
@@ -50,6 +51,9 @@ before(async () => {
     insert into app_settings values ('plan_price','{"amount":7000}'),('owner_validation','{"start":"x"}');
     insert into audit_log (actor,action) values ('${O}','owner.login');
     insert into alerts_sent (key) values ('k');
+    insert into b3_logs (level,agent,message) values ('info','scout','x');
+    insert into b3_status (id,state) values (1,'trading');
+    insert into b3_trades (mode,root,contract,side,volume,price_open) values ('sim','WIN','WINZ26','buy',1,130000);
   `);
 });
 
@@ -120,4 +124,27 @@ test('service_role (servidor/worker) enxerga e escreve tudo', async () => {
   assert.equal(await count('select * from trades'), 2);
   assert.equal(await count('select * from exchange_accounts'), 2);
   await db.exec(`insert into bot_logs (user_id,agent,level,message) values ('${A}','x','info','svc')`);
+});
+
+test('B3: dados do day trade só para o dono COM 2FA (usuário comum, anônimo e dono sem 2FA não veem nada)', async () => {
+  const tables = ['b3_settings', 'b3_status', 'b3_logs', 'b3_trades', 'b3_sessions', 'b3_equity', 'b3_commands'];
+  await as('authenticated', A, 'aal2');
+  for (const t of tables) assert.equal(await count(`select * from ${t}`), 0, `${t}: usuário comum viu dados do dono`);
+  await as('anon', null);
+  for (const t of tables) assert.equal(await count(`select * from ${t}`), 0, `${t}: anônimo viu`);
+  await as('authenticated', O, 'aal1');
+  assert.equal(await count('select * from b3_trades'), 0, 'dono sem 2FA não pode ver');
+  await as('authenticated', O, 'aal2');
+  assert.equal(await count('select * from b3_trades'), 1);
+  assert.equal(await count('select * from b3_settings'), 1);
+  const upd = await db.query(`update b3_settings set mode = 'real', real_unlocked = true returning 1`);
+  assert.equal(upd.rows.length, 0, 'nem o dono altera modo/trava pela API pública (só o servidor)');
+});
+
+test('B3: valores perigosos são recusados pelo banco (limites do check)', async () => {
+  await as('service_role', null);
+  await assert.rejects(db.exec(`update b3_settings set daily_loss_brl = 1000000`), /check|violates/i);
+  await assert.rejects(db.exec(`update b3_settings set mode = 'qualquer'`), /check|violates/i);
+  await assert.rejects(db.exec(`update b3_settings set flat_at = '25:99'`), /check|violates/i);
+  await db.exec(`update b3_settings set daily_loss_brl = 200`);
 });

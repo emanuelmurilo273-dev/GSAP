@@ -4,6 +4,8 @@ import { MetricsView } from '@/components/BacktestRunner';
 import LandingView from '@/components/LandingView';
 import { Logo, Panel } from '@/components/ui';
 import Dashboard from '../../app/Dashboard';
+import B3Dashboard from '../../b3/B3Dashboard';
+import ModeBanner from '../../b3/ModeBanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +56,32 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
   if (page === 'backtest') {
     const b = (await realBacktests())[0];
     return <div className="mx-auto max-w-6xl px-3 py-4"><div className="mb-4 flex items-center justify-between"><Logo /></div><h1 className="mb-3 text-lg font-semibold text-scout">Backtest</h1><MetricsView m={b.metrics} equity={b.equity} symbol={b.symbol} days={b.days} tf={b.timeframe} /></div>;
+  }
+  if (page === 'b3' || page === 'b3-real') {
+    const real = page === 'b3-real';
+    const now = Date.now(); let v = 10000;
+    const ts = (m: number) => new Date(now - m * 60_000).toISOString();
+    const equity = Array.from({ length: 80 }, (_, i) => { v += Math.sin(i / 6) * 9 + (i > 50 ? -3 : 2); return { t: now - (80 - i) * 4 * 60_000, v: Math.round(v * 100) / 100 }; });
+    const demo = {
+      settings: { enabled: true, mode: real ? 'real' : 'sim', real_unlocked: real, symbols: ['WIN', 'WDO'], profile: 'conservador', daily_loss_brl: 150, max_trades_per_day: 6, open_from: '09:05', open_until: '17:00', flat_at: '17:30' },
+      status: { state: 'trading', account_mode: real ? 'real' : 'demo', account_server: real ? 'Clear-Real' : 'ClearInvestimentos-DEMO', account_login: '***567', balance: 10000, equity: Math.round(v * 100) / 100, day_pnl: Math.round((v - 10000) * 100) / 100, trades_today: 3, contracts: { WIN: 'WINZ26', WDO: 'WDOZ26' },
+        positions: [{ symbol: 'WINZ26', side: 'buy', volume: 2, price_open: 130005, sl: 129855, tp: 130230, profit: 18.4 }] },
+      connectorAgeSec: 3,
+      open: [], equity,
+      logs: [['trade', 'executor', 'ENTRADA BUY 2x WINZ26 @ 130005 · stop 129855 · alvo 130230 (servidor da corretora)', 3], ['info', 'analyst', 'SINAL WINZ26: cruzamento EMA9/21 (estratégia de base, NÃO validada)', 3], ['refuse', 'filter', 'RECUSA WDOZ26: preços parados/sem cotação.', 22], ['trade', 'executor', 'SAÍDA ticket 102: stop/alvo na corretora · P&L -60.0 R$', 41], ['info', 'scout', 'Contrato vigente de WIN: WINZ26', 120]].map(([level, agent, message, m], i) => ({ id: i, level, agent, message, ts: ts(m as number) })),
+      trades: [[-60, 'stop/alvo na corretora', 'WINZ26', 'sell'], [45, 'stop/alvo na corretora', 'WDOZ26', 'buy'], [90, 'zeragem fim de dia', 'WINZ26', 'buy']].map(([pnl, close_reason, contract, side], i) => ({ id: i, pnl, close_reason, contract, side, closed_at: ts(40 + i * 90) })),
+      checklist: { strategyApproved: false, simSessions: 7, simSessionsOk: false, needSessions: 20 },
+    };
+    return (
+      <div>
+        <ModeBanner initial={real ? 'real' : 'sim'} demo />
+        <div className="mx-auto max-w-6xl px-3 pb-10 sm:px-6">
+          <header className="flex items-center justify-between py-4"><Logo /><span className="text-xs text-dim">Day trade B3</span></header>
+          <div className="mb-3 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div>
+          <B3Dashboard demo={demo} />
+        </div>
+      </div>
+    );
   }
   if (page === 'dashboard') {
     const d = demoData();

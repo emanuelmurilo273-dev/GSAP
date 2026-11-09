@@ -24,7 +24,7 @@ export default function OwnerLogin() {
     const r = await fetch('/api/owner/session', { method: 'POST' });
     if (!r.ok) { setMsg('Este e-mail não é o do dono.'); await sb.auth.signOut(); setStep('pass'); return; }
     const j = await r.json().catch(() => ({}));
-    location.href = j.home ?? '/app';
+    location.href = j.home ?? '/b3';
   }
 
   useEffect(() => { sb.auth.getUser().then(({ data }) => { if (data.user) afterPassword(); }); /* eslint-disable-next-line */ }, []);

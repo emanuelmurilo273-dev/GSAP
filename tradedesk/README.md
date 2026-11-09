@@ -1,8 +1,30 @@
-# HEXADESK — robô de cripto com mesa de 6 agentes
+# HEXADESK — robô de day trade na B3 (WIN/WDO) via MetaTrader 5
 
-Robô que opera cripto **na conta da corretora do próprio cliente** (nunca guardamos dinheiro). Seis agentes trabalham 24h: **Scout** (coleta) → **Filter** (filtra) → **Analyst** (nota 0–1) → **Executor** (ordem) → **Risk** (stop/alvo/limite diário) → **Logger** (registro).
+> **Foco atual: day trade de mini índice (WIN) e mini dólar (WDO) na B3, pela Clear, com o MetaTrader 5.**
+> O código de cripto (Binance/Bybit, pasta `apps/web/app/app`, worker BullMQ) continua no repositório como **legado**, sem uso.
+> **Comece por [`docs/B3-GUIA.md`](docs/B3-GUIA.md)**: conta Clear, MT5, conta DEMO, conector no seu PC e VPS.
 
-> ## ⚠️ Leia antes de vender
+## Como funciona (B3)
+```
+ MT5 da Clear (Windows)  ⇄  Conector Python (connector/)  ⇄  Supabase  ⇄  Painel web (/b3)
+ login/senha só aqui, criptografados         ordens, stops, risco          celular/PC
+```
+- **Conector** (`connector/`): lê preços, calcula, envia ordens **com stop gravado no servidor da corretora**, zera às 17:30, respeita limite de perda diário em R$, 1 posição por ativo, rolagem automática de WINxxx/WDOxxx. Roda no Windows ao lado do MT5 (seu PC ou VPS).
+- **Painel** (`/b3`): faixa fixa **azul SIMULADOR** / **vermelha DINHEIRO REAL**, saldo, resultado do dia, posições, log ao vivo, **PARAR TUDO**, configurações, liberação do modo real.
+- **Simulador é o padrão** (conta DEMO). **REAL** exige: estratégia aprovada nos testes + 20 pregões no simulador + 2 confirmações + digitar `OPERAR REAL` + trava local no conector. O conector **recusa** operar se o tipo da conta (demo/real) não bater com o modo.
+
+### Estado desta versão (honesto)
+| Item | Situação |
+|---|---|
+| Regras do motor (horário, feriados, rolagem, risco, stop, zeragem, PARAR TUDO, travas demo/real) | ✅ 34 testes com **MT5 simulado** (`npm run test:connector`) |
+| Segurança do banco (só o dono com 2FA lê dados B3) | ✅ 16 testes de RLS em Postgres real (PGlite) |
+| **Conector falando com um MT5 de verdade** | ⚠️ **NUNCA executado**: precisa de Windows + MT5 + conta demo (só você tem). Pode haver ajustes (modo de preenchimento da ordem, símbolos, stops na B3) |
+| Nome do servidor `ClearInvestimentos-DEMO`, política de robôs e horário de zeragem da Clear | ⚠️ **não confirmados** (ver o guia) |
+| **Estratégia** | ⚠️ só uma estratégia de teste (cruzamento de EMAs), **NÃO validada**. A pesquisa para WIN/WDO ainda não foi feita (aguardando o restante do pedido) |
+| Painel B3 no navegador (telas com dados de exemplo em `docs/screenshots/b3-*.jpg`) | ✅ build e telas; ❌ não testado com o conector real |
+| Alerta por e-mail se o conector cair no pregão | ✅ código (`/api/cron/watchdog`); exige Resend + agendador; **push no celular não implementado** |
+
+> ## ⚠️ (cripto, legado) Leia antes de vender
 > 1. **Nenhuma estratégia passou na pesquisa de validação** (`research/RESEARCH.md`: 5 famílias × 3 pares × 3 timeframes, 3 anos, walk-forward, teste final uma única vez). Por isso, `STRATEGY_APPROVED=false` e **clientes não conseguem ligar o robô em conta real**. Só funciona em *testnet* (dinheiro de mentira) e na **conta do dono**.
 > 2. A estratégia padrão do app tem backtest real **negativo** (BTC/USDT 1h: −0,53% em 90 dias; −3,75% em 365 dias).
 > 3. Vender uma "gestão automática de investimento" pode exigir registro/autorização (CVM) e tem regras do Código de Defesa do Consumidor. **Fale com um advogado antes de cobrar.**
