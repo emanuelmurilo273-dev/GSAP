@@ -1,5 +1,6 @@
 # NEONDESK - instalador para Windows (usa Docker Desktop). Somente ASCII de proposito.
-$ErrorActionPreference = 'Stop'
+# 'Continue': o PowerShell 5 trata texto no stderr de programas nativos (docker) como erro fatal com 'Stop'
+$ErrorActionPreference = 'Continue'
 Set-Location (Split-Path -Parent $PSScriptRoot)
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 
@@ -11,8 +12,25 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   Start-Process "https://www.docker.com/products/docker-desktop/"
   Fail "Docker Desktop nao encontrado. Instale-o (pagina aberta no navegador), reinicie o PC e rode este instalador de novo."
 }
-docker info *> $null
-if ($LASTEXITCODE -ne 0) { Fail "Docker Desktop esta instalado mas nao esta rodando. Abra o Docker Desktop, espere ficar verde e tente de novo." }
+function Test-Docker {
+  docker info 2>&1 | Out-Null
+  return ($LASTEXITCODE -eq 0)
+}
+
+if (-not (Test-Docker)) {
+  Write-Host "Docker Desktop nao esta rodando. Tentando abrir..." -ForegroundColor Yellow
+  $exe = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
+  if (Test-Path $exe) { Start-Process $exe }
+  else { Fail "Nao achei o Docker Desktop. Abra-o manualmente pelo menu Iniciar, espere ficar verde e rode este instalador de novo." }
+  $ok = $false
+  for ($i = 1; $i -le 90; $i++) {
+    Start-Sleep -Seconds 2
+    if (Test-Docker) { $ok = $true; break }
+    if ($i % 5 -eq 0) { Write-Host "  aguardando o Docker Desktop iniciar... ($($i*2)s)" }
+  }
+  if (-not $ok) { Fail "O Docker Desktop nao iniciou a tempo. Abra-o, espere o icone ficar verde (Engine running) e rode de novo. Se pedir, aceite a instalacao do WSL 2 e reinicie o PC." }
+}
+Write-Host "Docker OK." -ForegroundColor Green
 
 if (-not (Test-Path .env)) {
   $txt = [IO.File]::ReadAllText((Join-Path (Get-Location) '.env.example'), [Text.Encoding]::UTF8)
