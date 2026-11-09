@@ -63,6 +63,13 @@ $cur = Read-Env
 $fixed = [regex]::Replace($cur, '(?m)^(ENCRYPTION_KEY=[0-9a-fA-F]{64})#', '$1  #')
 if ($fixed -ne $cur) { Write-Env $fixed; Write-Host ".env reparado." -ForegroundColor Yellow }
 
+# ---------- e-mail do dono ----------
+if (-not (Get-Env 'OWNER_EMAIL')) {
+  Write-Host ""
+  $mail = Read-Host "Qual e o SEU e-mail de dono? (acesso sem pagar; deixe vazio para pular)"
+  if ($mail -match '^\S+@\S+\.\S+$') { Set-Env 'OWNER_EMAIL' $mail.Trim().ToLower() }
+}
+
 # ---------- Supabase configurado? senao, modo PREVIA ----------
 $configured = $true
 foreach ($n in 'NEXT_PUBLIC_SUPABASE_URL','NEXT_PUBLIC_SUPABASE_ANON_KEY','SUPABASE_URL','SUPABASE_KEY') {
@@ -125,5 +132,6 @@ if ($configured) {
   Write-Host "Para ativar login, pagamento e robo: preencha as chaves no .env (Supabase, Asaas, Resend)" -ForegroundColor Yellow
   Write-Host "e rode este instalador de novo. O robo (worker) so inicia com o Supabase configurado."
 }
+if ($configured -and (Get-Env 'OWNER_EMAIL')) { Write-Host "Conta de dono: duplo clique em Criar-Dono-Windows.bat (cria o acesso sem pagar)." -ForegroundColor Yellow }
 Write-Host "Para parar: duplo clique em Parar-Windows.bat"
 Start-Process $siteUrl

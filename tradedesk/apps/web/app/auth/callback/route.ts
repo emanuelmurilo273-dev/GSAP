@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
     const admin = supabaseAdmin();
     if (await ensureOwner(admin, data.user)) {
       await auditOwner(admin, data.user, 'owner.login', { method: 'magic_link' }, req);
-      // dono cai direto no Admin (que exige o 2FA; sem fator cadastrado, vai para /owner/security)
-      return NextResponse.redirect(new URL(safeNext.startsWith('/owner') ? safeNext : '/admin', url));
+      // dono cai direto nas operações (/app); exige 2FA — sem fator cadastrado, vai para /owner/security
+      return NextResponse.redirect(new URL(safeNext.startsWith('/owner') ? safeNext : (process.env.OWNER_HOME ?? '/app'), url));
     }
   }
   return NextResponse.redirect(new URL(safeNext, url));

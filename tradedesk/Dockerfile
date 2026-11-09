@@ -4,6 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages ./packages
 COPY apps ./apps
+COPY scripts ./scripts
 RUN npm ci --no-audit --no-fund
 
 FROM base AS web

@@ -27,11 +27,11 @@ Robô que opera cripto **na conta da corretora do próprio cliente** (nunca guar
 ### 2. Chave de criptografia
 `ENCRYPTION_KEY` — o instalador do Windows gera sozinho. À mão: `openssl rand -hex 32`. **Guarde um backup**: sem ela, as chaves de corretora salvas ficam ilegíveis.
 
-### 3. Conta do dono (você)
+### 3. Conta do dono (você) — sem pagar
 1. Coloque seu e-mail em `OWNER_EMAIL` (recebe também os alertas).
-2. Abra `SEU_SITE/owner/login` → **"Primeiro acesso: enviar link mágico"** → clique no link do e-mail.
+2. **Crie a conta:** no Windows, duplo clique em **`Criar-Dono-Windows.bat`** (ou `npx tsx --env-file=.env scripts/criar-dono.ts`). Ele cria o usuário, marca como dono e mostra/envia o link de acesso. (Alternativa: `SEU_SITE/owner/login` → "Primeiro acesso: enviar link mágico".)
 3. Defina uma senha (12+ caracteres) e escaneie o QR no Google Authenticator/Authy.
-4. Pronto: você cai direto no **Admin**. Próximos logins: e-mail + senha + código de 6 dígitos. (O link mágico sozinho **não** abre o Admin: sempre exige o 2FA.)
+4. Pronto: você cai direto no **painel de operações** (o Admin fica no menu; `OWNER_HOME=/admin` inverte). Próximos logins: e-mail + senha + código de 6 dígitos. (O link mágico sozinho **não** abre o Admin: sempre exige o 2FA.)
 - Você não precisa de assinatura, nunca é bloqueado e não aparece na lista de assinantes. Todo login seu e toda ação no Admin ficam no **log de auditoria**.
 
 ### 4. Binance **TESTNET** (dinheiro de mentira) — comece por aqui

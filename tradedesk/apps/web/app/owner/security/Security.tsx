@@ -39,8 +39,9 @@ export default function Security() {
     if (ch.error) return setMsg('Erro no desafio.');
     const v = await sb.auth.mfa.verify({ factorId, challengeId: ch.data.id, code: code.trim() });
     if (v.error) return setMsg('Código inválido.');
-    await fetch('/api/owner/session', { method: 'POST' });
-    location.href = '/admin';
+    const r = await fetch('/api/owner/session', { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    location.href = j.home ?? '/app';
   }
 
   if (!ready) return <p className="text-sm text-dim">carregando…</p>;

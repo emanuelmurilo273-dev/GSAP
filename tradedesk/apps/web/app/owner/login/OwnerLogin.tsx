@@ -21,7 +21,8 @@ export default function OwnerLogin() {
   async function finish() {
     const r = await fetch('/api/owner/session', { method: 'POST' });
     if (!r.ok) { setMsg('Este e-mail não é o do dono.'); await sb.auth.signOut(); setStep('pass'); return; }
-    location.href = '/admin';
+    const j = await r.json().catch(() => ({}));
+    location.href = j.home ?? '/app';
   }
 
   useEffect(() => { sb.auth.getUser().then(({ data }) => { if (data.user) afterPassword(); }); /* eslint-disable-next-line */ }, []);
