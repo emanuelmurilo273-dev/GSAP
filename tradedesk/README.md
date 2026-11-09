@@ -54,3 +54,10 @@ Saldo = `fetchBalance` da corretora. P&L = fechamentos registrados a partir das 
 Ou seja: **com os parâmetros pedidos (nota ≥ 0,7, stop 3%, alvo 6%, 5%/trade) a estratégia não mostra vantagem estatística** nesses dados. Não "calibrei" os parâmetros até o gráfico ficar bonito — isso seria overfitting e propaganda enganosa, e o requisito é exibir números reais. Cobrar R$ 7.000/mês por algo assim, com a landing exibindo isso, é um risco comercial e regulatório (CDC, CVM — oferta de gestão/recomendação de investimentos pode exigir registro). Recomendo: pesquisar a estratégia com validação out-of-sample/walk-forward antes de lançar, validar o modelo de negócio com advogado, e testar o worker com valores pequenos por semanas.
 
 Limitações conhecidas: backtest não inclui o LLM nem spread/liquidez históricos; stop/alvo intra-candle resolvem empate a favor do stop; limite diário usa saldo da moeda de cotação + posições do robô (depósitos/saques no meio do dia distorcem); MB só tem stop por software (worker, 1 min) e a compatibilidade da ccxt `mercado` com a API v4 deve ser testada; preço novo vale para novas assinaturas; nenhum teste automatizado cobre ordens reais — **teste em conta pequena**.
+
+## Docker
+```bash
+cp .env.example .env      # preencha (Supabase na nuvem; rode a migration 001 lá antes)
+docker compose up --build # web em http://localhost:3000 + worker + redis
+```
+Rodando o worker na sua máquina/servidor, o IP de saída precisa ser de região aceita pela Binance (não EUA).
