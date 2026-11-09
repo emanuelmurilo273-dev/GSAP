@@ -55,6 +55,9 @@ Ou seja: **com os parâmetros pedidos (nota ≥ 0,7, stop 3%, alvo 6%, 5%/trade)
 
 Limitações conhecidas: backtest não inclui o LLM nem spread/liquidez históricos; stop/alvo intra-candle resolvem empate a favor do stop; limite diário usa saldo da moeda de cotação + posições do robô (depósitos/saques no meio do dia distorcem); MB só tem stop por software (worker, 1 min) e a compatibilidade da ccxt `mercado` com a API v4 deve ser testada; preço novo vale para novas assinaturas; nenhum teste automatizado cobre ordens reais — **teste em conta pequena**.
 
+## Windows (1 clique)
+Instale o Docker Desktop, depois de duplo clique em **Instalar-Windows.bat** (e **Parar-Windows.bat** para parar).
+
 ## Docker
 ```bash
 cp .env.example .env      # preencha (Supabase na nuvem; rode a migration 001 lá antes)
