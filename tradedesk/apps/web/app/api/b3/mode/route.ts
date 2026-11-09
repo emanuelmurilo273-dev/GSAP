@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { apiOwner } from '@/lib/auth';
-import { applyLimitedCaps, unlockDecision } from '@desk/core';
+import { unlockDecision } from '@desk/core';
 import { realChecklist } from '@/lib/b3';
 import { auditOwner } from '@/lib/owner';
 
@@ -27,18 +27,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Modo REAL TRAVADO até você aprovar o diagnóstico de perdas (aba "Saúde do robô").' }, { status: 423 });
     }
     const c = await realChecklist(admin);
-    const d = unlockDecision({ strategyApproved: c.strategyApproved, simSessions: c.simSessions, confirm1: b.confirm1 === true, confirm2: b.confirm2 === true, confirm3: b.confirm3 === true, phrase: String(b.phrase ?? ''), riskPhrase: String(b.riskPhrase ?? '') });
+    const d = unlockDecision({ approval: c.approval, demo: c.demo, confirm1: b.confirm1 === true, confirm2: b.confirm2 === true, phrase: String(b.phrase ?? '') });
     if (!d.ok) {
       await auditOwner(admin, who, 'b3.unlock_real.denied', { missing: d.missing }, req);
       return NextResponse.json({ error: `Modo REAL bloqueado. Falta: ${d.missing.join('; ')}.`, missing: d.missing }, { status: 412 });
     }
-    // sem estratégia aprovada: modo LIMITADO — os tetos já são gravados nas configurações e o conector os repete
-    const { data: cur } = await admin.from('b3_settings').select('*').eq('id', 1).maybeSingle();
-    const caps = d.limited && cur ? (({ profile, max_contracts, daily_loss_brl, max_trades_per_day, risk_per_trade_brl }) => ({ profile, max_contracts, daily_loss_brl, max_trades_per_day, risk_per_trade_brl }))(applyLimitedCaps(cur)) : {};
-    await admin.from('b3_settings').update({ ...caps, mode: 'real', real_unlocked: true, real_limited: d.limited, real_unlocked_at: new Date().toISOString(), enabled: false, updated_at: new Date().toISOString() }).eq('id', 1);
-    await admin.from('b3_logs').insert({ level: 'warn', agent: 'risk', message: d.limited ? 'MODO REAL LIMITADO liberado pelo dono (estratégia NÃO validada): 1 contrato, perda máx. R$ 100/dia, 3 operações/dia. Robô DESLIGADO: ligue manualmente.' : 'MODO REAL liberado pelo dono. Robô DESLIGADO: ligue manualmente.' });
-    await auditOwner(admin, who, d.limited ? 'b3.unlock_real.limited' : 'b3.unlock_real', {}, req);
-    return NextResponse.json({ ok: true, mode: 'real', limited: d.limited });
+    // no real o robô começa com 1 contrato (o conector impõe: realContractCap) e a trava de 10% do pico fica armada
+    await admin.from('b3_settings').update({ mode: 'real', real_unlocked: true, real_limited: false, real_unlocked_at: new Date().toISOString(), enabled: false, updated_at: new Date().toISOString() }).eq('id', 1);
+    await admin.from('app_settings').upsert({ key: 'b3_real_peak', value: null });
+    await admin.from('b3_logs').insert({ level: 'warn', agent: 'risk', message: 'MODO REAL liberado pelo dono: começa com 1 contrato; se o saldo cair 10% abaixo do pico, volta sozinho ao simulador. Robô DESLIGADO: ligue manualmente.' });
+    await auditOwner(admin, who, 'b3.unlock_real', { demo: c.demo }, req);
+    return NextResponse.json({ ok: true, mode: 'real' });
   }
   return NextResponse.json({ error: 'ação inválida' }, { status: 400 });
 }

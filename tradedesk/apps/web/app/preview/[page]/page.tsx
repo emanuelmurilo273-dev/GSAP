@@ -82,14 +82,14 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
     const ts = (m: number) => new Date(now - m * 60_000).toISOString();
     const equity = Array.from({ length: 80 }, (_, i) => { v += Math.sin(i / 6) * 9 + (i > 50 ? -3 : 2); return { t: now - (80 - i) * 4 * 60_000, v: Math.round(v * 100) / 100 }; });
     const demo = {
-      settings: { enabled: true, mode: real ? 'real' : 'sim', real_unlocked: real, real_limited: real, symbols: ['WIN', 'WDO'], profile: 'conservador', daily_loss_brl: 150, max_trades_per_day: 6, open_from: '09:05', open_until: '17:00', flat_at: '17:30' },
+      settings: { enabled: true, mode: real ? 'real' : 'sim', real_unlocked: real, symbols: ['WIN', 'WDO'], profile: 'conservador', daily_loss_brl: 150, max_trades_per_day: 6, open_from: '09:05', open_until: '17:00', flat_at: '17:30' },
       status: { state: 'trading', account_mode: real ? 'real' : 'demo', account_server: real ? 'Clear-Real' : 'SIMULADOR-INTERNO', source: real ? 'mt5' : 'internal', account_login: '***567', balance: 10000, equity: Math.round(v * 100) / 100, day_pnl: Math.round((v - 10000) * 100) / 100, trades_today: 3, contracts: { WIN: 'WINZ26', WDO: 'WDOZ26' },
         positions: [{ symbol: 'WINZ26', side: 'buy', volume: 2, price_open: 130005, sl: 129855, tp: 130230, profit: 18.4 }] },
       connectorAgeSec: 3,
       open: [], equity,
       logs: [['trade', 'executor', 'ENTRADA BUY 2x WINZ26 @ 130005 · stop 129855 · alvo 130230 (servidor da corretora)', 3], ['info', 'analyst', 'SINAL WINZ26: cruzamento EMA9/21 (estratégia de base, NÃO validada)', 3], ['refuse', 'filter', 'RECUSA WDOZ26: preços parados/sem cotação.', 22], ['trade', 'executor', 'SAÍDA ticket 102: stop/alvo na corretora · P&L -60.0 R$', 41], ['info', 'scout', 'Contrato vigente de WIN: WINZ26', 120]].map(([level, agent, message, m], i) => ({ id: i, level, agent, message, ts: ts(m as number) })),
       trades: [[-60, 'stop/alvo na corretora', 'WINZ26', 'sell'], [45, 'stop/alvo na corretora', 'WDOZ26', 'buy'], [90, 'zeragem fim de dia', 'WINZ26', 'buy']].map(([pnl, close_reason, contract, side], i) => ({ id: i, pnl, close_reason, contract, side, closed_at: ts(40 + i * 90) })),
-      checklist: { strategyApproved: false, simSessions: 2, simSessionsOk: false, needSessions: 5, limitedPath: true },
+      checklist: { approval: null, demo: { sessions: 2, trades: 14, pnl: -30, expectancy: -2.1 }, canUnlock: false, missing: ['estratégia ainda NÃO aprovada'], need: { sessions: 20, trades: 30 } },
     };
     return (
       <div>

@@ -284,62 +284,122 @@ class Heartbeat(unittest.TestCase):
         self.assertNotIn("password", str(st))
 
 
-class RealLimited(unittest.TestCase):
-    """Modo REAL LIMITADO (estratégia não validada): tetos valem ACIMA das configurações, mesmo que o painel mande mais."""
+class RealMode(unittest.TestCase):
+    """Dinheiro REAL: 1 contrato até provar; trava de 10% do pico; posições órfãs; alertas."""
     def real(self, **over):
-        return make(dict(mode="real", real_locked=False, real_unlocked=True, real_limited=True, max_contracts=30, daily_loss_brl=5000, max_trades_per_day=40,
+        return make(dict(mode="real", real_locked=False, real_unlocked=True, max_contracts=30, daily_loss_brl=5000, max_trades_per_day=40,
                          risk_per_trade_brl=900, profile="agressivo", **over), cfg=Config(allow_real=True))
 
-    def test_contracts_capped_at_one(self):
+    def test_contracts_capped_at_one_until_proven(self):
         eng, gw, store, clock, sig = self.real(symbols=["WIN"])
         run(eng, clock); sig.fire(); run(eng, clock)
-        self.assertEqual(len(gw.positions()), 1)
         self.assertEqual(gw.positions()[0].volume, 1)          # painel pedia até 30
 
-    def test_only_one_position_at_a_time_in_total(self):
-        eng, gw, store, clock, sig = self.real()
-        eng.signal_fn = lambda c: ("buy", float(len(c) + clock.m))   # sinal em todos os ativos
-        run(eng, clock, 3)
-        self.assertEqual(len(gw.positions()), 1)               # WIN e WDO liberados, mas só 1 aberta
+    def test_contracts_grow_slowly_after_30_positive_real_sessions(self):
+        from hexadesk_connector.risk import real_contract_cap
+        self.assertEqual([real_contract_cap(n, 100, 9) for n in (0, 29, 30, 44, 45, 60)], [1, 1, 2, 2, 3, 4])
+        self.assertEqual(real_contract_cap(40, -5, 9), 1)
+        eng, gw, store, clock, sig = self.real(symbols=["WIN"])
+        for d in range(30):
+            store.sessions[(f"2026-10-{d:02d}", "real", "mt5")] = {"pnl": 10.0, "active_minutes": 300}
+        run(eng, clock, 2, dt=70); sig.fire(); run(eng, clock)
+        self.assertEqual(gw.positions()[0].volume, 2)          # 30 pregões reais positivos → 2 contratos (nunca 30)
 
-    def test_max_three_trades_a_day(self):
+    def test_back_to_simulator_automatically_when_10_percent_below_peak(self):
         eng, gw, store, clock, sig = self.real(symbols=["WIN"])
         run(eng, clock)
-        for _ in range(6):
-            sig.fire(); run(eng, clock)
-            for p in gw.positions(): gw.close_position(p)
-            run(eng, clock)
-        self.assertEqual(len(store.trades), 3)
+        gw.balance = 12_000; run(eng, clock)                    # novo pico
+        self.assertEqual(eng.peak, 12_000)
+        gw.balance = 12_000 * 0.90 - 1                          # caiu 10% abaixo do pico
+        run(eng, clock)
+        self.assertEqual(store.settings["mode"], "sim")
+        self.assertFalse(store.settings["enabled"]); self.assertFalse(store.settings["real_unlocked"]); self.assertTrue(store.settings["real_locked"])
+        self.assertTrue(any(k == "real_revert" for k, _, _ in store.alerts))
+        sig.fire(); run(eng, clock, 3, dt=20)
+        self.assertEqual(gw.connect_calls[-1], "ClearInvestimentos-DEMO")        # reconectou na DEMO
 
-    def test_stop_too_wide_for_the_risk_cap_is_refused(self):
-        eng, gw, store, clock, sig = self.real(symbols=["WIN"], stop_points_win=1000)   # 1 contrato = R$ 200 de risco > teto de R$ 50
-        run(eng, clock); sig.fire(); run(eng, clock)
-        self.assertEqual(gw.positions(), [])
-        self.assertTrue(store.has_log("não comporta nem 1 contrato"))
+    def test_peak_survives_restart(self):
+        eng, gw, store, clock, sig = self.real(symbols=["WIN"])
+        run(eng, clock); gw.balance = 11_000; run(eng, clock)
+        self.assertEqual(store.kv["b3_real_peak"], 11_000)
+        eng2 = Engine(gw, store, Config(allow_real=True), SECRETS, now_fn=clock.now, mono_fn=clock.mono, signal_fn=sig)
+        run(eng2, clock); self.assertEqual(eng2.peak, 11_000)
 
-    def test_daily_loss_cap_is_100_even_if_panel_says_5000(self):
-        from hexadesk_connector.engine import effective_settings
-        e = effective_settings(dict(BASE, mode="real", real_limited=True, daily_loss_brl=5000, max_contracts=9, max_trades_per_day=40, risk_per_trade_brl=900, profile="agressivo"))
-        self.assertEqual((e["daily_loss_brl"], e["max_contracts"], e["max_trades_per_day"], e["risk_per_trade_brl"], e["profile"]), (100.0, 1, 3, 50.0, "conservador"))
-        self.assertEqual(effective_settings(dict(BASE, mode="real", real_limited=True, daily_loss_brl=40))["daily_loss_brl"], 40.0)   # menor é mantido
-        self.assertEqual(effective_settings(dict(BASE, mode="sim", real_limited=True, daily_loss_brl=5000))["daily_loss_brl"], 5000)   # só vale no REAL
+    def test_9_percent_drop_does_not_trigger(self):
+        eng, gw, store, clock, sig = self.real(symbols=["WIN"])
+        run(eng, clock); gw.balance = 10_000; run(eng, clock); gw.balance = 9_100; run(eng, clock)
+        self.assertEqual(store.settings["mode"], "real")
 
-    def test_three_losses_trigger_the_100_real_limit_not_the_5000(self):
-        eng, gw, store, clock, sig = self.real(symbols=["WIN"], stop_points_win=240)    # perda por operação = R$ 48 (cabe no teto de R$ 50)
+    def test_daily_loss_limit_stops_the_day_in_real_too(self):
+        eng, gw, store, clock, sig = make(dict(mode="real", real_locked=False, real_unlocked=True, symbols=["WIN"], daily_loss_brl=40, stop_points_win=240, risk_per_trade_brl=60, profile="moderado"), cfg=Config(allow_real=True))
         run(eng, clock)
         for _ in range(3):
             sig.fire(); run(eng, clock)
-            p = gw.positions()[0]
-            gw.move("WINZ26", p.sl - 5)
-            run(eng, clock)
-        self.assertTrue(store.has_log("LIMITE DE PERDA DIÁRIO"))   # -R$ 144 passou do teto de R$ 100 (o painel dizia R$ 5000)
+            if gw.positions():
+                gw.move("WINZ26", gw.positions()[0].sl - 5); run(eng, clock)
+        self.assertTrue(store.has_log("LIMITE DE PERDA DIÁRIO"))
         sig.fire(); run(eng, clock)
         self.assertEqual(gw.positions(), [])
 
-    def test_unlimited_real_mode_is_not_capped(self):
-        eng, gw, store, clock, sig = make(dict(mode="real", real_locked=False, real_unlocked=True, real_limited=False, max_contracts=3, risk_per_trade_brl=600, profile="agressivo", symbols=["WIN"]), cfg=Config(allow_real=True))
+
+class Roll(unittest.TestCase):
+    def test_rollover_uses_the_next_contract_and_never_the_expired_one(self):
+        from datetime import date
+        from hexadesk_connector.fake_mt5 import WDO_SPEC, WIN_SPEC
+        gw = FakeGateway(symbols={"WINZ26": WIN_SPEC, "WING27": WIN_SPEC, "WDOZ26": WDO_SPEC, "WDOF27": WDO_SPEC})
+        eng, gw, store, clock, sig = make(gw=gw)
+        self.assertEqual(eng._contract("WIN", date(2026, 12, 1)), "WINZ26")
+        self.assertEqual(eng._contract("WIN", date(2026, 12, 15)), "WING27")      # vencimento 16/12: já rolou
+        self.assertEqual(eng._contract("WIN", date(2026, 12, 17)), "WING27")
+        self.assertEqual(eng._contract("WDO", date(2026, 12, 30)), "WDOF27")      # WDO rola no último dia útil do mês
+
+
+class Orphans(unittest.TestCase):
+    """Reiniciar o conector não pode deixar posição 'esquecida', duplicar ordem nem deixar linha aberta no painel."""
+    def test_open_position_is_adopted_after_restart_and_closed_in_the_panel(self):
+        eng, gw, store, clock, sig = make(dict(symbols=["WIN"]))
         run(eng, clock); sig.fire(); run(eng, clock)
-        self.assertEqual(gw.positions()[0].volume, 3)
+        p = gw.positions()[0]
+        eng2 = Engine(gw, store, Config(), SECRETS, now_fn=clock.now, mono_fn=clock.mono, signal_fn=sig)    # "reiniciou"
+        run(eng2, clock)
+        self.assertIn(p.ticket, eng2.tracked)
+        self.assertEqual(len(store.trades), 1)                  # não duplicou a linha
+        gw.move("WINZ26", p.sl - 5); run(eng2, clock)
+        self.assertEqual(store.trades[0]["status"], "closed")   # o painel reflete a saída
+        self.assertLess(store.trades[0]["pnl"], 0)
+
+    def test_position_closed_while_connector_was_down_is_closed_in_the_panel(self):
+        eng, gw, store, clock, sig = make(dict(symbols=["WIN"]))
+        run(eng, clock); sig.fire(); run(eng, clock)
+        p = gw.positions()[0]
+        gw.move("WINZ26", p.sl - 5)                             # stop bateu com o conector desligado
+        eng2 = Engine(gw, store, Config(), SECRETS, now_fn=clock.now, mono_fn=clock.mono, signal_fn=sig)
+        run(eng2, clock)
+        self.assertEqual(store.trades[0]["status"], "closed")
+        self.assertEqual(store.trades[0]["close_reason"], "fechada enquanto o conector estava parado")
+
+    def test_unregistered_position_is_adopted_and_flattened_at_close(self):
+        eng, gw, store, clock, sig = make(dict(symbols=["WIN"]))
+        run(eng, clock)
+        gw.send_order("WINZ26", "buy", 1, 129_850, 130_225, "hexadesk")      # posição sem linha no painel
+        run(eng, clock, 2, dt=40)
+        self.assertEqual(len(store.trades), 1); self.assertTrue(store.has_log("sem registro no painel"))
+        clock.set(17, 31); run(eng, clock)
+        self.assertEqual(gw.positions(), [])                    # zerada às 17:30 como as outras
+
+    def test_no_duplicate_order_for_the_same_candle(self):
+        eng, gw, store, clock, sig = make(dict(symbols=["WIN"], max_trades_per_day=10))
+        run(eng, clock)
+        sig.pending = ("buy", 1.0); run(eng, clock)
+        sig.pending = ("buy", 1.0); run(eng, clock, 3)           # o MESMO candle sinalizado de novo
+        self.assertEqual(len(store.trades), 1)
+
+    def test_every_order_has_a_server_side_stop_and_second_asset_never_doubles(self):
+        eng, gw, store, clock, sig = make()
+        eng.signal_fn = lambda c: ("buy", float(len(c)))
+        run(eng, clock, 4)
+        self.assertEqual(len({p.symbol[:3] for p in gw.positions()}), len(gw.positions()))   # no máx. 1 por ativo
+        self.assertTrue(all(p.sl > 0 for p in gw.positions()))
 
 
 if __name__ == "__main__":

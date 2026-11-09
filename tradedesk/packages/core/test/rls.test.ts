@@ -31,7 +31,7 @@ before(async () => {
   await db.exec(readFileSync(new URL('../../../supabase/migrations/002_owner_audit_health.sql', import.meta.url), 'utf8'));
   await db.exec(readFileSync(new URL('../../../supabase/migrations/003_b3.sql', import.meta.url), 'utf8'));
   await db.exec(readFileSync(new URL('../../../supabase/migrations/004_b3_source.sql', import.meta.url), 'utf8'));
-  await db.exec(readFileSync(new URL('../../../supabase/migrations/005_b3_real_limited.sql', import.meta.url), 'utf8'));
+  for (const m of ['005_b3_real_limited', '006_b3_live_intel', '007_b3_protecao_diagnostico', '008_b3_alertas_real']) await db.exec(readFileSync(new URL(`../../../supabase/migrations/${m}.sql`, import.meta.url), 'utf8'));
   // grants padrão do Supabase: sem eles o teste passaria por falta de permissão, não por RLS
   await db.exec('grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role; grant execute on all functions in schema public to anon, authenticated;');
   await db.exec(`
@@ -166,4 +166,18 @@ test('B3: o modo real começa SEMPRE bloqueado e não-limitado por padrão; só 
   await as('authenticated', O, 'aal2');
   const upd = await db.query(`update b3_settings set real_unlocked = true, real_limited = false returning 1`);
   assert.equal(upd.rows.length, 0, 'nem o dono destrava o real pela API pública');
+});
+
+test('B3: trava do diagnóstico nasce LIGADA e só o servidor muda; alertas só o dono lê', async () => {
+  await as('service_role', null);
+  const r = await db.query(`select real_locked, mode, rr from b3_settings where id = 1`);
+  assert.equal((r.rows[0] as any).real_locked, true);
+  assert.ok(Number((r.rows[0] as any).rr) >= 1.5);
+  await db.exec(`insert into b3_alerts (kind, title) values ('trade_open', 'x')`);
+  await as('authenticated', A);
+  assert.equal((await db.query(`select * from b3_alerts`)).rows.length, 0, 'cliente comum não vê alertas do dono');
+  await as('authenticated', O, 'aal2');
+  assert.equal((await db.query(`select * from b3_alerts`)).rows.length, 1);
+  const upd = await db.query(`update b3_settings set real_locked = false returning 1`);
+  assert.equal(upd.rows.length, 0, 'nem o dono tira a trava pela API pública');
 });

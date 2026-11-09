@@ -1,5 +1,6 @@
 import { adminAlert, safeEqual } from '@desk/core';
 import { NextResponse } from 'next/server';
+import { dailySummary, flushAlerts } from '@/lib/b3notify';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /** Chamado a cada 5 min (Vercel Cron ou monitor externo). Avisa o dono por e-mail se o worker parou de dar sinal de vida. */
@@ -27,5 +28,6 @@ export async function GET(req: Request) {
   const hasPos = Array.isArray(b3st?.positions) && (b3st!.positions as unknown[]).length > 0;
   const b3Down = inHours && (!!b3s?.enabled || hasPos) && b3Age > 2;
   if (b3Down) await adminAlert(admin, 'b3-connector-down', 'CONECTOR MT5 CAIU (day trade B3)', `<p>O conector não dá sinal há <b>${Number.isFinite(b3Age) ? Math.round(b3Age) + ' min' : 'tempo indeterminado'}</b> durante o pregão${hasPos ? ' e <b>há posição aberta</b>' : ''}.</p><p>As posições abertas continuam protegidas pelo <b>stop gravado no servidor da corretora</b>. Verifique o PC/VPS (MetaTrader 5 e conector) ou use o app/site da Clear para zerar na hora.</p>`, 30);
-  return NextResponse.json({ ok: !down && !b3Down, ageMin: Number.isFinite(ageMin) ? Math.round(ageMin) : null, bots: count, b3: { down: b3Down, ageMin: Number.isFinite(b3Age) ? Math.round(b3Age) : null } });
+  const [fl, sm] = await Promise.all([flushAlerts(admin).catch(() => ({ sent: 0 })), dailySummary(admin).catch(() => false)]);   // alertas do robô + resumo das 18:00
+  return NextResponse.json({ ok: !down && !b3Down, alerts: fl.sent, summary: sm, ageMin: Number.isFinite(ageMin) ? Math.round(ageMin) : null, bots: count, b3: { down: b3Down, ageMin: Number.isFinite(b3Age) ? Math.round(b3Age) : null } });
 }

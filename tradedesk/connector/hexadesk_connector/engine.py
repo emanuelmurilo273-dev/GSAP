@@ -21,7 +21,7 @@ from .config import Config
 from .contracts import current_contract
 from .gateway import Account, Credentials, Gateway
 from .intel.pipeline import IntelPipeline
-from .risk import PROFILE_RISK, adaptive_size, day_state, size_contracts
+from .risk import PROFILE_RISK, REAL_DD_STOP, adaptive_size, day_state, real_contract_cap, size_contracts
 from . import safety
 from .intel.news import NewsFilter
 from .intel.regime import classify as classify_regime
@@ -36,20 +36,13 @@ HEARTBEAT_SECONDS = 5
 DEFAULT_RULES = "v2"
 
 
-# Tetos do modo REAL LIMITADO (estratégia não validada). Repetem packages/core/src/b3rules.ts: mantenha os dois iguais.
-LIMITED = {"max_contracts": 1, "daily_loss_brl": 100.0, "max_trades_per_day": 3, "risk_per_trade_brl": 50.0, "max_open": 1}
-
-
-def effective_settings(s: dict) -> dict:
-    """No modo REAL LIMITADO os tetos valem acima de QUALQUER configuração (defesa em profundidade: o conector não confia só no painel)."""
-    if s.get("mode") == "real" and s.get("real_limited"):
+def effective_settings(s: dict, real_stats: dict | None = None) -> dict:
+    """No modo REAL o teto de contratos vale acima de QUALQUER configuração (defesa em profundidade: o conector não confia só no painel):
+    1 contrato até 30 pregões reais positivos; depois sobe 1 a cada 15 pregões positivos."""
+    if s.get("mode") == "real":
+        st = real_stats or {"sessions": 0, "pnl": 0.0}
         s = dict(s)
-        s["profile"] = "conservador"
-        s["max_contracts"] = min(int(s["max_contracts"]), LIMITED["max_contracts"])
-        s["daily_loss_brl"] = min(float(s["daily_loss_brl"]), LIMITED["daily_loss_brl"])
-        s["max_trades_per_day"] = min(int(s["max_trades_per_day"]), LIMITED["max_trades_per_day"])
-        s["risk_per_trade_brl"] = min(float(s["risk_per_trade_brl"]), LIMITED["risk_per_trade_brl"])
-        s["_max_open"] = LIMITED["max_open"]
+        s["max_contracts"] = real_contract_cap(int(st["sessions"]), float(st["pnl"]), int(s["max_contracts"]))
     return s
 
 
@@ -76,6 +69,11 @@ class Engine:
         self.live, self.shadow = live, shadow
         self.rules = rules or DEFAULT_RULES                     # 'v2' = proteções da autópsia (padrão); 'legacy' só existe para comparar antes × depois
         self.day_losses = 0                    # perdas SEGUIDAS no dia
+        self.real_cache: dict = {"sessions": 0, "pnl": 0.0}
+        self.real_cache_at = -1e9
+        self.adopted: str | None = None
+        self.last_orphan_check = -1e9
+        self.peak: float | None = None
         self.blocks: dict = {}
         self.intel = IntelPipeline()          # camadas de inteligência: TODAS desligadas até o campeão ligar alguma
         self.champion_id = None
@@ -145,6 +143,7 @@ class Engine:
             self._safe(self.store.update_settings, {"enabled": False})
             self.gw.shutdown()
             self.connected_mode = None
+            self.adopted = None
         if self.mono() - self.last_connect_try < 10:
             return False
         self.last_connect_try = self.mono()
@@ -197,7 +196,9 @@ class Engine:
                     self.sess["halted"], self.sess["halt_reason"] = True, f"{safety.MAX_LOSSES_IN_ROW} perdas seguidas"
                     self._safe(self.store.upsert_session, dict(self.sess))
                     self.log("warn", "risk", f"{self.day_losses} PERDAS SEGUIDAS: o robô para por hoje (sem novas entradas até amanhã).")
+                    self._alert("limit", "Parei por hoje: 2 perdas seguidas", "Prefiro não insistir.")
             self.log("trade", "executor", f"SAÍDA ticket {ticket}: {patch['close_reason']} · P&L {info.profit if info else '?'} R$")
+            self._alert("trade_close", f"Operação encerrada: {'+' if info and info.profit >= 0 else ''}{info.profit if info else '?'} R$", patch["close_reason"])
             del self.tracked[ticket]
 
     # ------------------------------------------------------------------ sessão do dia
@@ -233,6 +234,79 @@ class Engine:
             self.tickwatch[symbol] = (t.time_msc, self.mono())
             return True
         return self.mono() - last[1] <= STALE_SECONDS
+
+    # ------------------------------------------------------------------ alertas, real e posições órfãs
+    def _alert(self, kind: str, title: str, body: str = "") -> None:
+        self._safe(self.store.alert, kind, title, body)
+
+    def _refresh_real_stats(self, s: dict) -> None:
+        if s.get("mode") != "real" or self.mono() - self.real_cache_at < 60:
+            return
+        self.real_cache_at = self.mono()
+        st = self._safe(self.store.real_stats)
+        if st:
+            self.real_cache = st
+
+    def _real_guard(self, acct: Account, s: dict) -> bool:
+        """Real: se o saldo cair 10% abaixo do pico, zera tudo, volta ao SIMULADOR, trava o real e avisa. Devolve True se disparou."""
+        if s["mode"] != "real":
+            self.peak = None
+            return False
+        if self.peak is None:
+            saved = self._safe(self.store.kv_get, "b3_real_peak")
+            self.peak = float(saved) if saved else acct.equity
+        if acct.equity > self.peak:
+            self.peak = acct.equity
+            self._safe(self.store.kv_set, "b3_real_peak", self.peak)
+        if self.peak > 0 and acct.equity <= self.peak * (1 - REAL_DD_STOP):
+            n = self._flatten("trava de 10% do pico")
+            self._safe(self.store.update_settings, {"mode": "sim", "real_unlocked": False, "real_limited": False, "enabled": False, "real_locked": True,
+                                                    "real_locked_reason": f"Voltou ao simulador: o saldo real caiu 10% abaixo do pico (pico R$ {self.peak:,.2f}, agora R$ {acct.equity:,.2f})."})
+            msg = f"TRAVA DOS 10%: saldo real R$ {acct.equity:,.2f} está 10% abaixo do pico R$ {self.peak:,.2f}. {n} posição(ões) zerada(s); o robô voltou ao SIMULADOR e o real foi travado."
+            self.log("error", "risk", msg)
+            self._alert("real_revert", "Robô voltou ao SIMULADOR: queda de 10% no real", msg)
+            self.peak = None
+            return True
+        return False
+
+    def _adopt(self, mode: str) -> None:
+        """Depois de reiniciar o conector: reencontra as posições abertas (senão ficariam 'esquecidas' no painel) e fecha no painel as que já saíram."""
+        if self.adopted == mode:
+            return
+        rows = self._safe(self.store.open_trades, mode)
+        if rows is None:
+            return
+        live = {p.ticket: p for p in self.gw.positions()}
+        for r in rows:
+            if r.get("source", self.source) != self.source:
+                continue
+            tk = r.get("ticket")
+            if tk in live:
+                self.tracked[tk] = r["id"]
+            else:
+                info = self.gw.history_closed(tk) if tk is not None else None
+                patch = {"status": "closed", "closed_at": self.now().isoformat(), "close_reason": "fechada enquanto o conector estava parado"}
+                if info:
+                    patch.update(price_close=info.price_close, pnl=info.profit, fees=round(info.fees, 2), gross_pnl=None if info.gross is None else round(info.gross, 2))
+                self._safe(self.store.update_trade, r["id"], patch)
+                self.log("warn", "executor", f"Operação {r['id']} estava aberta no painel mas já saiu da corretora: marcada como fechada.")
+        self.adopted = mode
+        self._adopt_orphans(mode, live)
+
+    def _adopt_orphans(self, mode: str, live: dict | None = None) -> None:
+        """A cada 30 s: posição do robô sem registro no painel (ex.: o painel estava fora do ar na hora da entrada) é registrada e monitorada."""
+        if live is None:
+            if self.mono() - self.last_orphan_check < 30:
+                return
+            live = {p.ticket: p for p in self.gw.positions()}
+        self.last_orphan_check = self.mono()
+        orphans = [p for p in live.values() if p.ticket not in self.tracked]
+        for p in orphans:      # posição do robô sem registro no painel: nunca fica esquecida — passa a ser zerada com as demais
+            tid = self._safe(self.store.insert_trade, {"mode": mode, "source": self.source, "root": p.symbol[:3], "contract": p.symbol, "side": p.side, "volume": p.volume, "price_open": p.price_open,
+                                                      "sl": p.sl, "tp": p.tp, "ticket": p.ticket, "opened_at": self.now().isoformat(), "why": "Posição encontrada ao reiniciar o conector."})
+            if tid is not None:
+                self.tracked[p.ticket] = tid
+            self.log("warn", "executor", f"Posição {p.symbol} (ticket {p.ticket}) encontrada sem registro no painel: adotada e monitorada.")
 
     # ------------------------------------------------------------------ comandos do painel
     def _commands(self) -> None:
@@ -284,7 +358,8 @@ class Engine:
         if s is None:
             self.state = "stopped"
             return
-        s = effective_settings(s)
+        self._refresh_real_stats(s)
+        s = effective_settings(s, self.real_cache)
         if not self._ensure_connection(s):
             self.state = "error"
             self._heartbeat(now, s, None)
@@ -308,9 +383,13 @@ class Engine:
             return
         self.error = None
 
+        self._adopt(s["mode"])
+        self._adopt_orphans(s["mode"])
         self._refresh_intel()
         self._commands()
         self._reconcile(s["mode"])
+        if self._real_guard(acct, s):
+            return
         sess = self._session(now.date(), s["mode"], acct)
         day_pnl = acct.equity - sess["start_equity"]
 
@@ -326,6 +405,7 @@ class Engine:
             self._flatten(sess["halt_reason"])
             self._safe(self.store.upsert_session, dict(sess))
             self.log("warn", "risk", f"{sess['halt_reason'].upper()} ({day_pnl:+.2f} R$). Sem novas entradas até amanhã.")
+            self._alert("limit", f"Parei por hoje: {sess['halt_reason']}", f"Resultado do dia: {day_pnl:+.2f} R$.")
 
         self._shadow_step(s, now)
         block = self._block(s, now, sess)
@@ -340,8 +420,6 @@ class Engine:
     def _entries(self, s: dict, acct: Account, now: datetime, sess: dict) -> None:
         held = {p.symbol for p in self.gw.positions()}
         for root in s["symbols"]:
-            if s.get("_max_open") and len(held) >= s["_max_open"]:
-                return  # modo limitado: uma posição por vez, no total
             contract = self._contract(root, now.date())
             if any(h.startswith(root) for h in held):
                 continue  # no máximo 1 posição por ativo
@@ -451,6 +529,7 @@ class Engine:
             self.tracked[pos.ticket] = tid
         sess["trades"] = sess.get("trades", 0) + 1
         self.last_size = n
+        self._alert("trade_open", f"{'Compra' if side == 'buy' else 'Venda'} de {n} {contract}", _why_text(side, dec, stop_pts, rr, self.rules))
         self.log("trade", "executor", f"ENTRADA {side.upper()} {n}x {contract} @ {pos.price_open} · stop {pos.sl} · alvo {pos.tp} (servidor da corretora)")
 
     # ------------------------------------------------------------------ inteligência

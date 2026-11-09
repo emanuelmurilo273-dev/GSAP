@@ -63,3 +63,17 @@ def adaptive_size(base_n: int, loss_streak: int, last_size: int | None, high_vol
     if loss_streak > 0 and last_size is not None:
         n = min(n, last_size)                       # trava anti-martingale
     return max(1, min(base_n, int(n)))
+
+
+# ---- dinheiro REAL: começa com 1 contrato e só sobe devagar (repete packages/core/src/b3rules.ts: mantenha igual)
+REAL_START_CONTRACTS = 1
+REAL_SCALE_AFTER = 30      # pregões reais com resultado acumulado positivo
+REAL_SCALE_STEP = 15       # +1 contrato a cada 15 pregões positivos a mais
+REAL_DD_STOP = 0.10        # 10% abaixo do pico → volta ao simulador
+
+
+def real_contract_cap(sessions: int, pnl: float, requested: int) -> int:
+    if sessions < REAL_SCALE_AFTER or not pnl > 0:
+        return REAL_START_CONTRACTS
+    cap = 2 + (sessions - REAL_SCALE_AFTER) // REAL_SCALE_STEP
+    return max(REAL_START_CONTRACTS, min(int(round(requested)), cap))

@@ -1,5 +1,5 @@
 import 'server-only';
-import { MIN_SESSION_MINUTES, MIN_SIM_SESSIONS, MIN_SIM_SESSIONS_LIMITED, applyLimitedCaps, strategyApproved } from '@desk/core';
+import { MIN_DEMO_TRADES, MIN_SESSION_MINUTES, MIN_SIM_SESSIONS, NEAR_BACKTEST, type Approval, type DemoStats, unlockDecision } from '@desk/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 
@@ -9,8 +9,7 @@ const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 
 /** Sanitiza as configurações vindas do navegador. Horários: abrir ≥ 09:15, parar de abrir ≤ 17:20, zerar entre 16:00 e 17:45. */
 export function cleanB3Settings(b: any, cur: any) {
-  const out = cleanRaw(b, cur);
-  return cur.mode === 'real' && cur.real_limited ? applyLimitedCaps(out) : out;   // modo limitado: tetos valem sempre
+  return cleanRaw(b, cur);   // (no real, o teto de contratos é aplicado no conector: 1 até provar — ver realContractCap)
 }
 
 function cleanRaw(b: any, cur: any) {
@@ -41,9 +40,16 @@ function cleanRaw(b: any, cur: any) {
 
 /** Condições para liberar o modo REAL (todas verificadas no servidor). */
 export async function realChecklist(admin: SupabaseClient) {
-  const { data } = await admin.from('b3_sessions').select('day,active_minutes').eq('mode', 'sim').eq('source', 'mt5').gte('active_minutes', MIN_SESSION_MINUTES);  // o simulador interno (preços artificiais) NÃO conta
-  const sessions = data?.length ?? 0;
-  const approved = strategyApproved();
-  const need = approved ? MIN_SIM_SESSIONS : MIN_SIM_SESSIONS_LIMITED;
-  return { strategyApproved: approved, simSessions: sessions, simSessionsOk: sessions >= need, needSessions: need, limitedPath: !approved };
+  const [ses, ap] = await Promise.all([
+    admin.from('b3_sessions').select('day,pnl,active_minutes').eq('mode', 'sim').eq('source', 'mt5').gte('active_minutes', MIN_SESSION_MINUTES),   // o simulador interno (preços artificiais) NÃO conta
+    admin.from('app_settings').select('value').eq('key', 'b3_approval').maybeSingle(),
+  ]);
+  const days = new Set((ses.data ?? []).map((r) => String(r.day)));
+  const { data: tr } = await admin.from('b3_trades').select('pnl,opened_at').eq('status', 'closed').eq('mode', 'sim').eq('source', 'mt5').not('pnl', 'is', null).limit(20000);
+  const pnls = (tr ?? []).filter((t) => days.has(String(t.opened_at).slice(0, 10)) || days.has(new Date(t.opened_at).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }))).map((t) => Number(t.pnl));
+  const total = pnls.reduce((a, b) => a + b, 0);
+  const demo: DemoStats = { sessions: days.size, trades: pnls.length, pnl: (ses.data ?? []).reduce((a, r) => a + Number(r.pnl ?? 0), 0) || total, expectancy: pnls.length ? total / pnls.length : 0 };
+  const approval = (ap.data?.value as Approval | undefined) ?? null;
+  const d = unlockDecision({ approval, demo, confirm1: true, confirm2: true, phrase: 'OPERAR REAL' });   // confirmações vêm da tela; aqui só as condições de mérito
+  return { approval, demo, canUnlock: d.ok, missing: d.missing, need: { sessions: MIN_SIM_SESSIONS, trades: MIN_DEMO_TRADES, nearBacktest: NEAR_BACKTEST } };
 }

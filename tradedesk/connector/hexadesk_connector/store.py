@@ -29,6 +29,8 @@ class Store(Protocol):
     def get_challengers(self) -> list[dict]: ...
     def get_events(self) -> list[dict]: ...
     def log_decision(self, row: dict) -> None: ...
+    def alert(self, kind: str, title: str, body: str = "") -> None: ...
+    def real_stats(self) -> dict: ...
     def insert_shadow(self, row: dict) -> None: ...
     def register_version(self, name: str, role: str, config: dict, notes: str = "") -> Any: ...
 
@@ -142,6 +144,18 @@ class SupabaseStore:
         except StoreError:
             pass
 
+    def alert(self, kind, title, body=""):
+        try:
+            self._req("POST", "b3_alerts", None, {"kind": kind, "title": title, "body": body})
+        except StoreError:
+            pass       # alerta nunca derruba o robô (a tabela pode nem existir ainda)
+
+    def real_stats(self):
+        """Pregões REAIS (MT5, conta real) e resultado acumulado: libera mais de 1 contrato só depois de provar."""
+        rows = self._req("GET", "b3_sessions", {"mode": "eq.real", "source": "eq.mt5", "select": "day,pnl,active_minutes"}) or []
+        ok = [r for r in rows if (r.get("active_minutes") or 0) >= 240]
+        return {"sessions": len(ok), "pnl": sum(float(r.get("pnl") or 0) for r in ok)}
+
     def insert_shadow(self, row):
         try:
             self._req("POST", "b3_shadow_trades", None, row)
@@ -168,6 +182,7 @@ class MemoryStore:
         self.challengers: list[dict] = []
         self.events: list[dict] = []
         self.decisions: list[dict] = []
+        self.alerts: list[tuple] = []
         self.shadow: list[dict] = []
         self.versions: list[dict] = []
         self.snaps: list[tuple] = []
@@ -243,6 +258,13 @@ class MemoryStore:
 
     def log_decision(self, row):
         self.decisions.append(row)
+
+    def alert(self, kind, title, body=""):
+        self.alerts.append((kind, title, body))
+
+    def real_stats(self):
+        ok = [r for k, r in self.sessions.items() if k[1] == "real" and k[2] == "mt5" and (r.get("active_minutes") or 0) >= 240]
+        return {"sessions": len(ok), "pnl": sum(float(r.get("pnl") or 0) for r in ok)}
 
     def insert_shadow(self, row):
         self.shadow.append(row)
