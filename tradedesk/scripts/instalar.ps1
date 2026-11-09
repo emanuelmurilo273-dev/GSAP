@@ -7,6 +7,9 @@ $envPath = Join-Path (Get-Location) '.env'
 
 function Fail($msg) { Write-Host ""; Write-Host "ERRO: $msg" -ForegroundColor Red; exit 1 }
 function Test-Docker { docker info 2>&1 | Out-Null; return ($LASTEXITCODE -eq 0) }
+function Test-PortFree($p) {
+  try { $l = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Any, $p); $l.Start(); $l.Stop(); return $true } catch { return $false }
+}
 function Read-Env { return [IO.File]::ReadAllText($envPath, [Text.Encoding]::UTF8) }
 function Write-Env($t) { [IO.File]::WriteAllText($envPath, $t, $utf8) }
 function Get-Env($name) {
@@ -38,6 +41,8 @@ if (-not (Test-Docker)) {
   if (-not $ok) { Fail "O Docker Desktop nao iniciou a tempo. Abra-o, espere 'Engine running' e rode de novo. Se pedir, aceite o WSL 2 e reinicie o PC." }
 }
 Write-Host "Docker OK." -ForegroundColor Green
+# remove containers antigos deste projeto (se existirem) para liberar a porta
+docker compose down 2>&1 | Out-Null
 
 # ---------- .env automatico ----------
 if (-not (Test-Path $envPath)) {
@@ -66,6 +71,16 @@ if (-not $configured) {
   Set-Env 'SUPABASE_KEY' 'preview'
 }
 
+# ---------- porta livre para o site ----------
+$port = 3000
+while (-not (Test-PortFree $port) -and $port -lt 3020) { $port++ }
+if ($port -ge 3020) { Fail "Nenhuma porta livre entre 3000 e 3019. Feche programas que usam essas portas e tente de novo." }
+if ($port -ne 3000) { Write-Host "A porta 3000 esta ocupada. Usando a porta $port." -ForegroundColor Yellow }
+if (-not (Get-Env 'WEB_PORT')) { Write-Env ((Read-Env).TrimEnd() + "`nWEB_PORT=$port`n") }
+Set-Env 'WEB_PORT' "$port"
+if ((Get-Env 'NEXT_PUBLIC_APP_URL') -like 'http://localhost*') { Set-Env 'NEXT_PUBLIC_APP_URL' "http://localhost:$port" }
+$siteUrl = "http://localhost:$port"
+
 # ---------- subir ----------
 Write-Host ""
 Write-Host "Construindo e iniciando (a primeira vez demora alguns minutos)..." -ForegroundColor Green
@@ -75,20 +90,20 @@ if ($LASTEXITCODE -ne 0) { Fail "docker compose falhou. Veja as mensagens acima.
 Write-Host "Aguardando o site responder..."
 $up = $false
 for ($i = 1; $i -le 60; $i++) {
-  try { $r = Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000' -TimeoutSec 3; if ($r.StatusCode -eq 200) { $up = $true; break } } catch { }
+  try { $r = Invoke-WebRequest -UseBasicParsing -Uri $siteUrl -TimeoutSec 3; if ($r.StatusCode -eq 200) { $up = $true; break } } catch { }
   Start-Sleep -Seconds 2
 }
 if (-not $up) { Write-Host "O site demorou a responder. Veja: docker compose logs web" -ForegroundColor Yellow }
 
 Write-Host ""
 if ($configured) {
-  Write-Host "Pronto! Site + robo rodando em http://localhost:3000" -ForegroundColor Green
+  Write-Host "Pronto! Site + robo rodando em $siteUrl" -ForegroundColor Green
   Write-Host "Logs do robo:  docker compose logs -f worker"
 } else {
-  Write-Host "SITE NO AR em http://localhost:3000 (MODO PREVIA)" -ForegroundColor Green
+  Write-Host "SITE NO AR em $siteUrl (MODO PREVIA)" -ForegroundColor Green
   Write-Host "Ja funcionam: landing, termos, privacidade e telas de checkout/login (visual)."
   Write-Host "Para ativar login, pagamento e robo: preencha as chaves no .env (Supabase, Asaas, Resend)" -ForegroundColor Yellow
   Write-Host "e rode este instalador de novo. O robo (worker) so inicia com o Supabase configurado."
 }
 Write-Host "Para parar: duplo clique em Parar-Windows.bat"
-Start-Process "http://localhost:3000"
+Start-Process $siteUrl
