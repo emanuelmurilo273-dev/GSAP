@@ -1,0 +1,13 @@
+{
+  "name": "tradedesk",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev:web": "npm run dev -w @desk/web",
+    "dev:worker": "npm run dev -w @desk/worker",
+    "build": "npm run build -w @desk/web",
+    "typecheck": "npm run typecheck -w @desk/core && npm run typecheck -w @desk/worker && npm run typecheck -w @desk/web",
+    "test": "npm test -w @desk/core"
+  }
+}
