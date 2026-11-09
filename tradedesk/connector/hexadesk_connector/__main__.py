@@ -1,4 +1,4 @@
-"""Uso:  python -m hexadesk_connector [configurar | testar | rodar | status]"""
+"""Uso:  python -m hexadesk_connector [configurar | testar | rodar | simular]"""
 from __future__ import annotations
 
 import argparse
@@ -133,13 +133,29 @@ def rodar(a) -> None:
         eng.gw.shutdown()
 
 
+def simular(a) -> None:
+    """Simulador interno: mercado artificial, dinheiro fictício, sem MT5. Lê SUPABASE_URL/SUPABASE_KEY do ambiente (Docker) ou da configuração local."""
+    from .sim import SimRunner
+    from .store import SupabaseStore
+    url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_KEY")
+    if not (url and key):
+        _, cfg, sec = _load()
+        url, key = cfg.supabase_url, sec.get("supabase_key")
+    if not (url and key):
+        sys.exit("Faltam SUPABASE_URL e SUPABASE_KEY (no Docker vêm do .env; no PC rode: configurar).")
+    SimRunner(SupabaseStore(url, key), Config(), balance=a.saldo, speed=a.velocidade, seed=a.seed, trending=a.tendencias).run_forever()
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="hexadesk_connector")
     sub = p.add_subparsers(dest="cmd")
     c = sub.add_parser("configurar"); c.add_argument("--permitir-real", action="store_true")
     sub.add_parser("testar"); sub.add_parser("rodar")
+    m = sub.add_parser("simular", help="simulador interno (mercado artificial, dinheiro fictício, sem MT5)")
+    m.add_argument("--saldo", type=float, default=10_000.0); m.add_argument("--velocidade", type=float, default=30.0)
+    m.add_argument("--seed", type=int, default=None); m.add_argument("--tendencias", action="store_true", help="embute tendências no mercado artificial (infla o resultado; só para testar o motor)")
     a = p.parse_args()
-    {"configurar": configurar, "testar": testar, "rodar": rodar}.get(a.cmd, lambda _: p.print_help())(a)
+    {"configurar": configurar, "testar": testar, "rodar": rodar, "simular": simular}.get(a.cmd, lambda _: p.print_help())(a)
 
 
 if __name__ == "__main__":

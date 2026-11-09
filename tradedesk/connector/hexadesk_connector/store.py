@@ -19,9 +19,12 @@ class Store(Protocol):
     def insert_trade(self, row: dict) -> Any: ...
     def update_trade(self, id: Any, patch: dict) -> None: ...
     def open_trades(self, mode: str) -> list[dict]: ...
-    def get_session(self, day: str, mode: str) -> dict | None: ...
+    def get_session(self, day: str, mode: str, source: str = "mt5") -> dict | None: ...
     def upsert_session(self, row: dict) -> None: ...
     def snapshot(self, equity: float, mode: str) -> None: ...
+    def get_status(self) -> dict | None: ...
+    def kv_get(self, key: str) -> Any: ...
+    def kv_set(self, key: str, value: Any) -> None: ...
 
 
 class StoreError(RuntimeError):
@@ -80,8 +83,8 @@ class SupabaseStore:
     def open_trades(self, mode):
         return self._req("GET", "b3_trades", {"status": "eq.open", "mode": f"eq.{mode}", "select": "*"}) or []
 
-    def get_session(self, day, mode):
-        r = self._req("GET", "b3_sessions", {"day": f"eq.{day}", "mode": f"eq.{mode}", "select": "*"})
+    def get_session(self, day, mode, source="mt5"):
+        r = self._req("GET", "b3_sessions", {"day": f"eq.{day}", "mode": f"eq.{mode}", "source": f"eq.{source}", "select": "*"})
         return r[0] if r else None
 
     def upsert_session(self, row):
@@ -89,6 +92,17 @@ class SupabaseStore:
 
     def snapshot(self, equity, mode):
         self._req("POST", "b3_equity", None, {"equity": equity, "mode": mode})
+
+    def get_status(self):
+        r = self._req("GET", "b3_status", {"id": "eq.1", "select": "*"})
+        return r[0] if r else None
+
+    def kv_get(self, key):
+        r = self._req("GET", "app_settings", {"key": f"eq.{key}", "select": "value"})
+        return r[0]["value"] if r else None
+
+    def kv_set(self, key, value):
+        self._req("POST", "app_settings", None, {"key": key, "value": value}, "resolution=merge-duplicates")
 
 
 class MemoryStore:
@@ -101,6 +115,7 @@ class MemoryStore:
         self.logs: list[tuple] = []
         self.trades: list[dict] = []
         self.sessions: dict[tuple, dict] = {}
+        self.kv: dict[str, Any] = {}
         self.snaps: list[tuple] = []
         self.down = False  # simula internet/painel fora
         self._id = 0
@@ -147,11 +162,21 @@ class MemoryStore:
     def open_trades(self, mode):
         self._chk(); return [t for t in self.trades if t["status"] == "open" and t["mode"] == mode]
 
-    def get_session(self, day, mode):
-        self._chk(); return self.sessions.get((day, mode))
+    def get_session(self, day, mode, source="mt5"):
+        self._chk(); return self.sessions.get((day, mode, source))
 
     def upsert_session(self, row):
-        self._chk(); self.sessions[(row["day"], row["mode"])] = {**self.sessions.get((row["day"], row["mode"]), {}), **row}
+        k = (row["day"], row["mode"], row.get("source", "mt5"))
+        self._chk(); self.sessions[k] = {**self.sessions.get(k, {}), **row}
+
+    def get_status(self):
+        self._chk(); return dict(self.status) if self.status else None
+
+    def kv_get(self, key):
+        self._chk(); return self.kv.get(key)
+
+    def kv_set(self, key, value):
+        self._chk(); self.kv[key] = value
 
     def snapshot(self, equity, mode):
         self.snaps.append((equity, mode))

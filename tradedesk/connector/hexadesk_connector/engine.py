@@ -11,7 +11,7 @@ Regras que o motor GARANTE (testadas em tests/test_engine.py):
 from __future__ import annotations
 
 import time as _time
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from typing import Callable
 from zoneinfo import ZoneInfo
 
@@ -38,8 +38,9 @@ def hm(text: str) -> time:
 class Engine:
     def __init__(self, gw: Gateway, store: Store, cfg: Config, secrets: dict,
                  now_fn: Callable[[], datetime] | None = None, mono_fn: Callable[[], float] | None = None,
-                 signal_fn: Callable = baseline_signal):
+                 signal_fn: Callable = baseline_signal, source: str = "mt5"):
         self.gw, self.store, self.cfg, self.secrets = gw, store, cfg, secrets
+        self.source = source  # 'mt5' (conta demo/real) ou 'internal' (simulador com preços artificiais)
         self.now = now_fn or (lambda: datetime.now(SP))
         self.mono = mono_fn or _time.monotonic
         self.signal_fn = signal_fn
@@ -154,9 +155,9 @@ class Engine:
         key = (str(day), mode)
         if self.sess and (self.sess["day"], self.sess["mode"]) == key:
             return self.sess
-        row = self._safe(self.store.get_session, *key)
+        row = self._safe(self.store.get_session, key[0], mode, self.source)
         if not row:
-            row = {"day": key[0], "mode": mode, "start_equity": acct.equity, "pnl": 0.0, "trades": 0, "halted": False, "active_minutes": 0}
+            row = {"day": key[0], "mode": mode, "source": self.source, "start_equity": acct.equity, "pnl": 0.0, "trades": 0, "halted": False, "active_minutes": 0}
             self._safe(self.store.upsert_session, row)
         self.sess = row
         self.active_seconds = float(row.get("active_minutes", 0)) * 60
@@ -333,7 +334,7 @@ class Engine:
                 self.gw.close_position(pos, "sem stop")
             self.cooldown[contract] = self.mono() + 300
             return
-        tid = self._safe(self.store.insert_trade, {"mode": s["mode"], "root": root, "contract": contract, "side": side, "volume": n, "price_open": pos.price_open,
+        tid = self._safe(self.store.insert_trade, {"mode": s["mode"], "source": self.source, "root": root, "contract": contract, "side": side, "volume": n, "price_open": pos.price_open,
                                                   "sl": pos.sl, "tp": pos.tp, "ticket": pos.ticket, "opened_at": self.now().isoformat(), "stop_points": stop_pts})
         if tid is not None:
             self.tracked[pos.ticket] = tid
@@ -353,7 +354,7 @@ class Engine:
         if self.mono() - self.last_hb < HEARTBEAT_SECONDS:
             return
         self.last_hb = self.mono()
-        row = {"connector_ts": now.isoformat(), "connector_version": __version__, "state": self.state, "last_error": self.error,
+        row = {"connector_ts": datetime.now(timezone.utc).isoformat(), "connector_version": __version__, "source": self.source, "state": self.state, "last_error": self.error,
                "account_mode": acct.mode if acct else "unknown", "mode_wanted": s["mode"],
                "account_login": (f"***{str(acct.login)[-3:]}" if acct else None), "account_server": acct.server if acct else None,
                "balance": acct.balance if acct else None, "equity": acct.equity if acct else None, "margin_free": acct.margin_free if acct else None,

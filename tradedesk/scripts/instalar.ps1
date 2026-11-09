@@ -109,6 +109,8 @@ if (-not $configured) {
       Write-Host ""
       Write-Host "Baixando e iniciando o banco local (Supabase). Na PRIMEIRA vez pode levar 5 a 15 minutos..." -ForegroundColor Green
       npx --yes supabase@latest start -x 'storage-api,imgproxy,edge-runtime,logflare,vector,supavisor'
+      Write-Host "Aplicando as tabelas do app no banco local..."
+      npx --yes supabase@latest migration up --local 2>&1 | Out-Null
       $st = npx --yes supabase@latest status -o env 2>$null
       $kv = @{}
       foreach ($line in $st) { $m = [regex]::Match([string]$line, '^([A-Z_0-9]+)="?([^"]*)"?\s*$'); if ($m.Success) { $kv[$m.Groups[1].Value] = $m.Groups[2].Value } }
@@ -134,6 +136,8 @@ if (-not $configured) {
 if ($configured -and $local -and -not $ownerPassword) {
   Write-Host "Iniciando o banco local..." -ForegroundColor Green
   npx --yes supabase@latest start -x 'storage-api,imgproxy,edge-runtime,logflare,vector,supavisor' 2>&1 | Out-Null
+  # banco que ja existia nao recebe tabelas novas sozinho: aplica as pendentes (003 e 004 = day trade B3)
+  npx --yes supabase@latest migration up --local 2>&1 | Out-Null
 }
 
 if (-not $configured) {
@@ -188,7 +192,8 @@ Write-Host ""
 if ($configured -and $local) {
   Write-Host "PRONTO! Abrindo o site ja logado como DONO: $siteUrl" -ForegroundColor Green
   Write-Host "Proximas vezes: rode este instalador de novo (ou entre em $siteUrl/owner/login com e-mail e senha)."
-  Write-Host "Painel do day trade B3: $siteUrl/b3  (instale o conector em connector\Instalar-Conector-Windows.bat)"
+  Write-Host "Painel do day trade B3: $siteUrl/b3  -> o SIMULADOR INTERNO (dinheiro ficticio, precos artificiais) ja esta rodando sozinho." -ForegroundColor Cyan
+  Write-Host "Para ver as operacoes: abra $siteUrl/b3 (ele liga o robo sozinho na primeira vez). MT5/Clear so quando voce quiser: connector\Instalar-Conector-Windows.bat"
 } elseif ($configured) {
   Write-Host "Pronto! Site + robo rodando em $siteUrl" -ForegroundColor Green
   Write-Host "Conta de dono: duplo clique em Criar-Dono-Windows.bat."

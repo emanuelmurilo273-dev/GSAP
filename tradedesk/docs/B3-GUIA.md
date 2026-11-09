@@ -13,6 +13,20 @@
 
 ---
 
+## 0) Ver o robô funcionando AGORA (sem conta, sem MT5, sem login)
+
+Ao rodar o **`Instalar-Windows.bat`** (o instalador principal), o **Simulador interno** sobe sozinho junto com o site. Ele não precisa de nada seu: nem Clear, nem MT5, nem senha.
+
+1. Abra `http://localhost:3001/b3` (ou a porta que o instalador mostrou). Você entra direto como dono.
+2. Na **primeira vez** o robô é **ligado sozinho** (dinheiro fictício: **R$ 10.000**). Depois ele respeita o seu botão ligar/pausar.
+3. Em poucos minutos você vê: entradas com stop e alvo, saídas, resultado do dia, log ao vivo, **PARAR TUDO**, e a **zeragem às 17:30**.
+
+**O que é artificial (leia):** os preços são **inventados por computador** (um mercado "aleatório neutro", sem tendência embutida) e o relógio é **acelerado 30×** (um pregão inteiro em ~17 minutos). Lucro ou prejuízo aqui **não significa nada** sobre o mercado real, e esses dias **não contam** para liberar o modo real. O objetivo é só você **ver o funcionamento** do robô e do painel. A faixa azul avisa "PREÇOS ARTIFICIAIS".
+
+Se o conector do MT5 (seção 4) estiver ligado, o simulador interno **fica em espera** sozinho para não disputar o painel.
+
+Se a tela do painel der erro de "tabela não existe": rode o `Instalar-Windows.bat` de novo — ele aplica as tabelas novas no banco local.
+
 ## 1) Abrir conta na Clear
 
 1. Entre no site da **Clear** (clear.com.br) ou no app e clique em **Abrir conta**.

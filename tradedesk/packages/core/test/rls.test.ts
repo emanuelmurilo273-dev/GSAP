@@ -30,6 +30,7 @@ before(async () => {
   await db.exec(strip(readFileSync(new URL('../../../supabase/migrations/001_init.sql', import.meta.url), 'utf8')));
   await db.exec(readFileSync(new URL('../../../supabase/migrations/002_owner_audit_health.sql', import.meta.url), 'utf8'));
   await db.exec(readFileSync(new URL('../../../supabase/migrations/003_b3.sql', import.meta.url), 'utf8'));
+  await db.exec(readFileSync(new URL('../../../supabase/migrations/004_b3_source.sql', import.meta.url), 'utf8'));
   // grants padrão do Supabase: sem eles o teste passaria por falta de permissão, não por RLS
   await db.exec('grant select, insert, update, delete on all tables in schema public to anon, authenticated, service_role; grant execute on all functions in schema public to anon, authenticated;');
   await db.exec(`
@@ -147,4 +148,12 @@ test('B3: valores perigosos são recusados pelo banco (limites do check)', async
   await assert.rejects(db.exec(`update b3_settings set mode = 'qualquer'`), /check|violates/i);
   await assert.rejects(db.exec(`update b3_settings set flat_at = '25:99'`), /check|violates/i);
   await db.exec(`update b3_settings set daily_loss_brl = 200`);
+});
+
+test('B3: sessões do simulador interno e do MT5 no mesmo dia coexistem (chave inclui a origem)', async () => {
+  await as('service_role', null);
+  await db.exec(`insert into b3_sessions (day, mode, source, start_equity, active_minutes) values ('2026-11-09','sim','mt5',10000,300), ('2026-11-09','sim','internal',10000,300)`);
+  const r = await db.query(`select count(*)::int as n from b3_sessions where mode='sim' and source='mt5' and active_minutes >= 240`);
+  assert.equal((r.rows[0] as any).n, 1, 'só a sessão do MT5 conta para o modo real');
+  await assert.rejects(db.exec(`insert into b3_sessions (day, mode, source, start_equity) values ('2026-11-09','sim','mt5',1)`), /duplicate|unique|violates/i);
 });

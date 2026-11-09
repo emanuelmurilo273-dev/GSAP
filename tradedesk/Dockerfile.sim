@@ -1,0 +1,8 @@
+# Simulador interno B3 (mercado ARTIFICIAL, dinheiro fictício). Sem MT5: roda em Linux/Docker.
+FROM python:3.12-slim
+WORKDIR /app/connector
+ENV PYTHONUNBUFFERED=1
+COPY connector/requirements-sim.txt .
+RUN pip install --no-cache-dir -r requirements-sim.txt
+COPY connector /app/connector
+CMD ["python", "-m", "hexadesk_connector", "simular"]

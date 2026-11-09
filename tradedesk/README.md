@@ -21,6 +21,7 @@
 | **Conector falando com um MT5 de verdade** | ⚠️ **NUNCA executado**: precisa de Windows + MT5 + conta demo (só você tem). Pode haver ajustes (modo de preenchimento da ordem, símbolos, stops na B3) |
 | Nome do servidor `ClearInvestimentos-DEMO`, política de robôs e horário de zeragem da Clear | ⚠️ **não confirmados** (ver o guia) |
 | **Estratégia** | ⚠️ só uma estratégia de teste (cruzamento de EMAs), **NÃO validada**. A pesquisa para WIN/WDO ainda não foi feita (aguardando o restante do pedido) |
+| **Simulador interno** (mercado ARTIFICIAL, dinheiro fictício, sem MT5; sobe sozinho no Docker) | ✅ 7 testes (contabilidade, zeragem, horários, origem separada, PARAR TUDO, liga sozinho 1×); ⚠️ preços **inventados** — não provam nada |
 | Painel B3 no navegador (telas com dados de exemplo em `docs/screenshots/b3-*.jpg`) | ✅ build e telas; ❌ não testado com o conector real |
 | Alerta por e-mail se o conector cair no pregão | ✅ código (`/api/cron/watchdog`); exige Resend + agendador; **push no celular não implementado** |
 

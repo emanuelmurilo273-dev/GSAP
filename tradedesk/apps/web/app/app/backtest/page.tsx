@@ -1,5 +1,5 @@
 import BacktestRunner from '@/components/BacktestRunner';
-import { toForm } from '@/components/ParamFields';
+import { toForm } from '@/lib/pform';
 import { requireSubscriber } from '@/lib/auth';
 import { settingsToParams } from '@/lib/params';
 import { DEFAULT_PARAMS } from '@desk/core';

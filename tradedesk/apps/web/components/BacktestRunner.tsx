@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import ParamFields, { fromForm, type PForm } from '@/components/ParamFields';
+import ParamFields from '@/components/ParamFields';
+import { fromForm, type PForm } from '@/lib/pform';
 import { LineChart, Panel, Stat, btn, dateOnly, num, pct, tone } from '@/components/ui';
 
 type Any = Record<string, any>;

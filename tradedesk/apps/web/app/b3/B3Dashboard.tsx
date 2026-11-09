@@ -58,6 +58,12 @@ export default function B3Dashboard({ demo }: { demo?: Any }) {
         </div>
       )}
       {alive && st.last_error && <ErrorState>{st.last_error}</ErrorState>}
+      {alive && st.source === 'internal' && (
+        <div className="rounded-lg border border-scout/40 bg-scout/10 p-3 text-sm text-scout">
+          <b>Você está vendo o SIMULADOR INTERNO.</b> Os preços são <b>artificiais</b> (gerados por computador) e o relógio é acelerado: um pregão inteiro passa em ~17 minutos.
+          Serve para ver o robô operando — entradas com stop, alvo, zeragem às 17:30, limite do dia, PARAR TUDO. <b>Lucro ou prejuízo aqui não significa nada sobre o mercado real</b> e estes dias <b>não contam</b> para liberar o modo real.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Saldo da conta" count={{ value: Number(st.balance ?? 0) }} sub={alive ? `${st.account_server ?? ''} · conta ${st.account_login ?? ''} (${(st.account_mode ?? '').toUpperCase()})` : 'sem sinal'} />
@@ -140,7 +146,7 @@ function ModeSwitch({ d, post, busy }: { d: Any; post: (u: string, b: Any) => Pr
       {open && (
         <div className="mt-3 space-y-2 text-xs">
           <p className={ck.strategyApproved ? 'text-executor' : 'text-risk'}>{ck.strategyApproved ? '✔' : '✖'} Estratégia aprovada nos testes</p>
-          <p className={ck.simSessionsOk ? 'text-executor' : 'text-risk'}>{ck.simSessionsOk ? '✔' : '✖'} Pregões no simulador: {ck.simSessions ?? 0} de {ck.needSessions ?? 20}</p>
+          <p className={ck.simSessionsOk ? 'text-executor' : 'text-risk'}>{ck.simSessionsOk ? '✔' : '✖'} Pregões na conta DEMO do MT5: {ck.simSessions ?? 0} de {ck.needSessions ?? 20} <span className="text-dim">(o simulador interno não conta)</span></p>
           <label className="flex items-start gap-2 normal-case tracking-normal text-ink"><input type="checkbox" className="mt-0.5 !w-auto" checked={c1} onChange={(e) => setC1(e.target.checked)} />Entendo que vou operar com DINHEIRO REAL e posso perder tudo o que está na conta.</label>
           <label className="flex items-start gap-2 normal-case tracking-normal text-ink"><input type="checkbox" className="mt-0.5 !w-auto" checked={c2} onChange={(e) => setC2(e.target.checked)} />Conferi limites de perda, stop e horários nas configurações.</label>
           <div><label>Digite OPERAR REAL</label><input value={phrase} onChange={(e) => setPhrase(e.target.value)} autoComplete="off" /></div>

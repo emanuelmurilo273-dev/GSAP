@@ -39,7 +39,7 @@ export function cleanB3Settings(b: any, cur: any) {
 
 /** Condições para liberar o modo REAL (todas verificadas no servidor). */
 export async function realChecklist(admin: SupabaseClient) {
-  const { data } = await admin.from('b3_sessions').select('day,active_minutes').eq('mode', 'sim').gte('active_minutes', MIN_SESSION_MINUTES);
+  const { data } = await admin.from('b3_sessions').select('day,active_minutes').eq('mode', 'sim').eq('source', 'mt5').gte('active_minutes', MIN_SESSION_MINUTES);  // o simulador interno (preços artificiais) NÃO conta
   const sessions = data?.length ?? 0;
   return {
     strategyApproved: strategyApproved(),

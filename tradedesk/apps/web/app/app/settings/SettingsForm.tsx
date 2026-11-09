@@ -2,7 +2,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import ExchangeForm from '@/components/ExchangeForm';
-import ParamFields, { toForm, type PForm, fromForm } from '@/components/ParamFields';
+import ParamFields from '@/components/ParamFields';
+import { toForm, fromForm, type PForm } from '@/lib/pform';
 import { Panel, btn } from '@/components/ui';
 import { settingsToParams } from '@/lib/params';
 

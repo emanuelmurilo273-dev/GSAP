@@ -49,6 +49,7 @@ function demoData() {
   };
 }
 
+
 export default async function Preview({ params }: { params: Promise<{ page: string }> }) {
   if (process.env.PREVIEW_PAGES !== 'true') notFound();
   const { page } = await params;
@@ -59,12 +60,13 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
   }
   if (page === 'b3' || page === 'b3-real') {
     const real = page === 'b3-real';
+    const internal = !real;
     const now = Date.now(); let v = 10000;
     const ts = (m: number) => new Date(now - m * 60_000).toISOString();
     const equity = Array.from({ length: 80 }, (_, i) => { v += Math.sin(i / 6) * 9 + (i > 50 ? -3 : 2); return { t: now - (80 - i) * 4 * 60_000, v: Math.round(v * 100) / 100 }; });
     const demo = {
       settings: { enabled: true, mode: real ? 'real' : 'sim', real_unlocked: real, symbols: ['WIN', 'WDO'], profile: 'conservador', daily_loss_brl: 150, max_trades_per_day: 6, open_from: '09:05', open_until: '17:00', flat_at: '17:30' },
-      status: { state: 'trading', account_mode: real ? 'real' : 'demo', account_server: real ? 'Clear-Real' : 'ClearInvestimentos-DEMO', account_login: '***567', balance: 10000, equity: Math.round(v * 100) / 100, day_pnl: Math.round((v - 10000) * 100) / 100, trades_today: 3, contracts: { WIN: 'WINZ26', WDO: 'WDOZ26' },
+      status: { state: 'trading', account_mode: real ? 'real' : 'demo', account_server: real ? 'Clear-Real' : 'SIMULADOR-INTERNO', source: real ? 'mt5' : 'internal', account_login: '***567', balance: 10000, equity: Math.round(v * 100) / 100, day_pnl: Math.round((v - 10000) * 100) / 100, trades_today: 3, contracts: { WIN: 'WINZ26', WDO: 'WDOZ26' },
         positions: [{ symbol: 'WINZ26', side: 'buy', volume: 2, price_open: 130005, sl: 129855, tp: 130230, profit: 18.4 }] },
       connectorAgeSec: 3,
       open: [], equity,
@@ -74,7 +76,7 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
     };
     return (
       <div>
-        <ModeBanner initial={real ? 'real' : 'sim'} demo />
+        <ModeBanner initial={real ? 'real' : 'sim'} demo demoInternal={internal} />
         <div className="mx-auto max-w-6xl px-3 pb-10 sm:px-6">
           <header className="flex items-center justify-between py-4"><Logo /><span className="text-xs text-dim">Day trade B3</span></header>
           <div className="mb-3 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div>
