@@ -26,6 +26,7 @@ export default function B3Config({ initial }: { initial: Any | null }) {
   return (
     <form onSubmit={save} className="space-y-4">
       <h1 className="text-lg font-semibold">Configurações do day trade</h1>
+      {v.mode === 'real' && v.real_limited && <p className="rounded-lg border border-filter/40 bg-filter/10 p-3 text-sm text-filter">Modo REAL <b>LIMITADO</b>: contratos, perda diária, nº de operações e risco por operação são limitados automaticamente (1 contrato · R$ 100/dia · 3 operações · R$ 50). Valores maiores que isso são reduzidos ao salvar.</p>}
       <Panel title="ativos e risco" accent="#ff5c9a">
         <div className="grid gap-4 sm:grid-cols-2">
           <F label="Ativos">

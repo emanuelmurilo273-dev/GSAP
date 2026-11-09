@@ -275,5 +275,63 @@ class Heartbeat(unittest.TestCase):
         self.assertNotIn("password", str(st))
 
 
+class RealLimited(unittest.TestCase):
+    """Modo REAL LIMITADO (estratégia não validada): tetos valem ACIMA das configurações, mesmo que o painel mande mais."""
+    def real(self, **over):
+        return make(dict(mode="real", real_unlocked=True, real_limited=True, max_contracts=30, daily_loss_brl=5000, max_trades_per_day=40,
+                         risk_per_trade_brl=900, profile="agressivo", **over), cfg=Config(allow_real=True))
+
+    def test_contracts_capped_at_one(self):
+        eng, gw, store, clock, sig = self.real(symbols=["WIN"])
+        run(eng, clock); sig.fire(); run(eng, clock)
+        self.assertEqual(len(gw.positions()), 1)
+        self.assertEqual(gw.positions()[0].volume, 1)          # painel pedia até 30
+
+    def test_only_one_position_at_a_time_in_total(self):
+        eng, gw, store, clock, sig = self.real()
+        eng.signal_fn = lambda c: ("buy", float(len(c) + clock.m))   # sinal em todos os ativos
+        run(eng, clock, 3)
+        self.assertEqual(len(gw.positions()), 1)               # WIN e WDO liberados, mas só 1 aberta
+
+    def test_max_three_trades_a_day(self):
+        eng, gw, store, clock, sig = self.real(symbols=["WIN"])
+        run(eng, clock)
+        for _ in range(6):
+            sig.fire(); run(eng, clock)
+            for p in gw.positions(): gw.close_position(p)
+            run(eng, clock)
+        self.assertEqual(len(store.trades), 3)
+
+    def test_stop_too_wide_for_the_risk_cap_is_refused(self):
+        eng, gw, store, clock, sig = self.real(symbols=["WIN"], stop_points_win=1000)   # 1 contrato = R$ 200 de risco > teto de R$ 50
+        run(eng, clock); sig.fire(); run(eng, clock)
+        self.assertEqual(gw.positions(), [])
+        self.assertTrue(store.has_log("não comporta nem 1 contrato"))
+
+    def test_daily_loss_cap_is_100_even_if_panel_says_5000(self):
+        from hexadesk_connector.engine import effective_settings
+        e = effective_settings(dict(BASE, mode="real", real_limited=True, daily_loss_brl=5000, max_contracts=9, max_trades_per_day=40, risk_per_trade_brl=900, profile="agressivo"))
+        self.assertEqual((e["daily_loss_brl"], e["max_contracts"], e["max_trades_per_day"], e["risk_per_trade_brl"], e["profile"]), (100.0, 1, 3, 50.0, "conservador"))
+        self.assertEqual(effective_settings(dict(BASE, mode="real", real_limited=True, daily_loss_brl=40))["daily_loss_brl"], 40.0)   # menor é mantido
+        self.assertEqual(effective_settings(dict(BASE, mode="sim", real_limited=True, daily_loss_brl=5000))["daily_loss_brl"], 5000)   # só vale no REAL
+
+    def test_three_losses_trigger_the_100_real_limit_not_the_5000(self):
+        eng, gw, store, clock, sig = self.real(symbols=["WIN"], stop_points_win=240)    # perda por operação = R$ 48 (cabe no teto de R$ 50)
+        run(eng, clock)
+        for _ in range(3):
+            sig.fire(); run(eng, clock)
+            p = gw.positions()[0]
+            gw.move("WINZ26", p.sl - 5)
+            run(eng, clock)
+        self.assertTrue(store.has_log("LIMITE DE PERDA DIÁRIO"))   # -R$ 144 passou do teto de R$ 100 (o painel dizia R$ 5000)
+        sig.fire(); run(eng, clock)
+        self.assertEqual(gw.positions(), [])
+
+    def test_unlimited_real_mode_is_not_capped(self):
+        eng, gw, store, clock, sig = make(dict(mode="real", real_unlocked=True, real_limited=False, max_contracts=3, risk_per_trade_brl=600, profile="agressivo", symbols=["WIN"]), cfg=Config(allow_real=True))
+        run(eng, clock); sig.fire(); run(eng, clock)
+        self.assertEqual(gw.positions()[0].volume, 3)
+
+
 if __name__ == "__main__":
     unittest.main()

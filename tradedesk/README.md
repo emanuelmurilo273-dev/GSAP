@@ -11,7 +11,7 @@
 ```
 - **Conector** (`connector/`): lê preços, calcula, envia ordens **com stop gravado no servidor da corretora**, zera às 17:30, respeita limite de perda diário em R$, 1 posição por ativo, rolagem automática de WINxxx/WDOxxx. Roda no Windows ao lado do MT5 (seu PC ou VPS).
 - **Painel** (`/b3`): faixa fixa **azul SIMULADOR** / **vermelha DINHEIRO REAL**, saldo, resultado do dia, posições, log ao vivo, **PARAR TUDO**, configurações, liberação do modo real.
-- **Simulador é o padrão** (conta DEMO). **REAL** exige: estratégia aprovada nos testes + 20 pregões no simulador + 2 confirmações + digitar `OPERAR REAL` + trava local no conector. O conector **recusa** operar se o tipo da conta (demo/real) não bater com o modo.
+- **Simulador é o padrão** (conta DEMO). **REAL** exige: (a) com estratégia aprovada: 20 pregões na demo do MT5 + 2 confirmações + `OPERAR REAL`; (b) **sem** estratégia aprovada (hoje): só o **modo REAL LIMITADO** (1 contrato, R$ 100/dia, 3 operações/dia, 1 posição por vez), com ≥ 5 pregões na demo do MT5, 3 confirmações e as frases `OPERAR REAL` + `EU ASSUMO O RISCO`; em ambos, trava local no conector. O conector **recusa** operar se o tipo da conta (demo/real) não bater com o modo.
 
 ### Estado desta versão (honesto)
 | Item | Situação |
@@ -21,6 +21,7 @@
 | **Conector falando com um MT5 de verdade** | ⚠️ **NUNCA executado**: precisa de Windows + MT5 + conta demo (só você tem). Pode haver ajustes (modo de preenchimento da ordem, símbolos, stops na B3) |
 | Nome do servidor `ClearInvestimentos-DEMO`, política de robôs e horário de zeragem da Clear | ⚠️ **não confirmados** (ver o guia) |
 | **Estratégia** | ⚠️ só uma estratégia de teste (cruzamento de EMAs), **NÃO validada**. A pesquisa para WIN/WDO ainda não foi feita (aguardando o restante do pedido) |
+| Modo REAL LIMITADO (liberação do dono): regras e tetos | ✅ 4 testes de regras + 5 do motor (tetos valem acima das configurações, nos dois lados); ⚠️ **nunca usado com dinheiro/MT5 real** |
 | **Simulador interno** (mercado ARTIFICIAL, dinheiro fictício, sem MT5; sobe sozinho no Docker) | ✅ 7 testes (contabilidade, zeragem, horários, origem separada, PARAR TUDO, liga sozinho 1×); ⚠️ preços **inventados** — não provam nada |
 | Painel B3 no navegador (telas com dados de exemplo em `docs/screenshots/b3-*.jpg`) | ✅ build e telas; ❌ não testado com o conector real |
 | Alerta por e-mail se o conector cair no pregão | ✅ código (`/api/cron/watchdog`); exige Resend + agendador; **push no celular não implementado** |

@@ -30,6 +30,23 @@ STORE_DOWN_LIMIT = 60
 HEARTBEAT_SECONDS = 5
 
 
+# Tetos do modo REAL LIMITADO (estratégia não validada). Repetem packages/core/src/b3rules.ts: mantenha os dois iguais.
+LIMITED = {"max_contracts": 1, "daily_loss_brl": 100.0, "max_trades_per_day": 3, "risk_per_trade_brl": 50.0, "max_open": 1}
+
+
+def effective_settings(s: dict) -> dict:
+    """No modo REAL LIMITADO os tetos valem acima de QUALQUER configuração (defesa em profundidade: o conector não confia só no painel)."""
+    if s.get("mode") == "real" and s.get("real_limited"):
+        s = dict(s)
+        s["profile"] = "conservador"
+        s["max_contracts"] = min(int(s["max_contracts"]), LIMITED["max_contracts"])
+        s["daily_loss_brl"] = min(float(s["daily_loss_brl"]), LIMITED["daily_loss_brl"])
+        s["max_trades_per_day"] = min(int(s["max_trades_per_day"]), LIMITED["max_trades_per_day"])
+        s["risk_per_trade_brl"] = min(float(s["risk_per_trade_brl"]), LIMITED["risk_per_trade_brl"])
+        s["_max_open"] = LIMITED["max_open"]
+    return s
+
+
 def hm(text: str) -> time:
     h, m = text.split(":")
     return time(int(h), int(m))
@@ -232,6 +249,7 @@ class Engine:
         if s is None:
             self.state = "stopped"
             return
+        s = effective_settings(s)
         if not self._ensure_connection(s):
             self.state = "error"
             self._heartbeat(now, s, None)
@@ -280,6 +298,8 @@ class Engine:
     def _entries(self, s: dict, acct: Account, now: datetime, sess: dict) -> None:
         held = {p.symbol for p in self.gw.positions()}
         for root in s["symbols"]:
+            if s.get("_max_open") and len(held) >= s["_max_open"]:
+                return  # modo limitado: uma posição por vez, no total
             contract = self._contract(root, now.date())
             if any(h.startswith(root) for h in held):
                 continue  # no máximo 1 posição por ativo
@@ -298,6 +318,7 @@ class Engine:
             if sess.get("trades", 0) >= s["max_trades_per_day"]:
                 return
             self._open(s, acct, root, contract, side, sess)
+            held = {p.symbol for p in self.gw.positions()}
 
     def _open(self, s: dict, acct: Account, root: str, contract: str, side: str, sess: dict) -> None:
         spec = self.gw.spec(contract)

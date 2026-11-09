@@ -136,21 +136,32 @@ function ModeSwitch({ d, post, busy }: { d: Any; post: (u: string, b: Any) => Pr
   const [open, setOpen] = useState(false);
   const [c1, setC1] = useState(false);
   const [c2, setC2] = useState(false);
+  const [c3, setC3] = useState(false);
   const [phrase, setPhrase] = useState('');
+  const [riskPhrase, setRiskPhrase] = useState('');
   const real = d.settings?.mode === 'real';
   const ck = d.checklist ?? {};
-  if (real) return <button disabled={busy} className={`${btnDanger} w-full`} onClick={() => confirm('Voltar ao SIMULADOR? O robô desliga e as posições são zeradas.') && post('/api/b3/mode', { action: 'back_to_sim' })}>← voltar ao SIMULADOR</button>;
+  const limited = !!ck.limitedPath;
+  if (real) return (
+    <div className="space-y-2">
+      {d.settings?.real_limited && <p className="rounded-lg border border-filter/40 bg-filter/10 p-2 text-[11px] text-filter">Modo REAL <b>LIMITADO</b> (estratégia não validada): no máximo <b>1 contrato</b>, perda máxima <b>R$ 100/dia</b>, <b>3 operações/dia</b>, 1 posição por vez. Esses tetos valem acima das configurações.</p>}
+      <button disabled={busy} className={`${btnDanger} w-full`} onClick={() => confirm('Voltar ao SIMULADOR? O robô desliga e as posições são zeradas.') && post('/api/b3/mode', { action: 'back_to_sim' })}>← voltar ao SIMULADOR</button>
+    </div>
+  );
   return (
     <div className="border-t border-white/[0.06] pt-3">
       <button onClick={() => setOpen(!open)} className="w-full text-left text-xs text-dim underline">Ativar modo REAL (dinheiro de verdade)…</button>
       {open && (
         <div className="mt-3 space-y-2 text-xs">
-          <p className={ck.strategyApproved ? 'text-executor' : 'text-risk'}>{ck.strategyApproved ? '✔' : '✖'} Estratégia aprovada nos testes</p>
+          <p className={ck.strategyApproved ? 'text-executor' : 'text-filter'}>{ck.strategyApproved ? '✔ Estratégia aprovada nos testes' : '⚠ Estratégia NÃO aprovada: só dá para liberar o modo REAL LIMITADO (liberação do dono)'}</p>
+          {limited && <p className="rounded-lg border border-filter/40 bg-filter/10 p-2 text-[11px] text-filter">No modo limitado: <b>1 contrato</b>, perda máxima <b>R$ 100/dia</b>, <b>3 operações/dia</b>, 1 posição por vez, perfil conservador. A estratégia é de teste e <b>pode perder o valor todo que você depositar</b>.</p>}
           <p className={ck.simSessionsOk ? 'text-executor' : 'text-risk'}>{ck.simSessionsOk ? '✔' : '✖'} Pregões na conta DEMO do MT5: {ck.simSessions ?? 0} de {ck.needSessions ?? 20} <span className="text-dim">(o simulador interno não conta)</span></p>
           <label className="flex items-start gap-2 normal-case tracking-normal text-ink"><input type="checkbox" className="mt-0.5 !w-auto" checked={c1} onChange={(e) => setC1(e.target.checked)} />Entendo que vou operar com DINHEIRO REAL e posso perder tudo o que está na conta.</label>
           <label className="flex items-start gap-2 normal-case tracking-normal text-ink"><input type="checkbox" className="mt-0.5 !w-auto" checked={c2} onChange={(e) => setC2(e.target.checked)} />Conferi limites de perda, stop e horários nas configurações.</label>
+          {limited && <label className="flex items-start gap-2 normal-case tracking-normal text-ink"><input type="checkbox" className="mt-0.5 !w-auto" checked={c3} onChange={(e) => setC3(e.target.checked)} />Sei que a estratégia NÃO foi validada e que não há garantia nenhuma de lucro.</label>}
           <div><label>Digite OPERAR REAL</label><input value={phrase} onChange={(e) => setPhrase(e.target.value)} autoComplete="off" /></div>
-          <button disabled={busy} onClick={() => post('/api/b3/mode', { action: 'unlock_real', confirm1: c1, confirm2: c2, phrase })} className={`${btnDanger} w-full`}>liberar modo REAL</button>
+          {limited && <div><label>Digite EU ASSUMO O RISCO</label><input value={riskPhrase} onChange={(e) => setRiskPhrase(e.target.value)} autoComplete="off" /></div>}
+          <button disabled={busy} onClick={() => post('/api/b3/mode', { action: 'unlock_real', confirm1: c1, confirm2: c2, confirm3: c3, phrase, riskPhrase })} className={`${btnDanger} w-full`}>{limited ? 'liberar modo REAL LIMITADO' : 'liberar modo REAL'}</button>
         </div>
       )}
     </div>

@@ -108,9 +108,28 @@ Você precisa de: o **site rodando** (`Instalar-Windows.bat`, que já sobe o Sup
 | Sem cotação do WIN/WDO | Fora do pregão ou contrato errado: adicione o contrato vigente no Observação do Mercado |
 | Nome do servidor não encontrado | Peça à Clear o nome exato do servidor demo |
 
+## 6b) Dinheiro REAL: como liberar (modo LIMITADO)
+
+**Antes de tudo, o que você precisa ter feito:** conta na Clear aprovada, MT5 instalado, conector rodando na **conta DEMO** e **pelo menos 5 pregões válidos** nela (dia válido = robô ligado por 4 horas ou mais dentro do pregão; o simulador interno **não conta**). Você também precisa do dinheiro depositado na Clear (o app nunca toca nele).
+
+Como **nenhuma estratégia foi aprovada**, o modo real só abre no **modo LIMITADO** (liberação do dono):
+- no máximo **1 contrato**, **1 posição por vez**;
+- perda máxima de **R$ 100 por dia** (bateu, zera e para até amanhã);
+- no máximo **3 operações por dia**; perfil conservador e risco de até **R$ 50 por operação**;
+- esses tetos valem **acima de qualquer configuração**, no painel **e** no conector.
+
+**Passo a passo:**
+1. Configure a conta **REAL** no conector: `python -m hexadesk_connector configurar` (a demo continua salva).
+2. Dê a segunda trava na sua máquina: `python -m hexadesk_connector configurar --permitir-real` e digite `PERMITIR REAL`.
+3. No painel `/b3`, clique em **Ativar modo REAL…**: marque as **3 confirmações**, digite **OPERAR REAL** e **EU ASSUMO O RISCO**, e clique em **liberar modo REAL LIMITADO**.
+4. A faixa vira **vermelha** ("DINHEIRO REAL · MODO LIMITADO") e o robô fica **desligado**. Ligue na mão e acompanhe de perto.
+5. **Voltar ao simulador** é um botão e zera as posições.
+
+**Leia isto:** a estratégia do robô é só um **teste** (cruzamento de médias), nunca foi validada, e **não há garantia nenhuma de lucro**. O limite diário de R$ 100 reduz o prejuízo por dia, mas ainda é prejuízo real: em 20 dias ruins são R$ 2.000. O conector **nunca foi executado num MT5 real**: por isso o mínimo de 5 pregões na demo existe. Se o conector se comportar de forma estranha na demo (ordem duplicada, stop sem aparecer, posição que não zera), **não passe para o real**.
+
 ## 7) Segurança e limites (como o robô se protege)
 
-- **Duas travas para o modo REAL**: uma no site (estratégia aprovada + 20 pregões no simulador + confirmações + digitar `OPERAR REAL`) e outra **na máquina do conector** (`allow_real`, só se você digitar `PERMITIR REAL` em `python -m hexadesk_connector configurar --permitir-real`).
+- **Duas travas para o modo REAL**: uma no site (com estratégia aprovada: 20 pregões na demo do MT5 + confirmações + `OPERAR REAL`; sem estratégia aprovada: só o **modo LIMITADO** acima) e outra **na máquina do conector** (`allow_real`, só se você digitar `PERMITIR REAL` em `python -m hexadesk_connector configurar --permitir-real`).
 - O robô **recusa operar** se o tipo da conta conectada (demo/real) não bate com o modo da faixa.
 - **Stop em toda ordem, gravado no servidor da corretora**. Se a corretora não confirmar o stop, o robô **zera a posição na hora**.
 - Limite de perda diária em R$ (bateu → zera e para até amanhã), meta diária opcional, máximo de operações/dia, 1 posição por ativo.
