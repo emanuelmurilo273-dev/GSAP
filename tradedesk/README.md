@@ -4,6 +4,16 @@
 > O código de cripto (Binance/Bybit, pasta `apps/web/app/app`, worker BullMQ) continua no repositório como **legado**, sem uso.
 > **Comece por [`docs/B3-GUIA.md`](docs/B3-GUIA.md)**: conta Clear, MT5, conta DEMO, conector no seu PC e VPS.
 
+## Duas melhorias novas (ao vivo + inteligência)
+
+- **Ao vivo** (`/b3/live`): candles M1/M5/M15 em tempo real, VWAP, médias, volume, marcadores de compra/venda do robô, linhas de stop e alvo, livro de ofertas e *times & trades*. O conector envia só as diferenças (Supabase Realtime) e, se o canal cair, o painel volta sozinho para sondagem de 1 s. **Passou de 5 s sem tick → alerta vermelho "DADOS ATRASADOS".**
+- **Histórico próprio**: todo tick e todo livro são gravados em `%LOCALAPPDATA%\HexadeskConnector\data\ticks\AAAA-MM-DD\` (CSV compactado, só acrescenta). Escolhi CSV gzip em vez de TimescaleDB/Parquet por não exigir nada a instalar; a leitura está em `live.read_ticks` e `connector/tools/exportar_historico.py`.
+- **Inteligência** (`/b3/inteligencia`): regime de mercado, confirmação por fluxo, filtro de notícias (calendário editável por você), modelo LightGBM de probabilidade, risco adaptativo (sem martingale) e Analyst (IA que só explica). **Todas as camadas vêm DESLIGADAS** — ver o motivo em [`research/RESEARCH_B3.md`](research/RESEARCH_B3.md).
+- **Campeão × desafiante**: toda versão nova roda em paralelo no simulador (sem dinheiro). Só vira campeã com ≥10 pregões, ≥30 operações e melhor fator de lucro, perda máxima e Sharpe com **preços reais do MT5** — e só com o seu clique (o servidor recusa se não passar).
+- **Reaprendizado semanal**: `python -m hexadesk_connector retreinar` (agendado por `connector/Retreinar-Semanal.bat`; precisa de `pip install -r connector/requirements-ml.txt`). Só cria um *desafiante*, nunca troca o campeão.
+- **Custos** usados nos testes: 1 tick de derrapagem + emolumentos de **placeholder** (WIN R$0,50 / WDO R$2,00 ida e volta). **Confirme as taxas reais na Clear** antes de confiar em qualquer número.
+- Migração `supabase/migrations/006_b3_live_intel.sql` (o instalador aplica). Para o Analyst: `LLM_API_KEY` (Anthropic) no `.env`.
+
 ## Como funciona (B3)
 ```
  MT5 da Clear (Windows)  ⇄  Conector Python (connector/)  ⇄  Supabase  ⇄  Painel web (/b3)

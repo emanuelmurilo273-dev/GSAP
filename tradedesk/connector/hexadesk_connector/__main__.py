@@ -1,4 +1,4 @@
-"""Uso:  python -m hexadesk_connector [configurar | testar | rodar | simular]"""
+"""Uso:  python -m hexadesk_connector [configurar | testar | rodar | simular | retreinar]"""
 from __future__ import annotations
 
 import argparse
@@ -113,24 +113,56 @@ def testar(a) -> None:
 def rodar(a) -> None:
     from .engine import Engine
     from .gateway import RealMt5Gateway
+    from .live import AsyncSink, LiveCollector, SupabaseLiveSink, TickRecorder
+    from .runner import Runner
     from .store import SupabaseStore
     d, cfg, sec = _load()
     if not sec.get("demo") or not sec.get("supabase_key"):
         sys.exit("Rode primeiro: python -m hexadesk_connector configurar")
     store = SupabaseStore(cfg.supabase_url, sec["supabase_key"])
-    eng = Engine(RealMt5Gateway(cfg.mt5_path), store, cfg, sec)
-    print(f"HEXADESK B3 conector v{__version__} rodando. Ctrl+C para parar (posições já têm stop na corretora).")
+    gw = RealMt5Gateway(cfg.mt5_path)
+    eng = Engine(gw, store, cfg, sec)
+
+    def symbols() -> list[str]:
+        roots = (eng.settings or {}).get("symbols") or ["WIN", "WDO"]
+        try:
+            return [eng._contract(r, eng.now().date()) for r in roots] if eng.connected_mode else []
+        except Exception:
+            return []
+
+    rec = TickRecorder(d / "data" / "ticks")   # histórico próprio (ticks + book) para pesquisa
+    sink = AsyncSink(SupabaseLiveSink(cfg.supabase_url, sec["supabase_key"]))
+    from .shadow import ShadowManager
+    live = LiveCollector(gw, symbols, sink, rec)
+    eng.live = live                                    # fluxo/book para a camada de confirmação
+    eng.shadow = ShadowManager(store, "mt5")           # campeão e desafiantes rodam em paralelo, sem dinheiro
+    runner = Runner(eng, live, rec)
+    print(f"HEXADESK B3 conector v{__version__} rodando (ao vivo + gravando ticks em {d / 'data' / 'ticks'}). Ctrl+C para parar (posições já têm stop na corretora).")
     try:
-        eng.run_forever()
+        runner.run_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        sink.close()
         try:
             store.upsert_status({"state": "stopped"})
             store.log("warn", "logger", "Conector parado.")
         except Exception:
             pass
-        eng.gw.shutdown()
+        gw.shutdown()
+
+
+def retreinar(a) -> None:
+    """Retreino semanal: registra um DESAFIANTE (nunca troca o campeão). Precisa de pip install -r requirements-ml.txt."""
+    from .retrain import retrain
+    from .store import SupabaseStore
+    d, cfg, sec = _load()
+    store = SupabaseStore(cfg.supabase_url, sec["supabase_key"])
+    st = store.get_settings() or {}
+    champ = store.get_champion() or {}
+    r = retrain(d / "data" / "ticks", d / "models", store, st, champ.get("config"))
+    print(r["status"], {k: v for k, v in r.items() if k != "status"})
+    store.log("info", "analyst", f"Retreino semanal: {r['status']}")
 
 
 def simular(a) -> None:
@@ -143,19 +175,20 @@ def simular(a) -> None:
         url, key = cfg.supabase_url, sec.get("supabase_key")
     if not (url and key):
         sys.exit("Faltam SUPABASE_URL e SUPABASE_KEY (no Docker vêm do .env; no PC rode: configurar).")
-    SimRunner(SupabaseStore(url, key), Config(), balance=a.saldo, speed=a.velocidade, seed=a.seed, trending=a.tendencias).run_forever()
+    from .live import AsyncSink, SupabaseLiveSink
+    SimRunner(SupabaseStore(url, key), Config(), balance=a.saldo, speed=a.velocidade, seed=a.seed, trending=a.tendencias, sink=AsyncSink(SupabaseLiveSink(url, key))).run_forever()
 
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="hexadesk_connector")
     sub = p.add_subparsers(dest="cmd")
     c = sub.add_parser("configurar"); c.add_argument("--permitir-real", action="store_true")
-    sub.add_parser("testar"); sub.add_parser("rodar")
+    sub.add_parser("testar"); sub.add_parser("rodar"); sub.add_parser("retreinar")
     m = sub.add_parser("simular", help="simulador interno (mercado artificial, dinheiro fictício, sem MT5)")
     m.add_argument("--saldo", type=float, default=10_000.0); m.add_argument("--velocidade", type=float, default=30.0)
     m.add_argument("--seed", type=int, default=None); m.add_argument("--tendencias", action="store_true", help="embute tendências no mercado artificial (infla o resultado; só para testar o motor)")
     a = p.parse_args()
-    {"configurar": configurar, "testar": testar, "rodar": rodar, "simular": simular}.get(a.cmd, lambda _: p.print_help())(a)
+    {"configurar": configurar, "testar": testar, "rodar": rodar, "simular": simular, "retreinar": retreinar}.get(a.cmd, lambda _: p.print_help())(a)
 
 
 if __name__ == "__main__":

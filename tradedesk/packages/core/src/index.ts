@@ -14,3 +14,4 @@ export * from './audit';
 export * from './gate';
 export * from './quirks';
 export * from './b3rules';
+export * from './champion';

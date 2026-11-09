@@ -270,3 +270,8 @@ Referência — comprar e segurar (portfólio igual-peso, mesmo período): retor
 ## Consequência para o produto
 
 - Nenhuma estratégia aprovada ⇒ `STRATEGY_APPROVED=false`: **clientes não conseguem ligar o robô em conta real**. O robô continua disponível em testnet e na "conta do dono" (validação com valor pequeno), com aviso explícito. A estratégia padrão atual do app (nota técnica) **não** foi aprovada: seu backtest real foi negativo (ver README).
+
+
+## Camadas de inteligência da B3 (registro)
+
+O estudo acima é do cripto (legado). As camadas novas do robô da B3 (regime, fluxo, notícias, LightGBM, risco adaptativo) foram avaliadas em [`RESEARCH_B3.md`](RESEARCH_B3.md): **nenhuma foi adotada**. O regime passou no teste final, mas contrariou treino e validação (regra de consistência) → desligado; notícias, risco adaptativo e ML foram reprovados; o fluxo não pôde ser avaliado por falta de ticks/livro gravados da B3. Todas permanecem desligadas até passarem no protocolo com dados reais da B3.

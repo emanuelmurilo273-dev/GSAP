@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import random
 import time as _time
+from collections import deque
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -19,6 +20,7 @@ from .config import Config
 from .contracts import WIN_MONTHS, symbol_for
 from .engine import Engine
 from .fake_mt5 import WDO_SPEC, WIN_SPEC, FakeGateway
+from .live import FLAG_BUY, FLAG_SELL, AsyncSink, LiveCollector, TickRec
 from .store import Store, StoreError
 from .strategy import baseline_signal
 
@@ -50,6 +52,9 @@ class SimGateway(FakeGateway):
         self.drift = {"WIN": 0.0, "WDO": 0.0}
         self.regime_left = {"WIN": 0, "WDO": 0}
         self.root_bars: dict[str, list[tuple]] = {"WIN": [], "WDO": []}
+        self.ticks: dict[str, deque] = {"WIN": deque(maxlen=30000), "WDO": deque(maxlen=30000)}
+        self.book_rng = random.Random((seed or 0) + 1)   # gerador separado: o book não altera a trajetória dos preços
+        self.tick_n = 0
         self.forming: dict[str, list] = {}
         for root in ("WIN", "WDO"):          # histórico inicial para a estratégia ter o que analisar
             for _ in range(150 * BAR_SECONDS):
@@ -58,6 +63,11 @@ class SimGateway(FakeGateway):
 
     def sim_now(self) -> datetime:
         return self.t
+
+    def _epoch(self) -> int:
+        """Relógio de parede como se fosse UTC (igual ao MT5: horário do servidor da corretora)."""
+        t = self.t
+        return int(datetime(t.year, t.month, t.day, t.hour, t.minute, t.second, tzinfo=timezone.utc).timestamp())
 
     # --- mercado artificial
     def _tick_root(self, root: str, record_only: bool = False) -> None:
@@ -68,14 +78,13 @@ class SimGateway(FakeGateway):
         tick = 5.0 if root == "WIN" else 0.5
         p = self.px[root] * (1 + self.drift[root] + SIGMA[root] * self.rng.gauss(0, 1))
         self.px[root] = max(tick, round(p / tick) * tick)
-        ts = int(self.t.timestamp()) if not record_only else len(self.root_bars[root]) * BAR_SECONDS + int(self.forming.get(root, [0])[0] or 0) + 0
         b = self.forming.get(root)
-        bucket = (int(self.t.timestamp()) // BAR_SECONDS) * BAR_SECONDS if not record_only else None
+        bucket = (self._epoch() // BAR_SECONDS) * BAR_SECONDS if not record_only else None
         if record_only:
             if b is None or b[6] >= BAR_SECONDS:      # barra sintética do histórico: cada barra = 300 passos
                 if b:
                     self.root_bars[root].append((b[0], b[1], b[2], b[3], b[4], b[5]))
-                base = (int(self.t.timestamp()) - (150 - len(self.root_bars[root])) * BAR_SECONDS)
+                base = (self._epoch() - (150 - len(self.root_bars[root])) * BAR_SECONDS)
                 b = self.forming[root] = [base, self.px[root], self.px[root], self.px[root], self.px[root], 0, 0]
             b[2], b[3], b[4], b[6] = max(b[2], self.px[root]), min(b[3], self.px[root]), self.px[root], b[6] + 1
             b[5] += self.rng.randint(1, 20)
@@ -101,12 +110,41 @@ class SimGateway(FakeGateway):
                 self.px[root] *= 1 + self.rng.gauss(0, 0.002)
                 self.forming.pop(root, None)
         for root in ("WIN", "WDO"):
+            before = self.px[root]
             self._tick_root(root)
+            self._emit_tick(root, before)
         for sym in self.specs:
             self.move(sym, self.px[sym[:3]])   # dispara stops/alvos gravados nas posições
 
-    def pump(self) -> None:
-        for _ in range(max(1, int(self.speed))):
+    def _emit_tick(self, root: str, before: float) -> None:
+        """Negócio sintético: agressor = lado do movimento do preço (empate sorteia). Neutro: não embute previsão."""
+        tick = 5.0 if root == "WIN" else 0.5
+        px = self.px[root]
+        side = FLAG_BUY if px > before else FLAG_SELL if px < before else (FLAG_BUY if self.book_rng.random() < 0.5 else FLAG_SELL)
+        vol = self.book_rng.randint(30, 80) if self.book_rng.random() < 0.01 else self.book_rng.randint(1, 12)   # raros "lotes grandes"
+        self.tick_n += 1
+        self.ticks[root].append(TickRec(self._epoch() * 1000 + (self.tick_n % 1000), px, px + tick, px, float(vol), side | 4 | 8))
+
+    def ticks_since(self, symbol, since_msc):
+        out = []
+        for t in reversed(self.ticks[symbol[:3]]):
+            if t.t_msc <= since_msc:
+                break
+            out.append(t)
+        return out[::-1]
+
+    def book(self, symbol):
+        root, px = symbol[:3], self.px[symbol[:3]]
+        tick = 5.0 if root == "WIN" else 0.5
+        lv = []
+        for k in range(10):
+            lv.append((px - k * tick, float(self.book_rng.randint(5, 60)), "buy"))
+            lv.append((px + (k + 1) * tick, float(self.book_rng.randint(5, 60)), "sell"))
+        return lv
+
+    def pump(self, seconds: float | None = None) -> None:
+        n = max(1, int(round(self.speed * seconds))) if seconds is not None else max(1, int(self.speed))
+        for _ in range(n):
             self._advance_one()
 
     def candles(self, symbol: str, timeframe: str, n: int) -> list[tuple]:
@@ -123,13 +161,24 @@ def _age_seconds(iso: str | None) -> float:
 
 
 class SimRunner:
-    def __init__(self, store: Store, cfg: Config | None = None, balance: float = 10_000.0, speed: float = 30.0, seed: int | None = None, trending: bool = False):
+    def __init__(self, store: Store, cfg: Config | None = None, balance: float = 10_000.0, speed: float = 30.0, seed: int | None = None, trending: bool = False, sink=None):
         self.store = store
         self.cfg = cfg or Config()
         self.gw = SimGateway(balance=balance, seed=seed, speed=speed, trending=trending)
         secrets = {"demo": {"login": 1_000_001, "password": "-", "server": SERVER}}
         self.engine = Engine(self.gw, store, self.cfg, secrets, now_fn=self.gw.sim_now, signal_fn=baseline_signal, source="internal")
         self.yielded = False
+        self.live = LiveCollector(self.gw, self._symbols, sink) if sink is not None else None   # sem gravar em disco: dados sintéticos
+        self.engine.live = self.live
+        from .shadow import ShadowManager
+        self.engine.shadow = ShadowManager(store, "internal")   # fonte 'internal': nunca conta para liberar o real
+
+    def _symbols(self) -> list[str]:
+        roots = (self.engine.settings or {}).get("symbols") or ["WIN", "WDO"]
+        try:
+            return [self.engine._contract(r, self.gw.t.date()) for r in roots]
+        except Exception:
+            return []
 
     def autostart(self) -> bool:
         """Na PRIMEIRA vez liga o robô sozinho (dinheiro fictício), para você ver funcionando. Depois respeita o seu liga/pausa.
@@ -148,8 +197,8 @@ class SimRunner:
         except StoreError:
             return False
 
-    def tick(self) -> str:
-        """Um passo. Se o conector MT5 de verdade estiver ativo, o simulador interno fica em espera (não disputa o painel)."""
+    def tick(self, dt: float | None = None, step: bool = True) -> str:
+        """Um passo. `dt` = segundos REAIS decorridos (None = 1 s de relógio acelerado inteiro). Se o conector MT5 de verdade estiver ativo, fica em espera."""
         try:
             st = self.store.get_status()
         except StoreError:
@@ -160,8 +209,11 @@ class SimRunner:
                 self.store.log("info", "logger", "Conector MT5 ativo: simulador interno em espera.")
             return "idle"
         self.yielded = False
-        self.gw.pump()
-        self.engine.step()
+        self.gw.pump(dt)
+        if self.live:
+            self.live.poll()
+        if step:
+            self.engine.step()
         return "ran"
 
     def run_forever(self) -> None:  # pragma: no cover
@@ -179,5 +231,7 @@ class SimRunner:
             if not announced:
                 announced = True
                 self.store.log("info", "logger", f"Simulador interno iniciado (saldo fictício R$ {self.gw.balance:,.2f}, relógio {self.gw.speed:g}x, preços ARTIFICIAIS).")
-            self.tick()
-            _time.sleep(1.0)
+            i = getattr(self, "_i", 0) + 1
+            self._i = i
+            self.tick(0.2, step=(i % 5 == 0))      # ao vivo a cada 200 ms; o motor decide a cada 1 s
+            _time.sleep(0.2)

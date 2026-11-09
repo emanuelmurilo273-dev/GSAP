@@ -1,0 +1,71 @@
+{
+ "baseline": {
+  "trades": 830,
+  "pnl": -0.18250069453903361,
+  "pf": 0.9024336092865342,
+  "dd": 0.2075559791424506,
+  "sharpe": -1.3365473683982982,
+  "win": 0.42168674698795183
+ },
+ "layers": {
+  "regime": {
+   "metrics": {
+    "trades": 156,
+    "pnl": 0.03736872651817329,
+    "pf": 1.1205994443126308,
+    "dd": 0.04044032654026873,
+    "sharpe": 1.0067336540829583,
+    "win": 0.46153846153846156
+   },
+   "accepted": true,
+   "why_not": []
+  },
+  "noticias": {
+   "metrics": {
+    "trades": 740,
+    "pnl": -0.18089836743127358,
+    "pf": 0.8903784644020692,
+    "dd": 0.21795956068386446,
+    "sharpe": -1.4119767815592947,
+    "win": 0.42027027027027025
+   },
+   "accepted": false,
+   "why_not": [
+    "fator de lucro n\u00e3o superou o da vers\u00e3o atual",
+    "drawdown pior que o da vers\u00e3o atual",
+    "Sharpe n\u00e3o superou o da vers\u00e3o atual",
+    "ainda perde dinheiro depois dos custos (PF \u2264 1): melhorar um resultado negativo n\u00e3o \u00e9 lucro"
+   ]
+  },
+  "risco_adaptativo": {
+   "metrics": {
+    "trades": 830,
+    "pnl": -0.1256635402654045,
+    "pf": 0.9065178904990713,
+    "dd": 0.15064145856034336,
+    "sharpe": -1.2661290271783616,
+    "win": 0.42168674698795183
+   },
+   "accepted": false,
+   "why_not": [
+    "ainda perde dinheiro depois dos custos (PF \u2264 1): melhorar um resultado negativo n\u00e3o \u00e9 lucro"
+   ]
+  },
+  "ml": {
+   "metrics": {
+    "trades": 363,
+    "pnl": -0.03391572373956848,
+    "pf": 0.958007356706711,
+    "dd": 0.10585801920255905,
+    "sharpe": -0.4834756573696466,
+    "win": 0.44077134986225897
+   },
+   "accepted": false,
+   "why_not": [
+    "ainda perde dinheiro depois dos custos (PF \u2264 1): melhorar um resultado negativo n\u00e3o \u00e9 lucro"
+   ],
+   "margem": 0.03
+  }
+ },
+ "flow": "n\u00e3o avali\u00e1vel: exige ticks e book gravados"
+}

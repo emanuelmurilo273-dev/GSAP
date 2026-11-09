@@ -25,6 +25,12 @@ class Store(Protocol):
     def get_status(self) -> dict | None: ...
     def kv_get(self, key: str) -> Any: ...
     def kv_set(self, key: str, value: Any) -> None: ...
+    def get_champion(self) -> dict | None: ...
+    def get_challengers(self) -> list[dict]: ...
+    def get_events(self) -> list[dict]: ...
+    def log_decision(self, row: dict) -> None: ...
+    def insert_shadow(self, row: dict) -> None: ...
+    def register_version(self, name: str, role: str, config: dict, notes: str = "") -> Any: ...
 
 
 class StoreError(RuntimeError):
@@ -104,6 +110,35 @@ class SupabaseStore:
     def kv_set(self, key, value):
         self._req("POST", "app_settings", None, {"key": key, "value": value}, "resolution=merge-duplicates")
 
+    def get_champion(self):
+        r = self._req("GET", "strategy_versions", {"role": "eq.champion", "select": "*"})
+        return r[0] if r else None
+
+    def get_challengers(self):
+        return self._req("GET", "strategy_versions", {"role": "eq.challenger", "select": "*", "order": "id.asc"}) or []
+
+    def get_events(self):
+        from datetime import datetime, timedelta, timezone
+        lo = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        hi = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+        return self._req("GET", "b3_events", {"and": f"(starts_at.gte.{lo},starts_at.lte.{hi})", "select": "starts_at,title,impact"}) or []
+
+    def log_decision(self, row):
+        try:
+            self._req("POST", "b3_decisions", None, row)
+        except StoreError:
+            pass
+
+    def insert_shadow(self, row):
+        try:
+            self._req("POST", "b3_shadow_trades", None, row)
+        except StoreError:
+            pass
+
+    def register_version(self, name, role, config, notes=""):
+        r = self._req("POST", "strategy_versions", None, {"name": name, "role": role, "config": config, "notes": notes}, "return=representation")
+        return r[0]["id"]
+
 
 class MemoryStore:
     """Para testes e para o modo --fake."""
@@ -116,6 +151,12 @@ class MemoryStore:
         self.trades: list[dict] = []
         self.sessions: dict[tuple, dict] = {}
         self.kv: dict[str, Any] = {}
+        self.champion: dict | None = None
+        self.challengers: list[dict] = []
+        self.events: list[dict] = []
+        self.decisions: list[dict] = []
+        self.shadow: list[dict] = []
+        self.versions: list[dict] = []
         self.snaps: list[tuple] = []
         self.down = False  # simula internet/painel fora
         self._id = 0
@@ -177,6 +218,28 @@ class MemoryStore:
 
     def kv_set(self, key, value):
         self._chk(); self.kv[key] = value
+
+    def get_champion(self):
+        self._chk(); return self.champion
+
+    def get_challengers(self):
+        self._chk(); return list(self.challengers)
+
+    def get_events(self):
+        self._chk(); return list(self.events)
+
+    def log_decision(self, row):
+        self.decisions.append(row)
+
+    def insert_shadow(self, row):
+        self.shadow.append(row)
+
+    def register_version(self, name, role, config, notes=""):
+        v = {"id": len(self.versions) + 100, "name": name, "role": role, "config": config, "notes": notes}
+        self.versions.append(v)
+        if role == "challenger":
+            self.challengers.append(v)
+        return v["id"]
 
     def snapshot(self, equity, mode):
         self.snaps.append((equity, mode))

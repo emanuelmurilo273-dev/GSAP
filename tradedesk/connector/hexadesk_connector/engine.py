@@ -20,7 +20,9 @@ from .calendar_b3 import is_business_day
 from .config import Config
 from .contracts import current_contract
 from .gateway import Account, Credentials, Gateway
-from .risk import day_state, size_contracts
+from .intel.pipeline import IntelPipeline
+from .risk import adaptive_size, day_state, size_contracts
+from .shadow import ShadowManager
 from .store import Store, StoreError
 from .strategy import baseline_signal
 
@@ -55,9 +57,17 @@ def hm(text: str) -> time:
 class Engine:
     def __init__(self, gw: Gateway, store: Store, cfg: Config, secrets: dict,
                  now_fn: Callable[[], datetime] | None = None, mono_fn: Callable[[], float] | None = None,
-                 signal_fn: Callable = baseline_signal, source: str = "mt5"):
+                 signal_fn: Callable = baseline_signal, source: str = "mt5", live=None, shadow: ShadowManager | None = None):
         self.gw, self.store, self.cfg, self.secrets = gw, store, cfg, secrets
         self.source = source  # 'mt5' (conta demo/real) ou 'internal' (simulador com preços artificiais)
+        self.live, self.shadow = live, shadow
+        self.intel = IntelPipeline()          # camadas de inteligência: TODAS desligadas até o campeão ligar alguma
+        self.champion_id = None
+        self._champ_cfg: dict | None = None
+        self.last_intel_load = -1e9
+        self.user_events: list[dict] = []
+        self.loss_streak = 0
+        self.last_size: int | None = None
         self.now = now_fn or (lambda: datetime.now(SP))
         self.mono = mono_fn or _time.monotonic
         self.signal_fn = signal_fn
@@ -164,6 +174,8 @@ class Engine:
             if info:
                 patch.update(price_close=info.price_close, pnl=info.profit)
             self._safe(self.store.update_trade, tid, patch)
+            if info:
+                self.loss_streak = self.loss_streak + 1 if info.profit < 0 else 0
             self.log("trade", "executor", f"SAÍDA ticket {ticket}: {patch['close_reason']} · P&L {info.profit if info else '?'} R$")
             del self.tracked[ticket]
 
@@ -268,6 +280,7 @@ class Engine:
             return
         self.error = None
 
+        self._refresh_intel()
         self._commands()
         self._reconcile(s["mode"])
         sess = self._session(now.date(), s["mode"], acct)
@@ -286,6 +299,7 @@ class Engine:
             self._safe(self.store.upsert_session, dict(sess))
             self.log("warn", "risk", f"{sess['halt_reason'].upper()} ({day_pnl:+.2f} R$). Sem novas entradas até amanhã.")
 
+        self._shadow_step(s, now)
         block = self._block(s, now, sess)
         if block is None:
             self.active_seconds += dt
@@ -317,10 +331,18 @@ class Engine:
             self.last_bar[contract] = bar
             if sess.get("trades", 0) >= s["max_trades_per_day"]:
                 return
-            self._open(s, acct, root, contract, side, sess)
+            ctx = {"side": side, "candles": self.gw.candles(contract, self.cfg.timeframe, 300), "now": now, "symbol": contract, "user_events": self.user_events,
+                   "flow": self.live.flow(contract) if self.live else None}
+            dec = self.intel.evaluate(ctx)
+            self._safe(self.store.log_decision, {"symbol": contract, "decision": "entrou" if dec.allow else "nao_entrou", "reason": dec.text or ("entrou" if dec.allow else ""),
+                                                 "regime": dec.regime, "prob": dec.prob, "version": str(self.champion_id), "details": {"layers": dec.layers, "side": side}})
+            if not dec.allow:
+                self.log("refuse", "analyst", f"{contract}: {dec.reason}")
+                continue
+            self._open(s, acct, root, contract, side, sess, dec)
             held = {p.symbol for p in self.gw.positions()}
 
-    def _open(self, s: dict, acct: Account, root: str, contract: str, side: str, sess: dict) -> None:
+    def _open(self, s: dict, acct: Account, root: str, contract: str, side: str, sess: dict, dec=None) -> None:
         spec = self.gw.spec(contract)
         if not spec.trade_allowed:
             self.log("refuse", "filter", f"RECUSA {contract}: negociação não permitida no símbolo.")
@@ -330,6 +352,8 @@ class Engine:
         if n <= 0:
             self.log("refuse", "risk", f"RECUSA {contract}: risco por operação não comporta nem 1 contrato (stop {stop_pts} pts).")
             return
+        ar = self.intel.cfg["adaptive_risk"]                       # e) risco adaptativo: só REDUZ; nunca aumenta para recuperar perda
+        n = adaptive_size(n, self.loss_streak, self.last_size, bool(dec and dec.high_vol), ar["after_losses"], ar["mult"], ar["high_vol_mult"], ar["enabled"])
         t = self.gw.tick(contract)
         price = t.ask if side == "buy" else t.bid
         m = self.gw.margin(contract, side, n, price)
@@ -360,7 +384,37 @@ class Engine:
         if tid is not None:
             self.tracked[pos.ticket] = tid
         sess["trades"] = sess.get("trades", 0) + 1
+        self.last_size = n
         self.log("trade", "executor", f"ENTRADA {side.upper()} {n}x {contract} @ {pos.price_open} · stop {pos.sl} · alvo {pos.tp} (servidor da corretora)")
+
+    # ------------------------------------------------------------------ inteligência
+    def _refresh_intel(self) -> None:
+        if self.mono() - self.last_intel_load < 30:
+            return
+        self.last_intel_load = self.mono()
+        champ = self._safe(self.store.get_champion)
+        cfg = (champ or {}).get("config") or {}
+        if champ and cfg != self._champ_cfg:
+            self._champ_cfg, self.champion_id = cfg, champ.get("id")
+            self.intel = IntelPipeline(cfg)
+            self.log("info", "analyst", f"Versão campeã carregada: {champ.get('name')} (camadas ligadas: {', '.join(k for k, v in self.intel.cfg.items() if v.get('enabled')) or 'nenhuma'}).")
+        self.user_events = self._safe(self.store.get_events) or []
+
+    def _shadow_step(self, s: dict, now: datetime) -> None:
+        if not self.shadow:
+            return
+        self.shadow.sync(self.mono())
+        if not self.shadow.traders:
+            return
+        for root in s["symbols"]:
+            contract = self._contract(root, now.date())
+            c = self.gw.candles(contract, self.cfg.timeframe, 300)
+            if len(c) < 60:
+                continue
+            spec, tick = self.gw.spec(contract), self.gw.tick(contract)
+            flow = self.live.flow(contract) if self.live else None
+            for tr in self.shadow.traders.values():
+                tr.on_bar(root, contract, c, now, tick, spec, s, flow, self.user_events)
 
     # ------------------------------------------------------------------ painel
     def _flush(self, now: datetime, s: dict, acct: Account, sess: dict, day_pnl: float) -> None:

@@ -45,3 +45,21 @@ def day_state(day_pnl: float, loss_limit: float, target: float | None) -> str:
     if target and day_pnl >= target:
         return "target"
     return "ok"
+
+
+def adaptive_size(base_n: int, loss_streak: int, last_size: int | None, high_vol: bool, after_losses: int = 2, mult: float = 0.5,
+                  high_vol_mult: float = 0.5, enabled: bool = True) -> int:
+    """Gestão de risco adaptativa: reduz a mão após `after_losses` perdas seguidas e em dia de volatilidade alta.
+    NUNCA aumenta para recuperar perda (proibido martingale): depois de uma perda, o tamanho nunca passa do anterior.
+    Retorna ao tamanho normal só quando há uma operação vencedora (streak zera). Mínimo de 1 contrato quando há base."""
+    if base_n <= 0:
+        return 0
+    n = float(base_n)
+    if enabled:
+        if loss_streak >= after_losses:
+            n *= mult
+        if high_vol:
+            n *= high_vol_mult
+    if loss_streak > 0 and last_size is not None:
+        n = min(n, last_size)                       # trava anti-martingale
+    return max(1, min(base_n, int(n)))

@@ -127,6 +127,15 @@ Como **nenhuma estratégia foi aprovada**, o modo real só abre no **modo LIMITA
 
 **Leia isto:** a estratégia do robô é só um **teste** (cruzamento de médias), nunca foi validada, e **não há garantia nenhuma de lucro**. O limite diário de R$ 100 reduz o prejuízo por dia, mas ainda é prejuízo real: em 20 dias ruins são R$ 2.000. O conector **nunca foi executado num MT5 real**: por isso o mínimo de 5 pregões na demo existe. Se o conector se comportar de forma estranha na demo (ordem duplicada, stop sem aparecer, posição que não zera), **não passe para o real**.
 
+## 6c) Ao vivo, Inteligência e reaprendizado (novo)
+
+1. **Ao vivo** (`/b3/live`): gráfico em tempo real do contrato atual. Se aparecer a faixa vermelha "DADOS ATRASADOS", o conector parou de receber ticks (mercado fechado, MT5 sem conexão ou internet): não confie no gráfico.
+2. **Gravação de ticks**: deixe o conector rodando nos pregões. Os arquivos ficam em `%LOCALAPPDATA%\HexadeskConnector\data\ticks`. **Sem semanas de dados gravados não existe como provar se as camadas de inteligência ajudam** — por isso elas estão desligadas.
+3. **Para testar com dados da B3**: exporte o histórico (`connector\tools\exportar_historico.py`) e rode `python research_b3/evaluate.py csv PASTA select` e depois **uma única vez** `test`. O teste final só pode ser consumido uma vez.
+4. **Calendário de notícias**: na aba Inteligência, cadastre Copom, payroll, CPI e falas do Fed (as datas mudam todo ano).
+5. **Campeão × desafiante**: um desafiante só pode ser promovido depois de ≥10 pregões em paralelo com preços reais do MT5. O botão fica bloqueado e mostra o que falta.
+6. **Analyst (IA)**: só resume o contexto do dia. Não decide, não manda ordens.
+
 ## 7) Segurança e limites (como o robô se protege)
 
 - **Duas travas para o modo REAL**: uma no site (com estratégia aprovada: 20 pregões na demo do MT5 + confirmações + `OPERAR REAL`; sem estratégia aprovada: só o **modo LIMITADO** acima) e outra **na máquina do conector** (`allow_real`, só se você digitar `PERMITIR REAL` em `python -m hexadesk_connector configurar --permitir-real`).

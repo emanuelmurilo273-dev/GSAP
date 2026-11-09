@@ -26,6 +26,8 @@ class FakeGateway:
         self.drop_sl = False       # simula corretora que não grava o stop
         self.stale = False         # simula feed parado
         self.connect_calls: list[str] = []
+        self.tick_buffer: list = []        # TickRec injetados pelos testes
+        self.book_levels: list[tuple] = []
 
     # --- conexão
     def connect(self, creds: Credentials) -> None:
@@ -104,6 +106,16 @@ class FakeGateway:
 
     def margin(self, symbol, side, volume, price):
         return 150.0 * volume
+
+    # --- dados ao vivo (sintéticos nos testes)
+    def ticks_since(self, symbol, since_msc):
+        return [t for t in self.tick_buffer if t.t_msc > since_msc]
+
+    def book(self, symbol):
+        return list(self.book_levels)
+
+    def book_subscribe(self, symbol):
+        pass
 
     # --- controle do simulador
     def move(self, symbol: str, price: float) -> None:

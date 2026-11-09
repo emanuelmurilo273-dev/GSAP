@@ -82,6 +82,9 @@ class Gateway(Protocol):
     def cancel_orders(self) -> int: ...
     def history_closed(self, ticket: int) -> ClosedInfo | None: ...
     def margin(self, symbol: str, side: str, volume: float, price: float) -> float | None: ...
+    def ticks_since(self, symbol: str, since_msc: int) -> list: ...
+    def book(self, symbol: str) -> list[tuple]: ...          # [(preço, volume, 'buy'|'sell')]
+    def book_subscribe(self, symbol: str) -> None: ...
 
 
 class RealMt5Gateway:
@@ -219,3 +222,29 @@ class RealMt5Gateway:
     def margin(self, symbol, side, volume, price):
         mt5 = self._lib()
         return mt5.order_calc_margin(mt5.ORDER_TYPE_BUY if side == "buy" else mt5.ORDER_TYPE_SELL, symbol, float(volume), float(price))
+
+    # ---- dados ao vivo (NÃO testado contra um MT5 real)
+    def ticks_since(self, symbol, since_msc):
+        from datetime import datetime, timezone
+        from .live import TickRec
+        mt5 = self._lib()
+        start = datetime.fromtimestamp(max(since_msc, 1) / 1000, tz=timezone.utc)
+        rows = mt5.copy_ticks_from(symbol, start, 2000, mt5.COPY_TICKS_ALL)
+        out = []
+        for r in rows if rows is not None else []:
+            t = int(r["time_msc"])
+            if t > since_msc:
+                out.append(TickRec(t, float(r["bid"]), float(r["ask"]), float(r["last"]), float(r["volume_real"] if "volume_real" in r.dtype.names else r["volume"]), int(r["flags"])))
+        return out
+
+    def book_subscribe(self, symbol):
+        subs = getattr(self, "_book_subs", set())
+        if symbol not in subs:
+            self._lib().market_book_add(symbol)
+            subs.add(symbol)
+            self._book_subs = subs
+
+    def book(self, symbol):
+        mt5 = self._lib()
+        items = mt5.market_book_get(symbol) or []
+        return [(float(i.price), float(i.volume_dbl if getattr(i, "volume_dbl", 0) else i.volume), "buy" if i.type in (mt5.BOOK_TYPE_BUY, mt5.BOOK_TYPE_BUY_MARKET) else "sell") for i in items]

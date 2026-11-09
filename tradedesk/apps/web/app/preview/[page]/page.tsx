@@ -5,6 +5,8 @@ import LandingView from '@/components/LandingView';
 import { Logo, Panel } from '@/components/ui';
 import Dashboard from '../../app/Dashboard';
 import B3Dashboard from '../../b3/B3Dashboard';
+import Inteligencia from '../../b3/inteligencia/Inteligencia';
+import LiveChart from '../../b3/live/LiveChart';
 import ModeBanner from '../../b3/ModeBanner';
 
 export const dynamic = 'force-dynamic';
@@ -82,6 +84,31 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
           <div className="mb-3 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div>
           <B3Dashboard demo={demo} />
         </div>
+      </div>
+    );
+  }
+  if (page === 'b3-live' || page === 'b3-intel') {
+    const now = Date.now(); const t0 = Math.floor(now / 1000 / 60) * 60;
+    let p = 130000, seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) - 0.5;
+    const m1 = Array.from({ length: 200 }, (_, i) => { const o = p; p += rnd() * 60 + Math.sin(i / 14) * 12; const h = Math.max(o, p) + Math.abs(rnd()) * 25, l = Math.min(o, p) - Math.abs(rnd()) * 25; return [t0 - (199 - i) * 60, o, h, l, p, Math.round(200 + Math.abs(rnd()) * 900)]; });
+    const agg = (n: number) => { const out: number[][] = []; for (const b of m1) { const k = Math.floor(b[0] / (60 * n)) * 60 * n; const l = out[out.length - 1]; if (l && l[0] === k) { l[2] = Math.max(l[2], b[2]); l[3] = Math.min(l[3], b[3]); l[4] = b[4]; l[5] += b[5]; } else out.push([k, b[1], b[2], b[3], b[4], b[5]]); } return out; };
+    const last = m1[m1.length - 1][4];
+    const book = [...Array.from({ length: 8 }, (_, i) => ({ side: 'sell', price: last + 5 * (i + 1), vol: 20 + ((i * 37) % 90) })), ...Array.from({ length: 8 }, (_, i) => ({ side: 'buy', price: last - 5 * i, vol: 15 + ((i * 53) % 110) }))];
+    const trades = Array.from({ length: 30 }, (_, i) => ({ t: now - i * 1700, p: last + (i % 3) * 5 - 5, v: 1 + ((i * 7) % 25), side: i % 3 ? 'buy' : 'sell' }));
+    const snapshot = { real_ms: now, symbols: { WIN: { last: { t: now, bid: last - 5, ask: last, last }, last_tick_real_ms: now - 400, book, trades: trades.reverse(), bars: { M1: m1, M5: agg(5), M15: agg(15) }, flow: { buy: 640, sell: 410, delta: 230, imbalance: 0.22, big_lots: 3, trades: 180, book_imbalance: 0.1 } } },
+      __trades: [{ id: 1, root: 'WIN', contract: 'WINZ26', side: 'buy', status: 'open', price_open: last - 40, sl: last - 190, tp: last + 185, opened_at: new Date(now - 12 * 60_000).toISOString() }, { id: 2, root: 'WIN', contract: 'WINZ26', side: 'sell', status: 'closed', price_open: m1[120][1], pnl: -60, opened_at: new Date(m1[120][0] * 1000).toISOString(), closed_at: new Date(m1[135][0] * 1000).toISOString() }] };
+    const ts = (m: number) => new Date(now - m * 60_000).toISOString();
+    const curve = (k: number) => { let e = 0; return Array.from({ length: 30 }, (_, i) => ({ t: now - (30 - i) * 86_400_000, v: (e += Math.sin(i / 3) * 40 + k) })); };
+    const mt = (trades: number, sessions: number, pf: number, dd: number, sh: number, pnl: number) => ({ trades, sessions, profitFactor: pf, maxDrawdown: dd, sharpe: sh, pnl });
+    const intel = { champion: { id: 1, name: 'Base (EMA 9/21, sem camadas)' }, rules: { minSessions: 10, minTrades: 30 },
+      decisions: [['nao_entrou', 'Mercado lateral (ADX 14 < 20)', 'range', null, 2], ['nao_entrou', 'Copom em 10 min', 'trend', null, 25], ['entrou', 'Cruzamento EMA9/21 confirmado pelo fluxo', 'trend', 0.58, 80], ['nao_entrou', 'Volatilidade alta demais (ATR no percentil 95)', 'volatile', null, 150]].map(([decision, reason, regime, prob, m], i) => ({ id: i, ts: ts(m as number), symbol: 'WINZ26', decision, reason, regime, prob })),
+      challengers: [{ version: { id: 2, name: 'Desafiante: regime + fluxo' }, comparison: { champion: mt(64, 11, 0.9, 420, -0.4, -180), challenger: mt(41, 11, 1.12, 260, 0.5, 210), canPromote: false, reasons: ['lucro (fator de lucro) ainda não é significativamente melhor em amostra tão pequena'] }, curves: { champion: curve(-4), challenger: curve(3) } }],
+      analyst: { text: 'Abertura com gap de +0,3% e mercado lateral até 10h30. O robô não entrou por falta de tendência. Atenção: Copom às 18h30, sem novas entradas na janela.', at: ts(5), model: 'claude-opus-5-5' } };
+    return (
+      <div className="mx-auto max-w-6xl px-3 pb-10 sm:px-6">
+        <header className="flex items-center justify-between py-4"><Logo /><span className="text-xs text-dim">{page === 'b3-live' ? 'Ao vivo' : 'Inteligência'}</span></header>
+        <div className="mb-3 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div>
+        {page === 'b3-live' ? <LiveChart demo={snapshot} /> : <Inteligencia demo={{ ...intel, events: [{ id: 1, starts_at: ts(-600), title: 'Copom — decisão da Selic', impact: 'alto' }, { id: 2, starts_at: ts(-1500), title: 'Payroll (EUA)', impact: 'alto' }] }} />}
       </div>
     );
   }
