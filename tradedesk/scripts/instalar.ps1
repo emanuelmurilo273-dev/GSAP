@@ -37,9 +37,17 @@ if (-not (Test-Path .env)) {
   $b = New-Object byte[] 32
   [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
   $key = [BitConverter]::ToString($b).Replace('-', '').ToLower()
-  $txt = [regex]::Replace($txt, '(?m)^ENCRYPTION_KEY=[^\r\n#]*', "ENCRYPTION_KEY=$key")
+  $txt = [regex]::Replace($txt, '(?m)^ENCRYPTION_KEY=[ \t]*', "ENCRYPTION_KEY=$key  ")
   [IO.File]::WriteAllText((Join-Path (Get-Location) '.env'), $txt, $utf8)
   Write-Host "Arquivo .env criado. ENCRYPTION_KEY gerada automaticamente (FACA BACKUP do .env!)." -ForegroundColor Yellow
+}
+
+# repara .env gerado pela versao anterior: "KEY=<64hex># comentario" -> "KEY=<64hex>  # comentario"
+$cur = [IO.File]::ReadAllText((Join-Path (Get-Location) '.env'), [Text.Encoding]::UTF8)
+$fixed = [regex]::Replace($cur, '(?m)^(ENCRYPTION_KEY=[0-9a-fA-F]{64})#', '$1  #')
+if ($fixed -ne $cur) {
+  [IO.File]::WriteAllText((Join-Path (Get-Location) '.env'), $fixed, $utf8)
+  Write-Host ".env reparado (ENCRYPTION_KEY estava colada no comentario)." -ForegroundColor Yellow
 }
 
 function Get-Env($name) {
