@@ -8,7 +8,7 @@ const FAQ = [
   ['O robô garante lucro?', 'Não. Nenhum robô garante. Ele pode ter prejuízo, inclusive seguido. Os números exibidos são de backtest em dados históricos e não garantem o futuro.'],
   ['E se meu celular ou computador estiver desligado?', 'O robô roda em servidor, 24h. Na Binance, o stop de cada posição também fica registrado na própria corretora.'],
   ['Posso parar quando quiser?', 'Sim. Pause o robô com um toque, feche todas as posições com um botão e cancele a assinatura pelo painel, sem multa.'],
-  ['Quais corretoras?', 'Binance. Você cola a API Key/Secret da sua conta, criada sem permissão de saque.'],
+  ['Quais corretoras?', 'Binance e Bybit. Você cola a API Key/Secret da sua conta, criada sem permissão de saque.'],
   ['O backtest é confiável?', 'Usa candles reais da corretora, com taxa e slippage. Ainda assim é simulação: não inclui o ajuste do LLM nem filas de execução reais. Mostramos o período e a data de cada resultado.'],
 ];
 

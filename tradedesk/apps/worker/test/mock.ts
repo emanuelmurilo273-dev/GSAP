@@ -1,6 +1,9 @@
 // Corretora simulada (superfície do ccxt usada pelo robô) + Supabase falso em memória.
 export class MockExchange {
-  id = 'binance';
+  id: string = 'binance';
+  failFetchOrder = false;
+  failCancel = false;
+  paramsSeen: any[] = [];
   markets: Record<string, any> = {};
   prices: Record<string, number> = {};
   balances: Record<string, { free: number; total: number }> = {};
@@ -9,7 +12,7 @@ export class MockExchange {
   failStop = false;
   fee = 0.001;
   private seq = 0;
-  constructor(quote = 'USDT', quoteBalance = 10_000) { this.balances[quote] = { free: quoteBalance, total: quoteBalance }; }
+  constructor(quote = 'USDT', quoteBalance = 10_000, id = 'binance') { this.id = id; this.balances[quote] = { free: quoteBalance, total: quoteBalance }; }
   setPrice(sym: string, p: number) { this.prices[sym] = p; this.markets[sym] = {}; }
   async loadMarkets() { return this.markets; }
   market(_s: string) { return { limits: { cost: { min: 10 }, amount: { min: 0.00001 } } }; }
@@ -26,6 +29,12 @@ export class MockExchange {
     this.calls.push(`${type}:${side}:${amount}`);
     const [base, quote] = sym.split('/');
     const last = this.prices[sym];
+    if (type === 'market' && params.triggerPrice !== undefined && side === 'sell') {
+      // Bybit spot: ordem condicional a mercado; NÃO reserva saldo até disparar
+      if (this.failStop) throw new Error('stop rejeitado pela corretora');
+      const o = { id: `o${++this.seq}`, symbol: sym, status: 'open', stopPrice: params.triggerPrice, amount, filled: 0, conditional: true };
+      this.orders.push(o); return o;
+    }
     if (type === 'market') {
       if (side === 'buy') {
         const cost = amount * last, fee = cost * this.fee;
@@ -45,15 +54,17 @@ export class MockExchange {
     if (type === 'STOP_LOSS_LIMIT') {
       if (this.failStop) throw new Error('stop rejeitado pela corretora');
       this.bal(base).free -= amount; // trava a quantidade
-      const o = { id: `o${++this.seq}`, symbol: sym, status: 'open', stopPrice: params.stopPrice, limit: price, amount, filled: 0 };
+      const o = { id: `o${++this.seq}`, symbol: sym, status: 'open', stopPrice: params.stopPrice, limit: price, amount, filled: 0, locked: true };
       this.orders.push(o); return o;
     }
     throw new Error(`tipo não suportado: ${type}`);
   }
-  async fetchOrder(id: string, _s?: string) { const o = this.orders.find((x) => x.id === id); if (!o) throw new Error('ordem não existe'); return o; }
-  async cancelOrder(id: string, _s?: string) {
+  async fetchOrder(id: string, _s?: string, params: any = {}) { this.paramsSeen.push(['fetchOrder', params]); if (this.failFetchOrder && this.orders.find((x) => x.id === id)?.conditional) throw new Error('ordem condicional não consultável'); const o = this.orders.find((x) => x.id === id); if (!o) throw new Error('ordem não existe'); return o; }
+  async cancelOrder(id: string, _s?: string, params: any = {}) {
+    this.paramsSeen.push(['cancelOrder', params]);
+    if (this.failCancel) throw new Error('cancelamento recusado');
     const o = this.orders.find((x) => x.id === id);
-    if (o?.status === 'open') { o.status = 'canceled'; this.bal(o.symbol.split('/')[0]).free += o.amount; }
+    if (o?.status === 'open') { o.status = 'canceled'; if (o.locked) this.bal(o.symbol.split('/')[0]).free += o.amount; }
     return o;
   }
   /** move o preço e dispara stops da corretora (como a Binance faria). */
@@ -62,8 +73,10 @@ export class MockExchange {
     const [base, quote] = sym.split('/');
     for (const o of this.orders) {
       if (o.status === 'open' && o.symbol === sym && p <= o.stopPrice) {
-        o.status = 'closed'; o.filled = o.amount; o.average = o.limit;
-        const gross = o.amount * o.limit, fee = gross * this.fee;
+        const px = o.conditional ? p : o.limit; // condicional a mercado executa ao preço de mercado
+        o.status = 'closed'; o.filled = o.amount; o.average = px;
+        const gross = o.amount * px, fee = gross * this.fee;
+        if (o.conditional) this.bal(base).free -= o.amount;
         this.bal(base).total -= o.amount; this.bal(quote).free += gross - fee; this.bal(quote).total += gross - fee;
         o.fee = { currency: quote, cost: fee };
       }

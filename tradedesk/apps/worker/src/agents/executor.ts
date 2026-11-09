@@ -1,4 +1,4 @@
-import { closeTrade, log, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
+import { closeTrade, createProtectiveStop, log, supportsExchangeStop, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 function fees(order: any, base: string, quote: string) {
@@ -54,15 +54,16 @@ export async function enter(
   }
   await log(sb, userId, 'executor', 'trade', `ENTRADA ${symbol} · ${qty.toFixed(6)} @ ${avg} · nota ${score} · stop ${trade.stop_price.toFixed(2)} · alvo ${trade.target_price.toFixed(2)}`, { tradeId: trade.id });
 
-  // stop protetor na corretora (Binance). Se falhar, NUNCA deixa posição sem proteção: fecha na hora.
-  if (ex.id === 'binance') {
+  // stop protetor na corretora (Binance: STOP_LOSS_LIMIT; Bybit: ordem condicional). Se falhar, NUNCA deixa posição sem proteção: fecha na hora.
+  if (supportsExchangeStop(ex.id)) {
     try {
-      const stopPx = Number(ex.priceToPrecision(symbol, trade.stop_price));
-      const limitPx = Number(ex.priceToPrecision(symbol, trade.stop_price * 0.995));
-      const so: any = await ex.createOrder(symbol, 'STOP_LOSS_LIMIT', 'sell', Number(ex.amountToPrecision(symbol, qty)), limitPx, {
-        stopPrice: stopPx, timeInForce: 'GTC',
-      });
-      await sb.from('trades').update({ stop_order_id: so.id }).eq('id', trade.id);
+      // quantidade realmente disponível (a taxa pode ter sido cobrada no próprio ativo)
+      let stopQty = qty;
+      const bal = await ex.fetchBalance().catch(() => null);
+      const freeBase = (bal?.free as any)?.[base];
+      if (typeof freeBase === 'number' && freeBase > 0) stopQty = Math.min(qty, freeBase);
+      const stopId = await createProtectiveStop(ex, symbol, stopQty, trade.stop_price);
+      if (stopId) await sb.from('trades').update({ stop_order_id: stopId }).eq('id', trade.id);
     } catch (e: any) {
       await log(sb, userId, 'risk', 'error', `Falha ao criar stop em ${symbol} (${String(e?.message ?? e).slice(0, 120)}). Fechando posição por segurança.`);
       await closeTrade(sb, ex, trade as TradeRow, 'sem stop protetor').catch(async (e2) => {

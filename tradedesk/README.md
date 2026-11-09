@@ -44,6 +44,13 @@ Para um site na internet com clientes, use o Supabase na nuvem (próxima seção
 2. No `.env`: `BINANCE_TESTNET=true`. No app, conecte essa chave em *Config*.
 3. Rode backtest → aceite o termo → ligue o robô e acompanhe as ordens no testnet.
 
+### 4b. Bybit (alternativa à Binance)
+1. Na Bybit: **Perfil → API → Criar nova chave → "Chaves geradas pelo sistema"**. Permissões: **Leitura e Escrita**; em **Spot** marque **Trade**; em **Carteira NÃO marque Saque**. Se puder, restrinja ao seu IP.
+2. No `.env`: `EXCHANGES_ENABLED=bybit` (o instalador pergunta). Cole a chave em *Config → Corretora*.
+3. O app consulta as permissões reais da chave (`/v5/user/query-api`) e **recusa** se tiver saque, se for só leitura ou se não conseguir ler as permissões (falha para o lado seguro).
+4. Testnet: crie conta e chaves em **testnet.bybit.com** (separadas da conta real) e use `EXCHANGE_TESTNET=true`.
+5. Stop de proteção: ordem **condicional** na própria Bybit (spot). **Ainda não foi testada ao vivo** — a API da Bybit respondeu 403 (bloqueio por região) no ambiente onde desenvolvi. Teste no testnet antes de usar dinheiro real.
+
 ### 5. Asaas (pagamentos) — comece no sandbox
 1. Conta em sandbox.asaas.com → *Integrações → Chave de API* → `ASAAS_API_KEY`; `ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3`.
 2. *Integrações → Webhooks*: URL `SEU_SITE/api/webhooks/asaas`, **token de autenticação** = o mesmo valor de `ASAAS_WEBHOOK_SECRET` (invente um longo), eventos de cobrança e de assinatura.
@@ -77,7 +84,8 @@ Para um site na internet com clientes, use o Supabase na nuvem (próxima seção
 | Variável | Padrão | O que faz |
 |---|---|---|
 | `STRATEGY_APPROVED` | `false` | `true` só se a pesquisa aprovar uma estratégia. `false` = clientes sem modo real |
-| `BINANCE_TESTNET` | `false` | `true` = ordens na Binance Spot Testnet |
+| `EXCHANGES_ENABLED` | `binance,bybit` | corretoras liberadas na tela (a 1ª é a padrão) |
+| `EXCHANGE_TESTNET` | `false` | `true` = Binance/Bybit em testnet (`BINANCE_TESTNET` é o nome antigo) |
 | `ENABLE_MERCADO_BITCOIN` | `false` | Mercado Bitcoin escondido (não dá para verificar permissão de saque da chave) |
 | `OWNER_EMAIL` | — | vira dono no 1º login (exige senha + 2FA para o Admin) |
 | `PREVIEW_PAGES` | `false` | só em desenvolvimento: libera `/preview/*` (dados de EXEMPLO) |
@@ -101,7 +109,8 @@ npx tsx scripts/e2e.ts         # jornada completa em SANDBOX (exige as variávei
 | Pesquisa de estratégia | ✅ executada com dados reais da Binance (3 anos) |
 | Healthcheck do worker | ✅ testado com Redis real: 200 saudável / 503 sem Redis |
 | Build do site, telas em 390px e 1440px (`docs/screenshots/`), sem rolagem horizontal | ✅ |
-| **Ordens na Binance Testnet** | ⚠️ código pronto (`BINANCE_TESTNET`), **não executado**: exige chaves suas |
+| **Ordens na Binance/Bybit Testnet** | ⚠️ código pronto (`EXCHANGE_TESTNET`), **não executado**: exige chaves suas |
+| **Bybit** (validação de chave, stop condicional, fechamento) | ✅ lógica testada com corretora simulada (6 testes); ⚠️ **nunca falou com a Bybit de verdade** (API deu 403 no meu ambiente) |
 | **Asaas sandbox** (assinatura, Pix, webhook, inadimplência, cancelamento, repasse) | ⚠️ código pronto, **não executado** (sem chave); nomes de campos da transferência pendente de autorização **não foram verificados** na API real |
 | **Resend** (envio real) | ⚠️ templates prontos (`docs/email-preview.html`), envio **não testado** |
 | **Supabase** na nuvem, login do dono com TOTP | ⚠️ **não testado** de ponta a ponta (RLS foi testado em Postgres local) |

@@ -1,4 +1,4 @@
-import { EXCHANGES, enabledExchangeIds, fetchHistory, makeExchange, runBacktest, type ExchangeId } from '@desk/core';
+import { EXCHANGES, enabledExchangeIds, fetchHistoryFallback, runBacktest, type ExchangeId } from '@desk/core';
 import { NextResponse } from 'next/server';
 import { apiSubscriber } from '@/lib/auth';
 import { cleanParams } from '@/lib/params';
@@ -23,8 +23,8 @@ export async function POST(req: Request) {
   if ((count ?? 0) >= 30) return NextResponse.json({ error: 'limite diário de backtests atingido' }, { status: 429 });
 
   try {
-    const ex = makeExchange(exchange);
-    const candles = await fetchHistory(ex, symbol, params.timeframe, days);
+    // dados da própria corretora; se a API pública dela estiver bloqueada, usa a Binance como referência de preço (avisado na resposta)
+    const { candles, source } = await fetchHistoryFallback(exchange, symbol, params.timeframe, days);
     if (candles.length < 200) return NextResponse.json({ error: `dados insuficientes (${candles.length} candles) para ${symbol}` }, { status: 422 });
     const r = runBacktest(candles, { params });
     const row = {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     };
     const { data } = await admin.from('backtests').insert(row).select('id').single();
     await admin.from('bot_settings').update({ backtest_done_at: new Date().toISOString() }).eq('user_id', userId);
-    return NextResponse.json({ id: data?.id, metrics: r.metrics, equity: r.equity, trades: r.trades.slice(-50) });
+    return NextResponse.json({ id: data?.id, metrics: r.metrics, equity: r.equity, trades: r.trades.slice(-50), dataSource: source, dataNote: source !== exchange ? `Dados de preço da ${source} (a API pública da ${exchange} não respondeu): referência do mesmo par.` : null });
   } catch (e: any) {
     return NextResponse.json({ error: `Falha ao obter dados da corretora: ${String(e?.message ?? e).slice(0, 150)}` }, { status: 502 });
   }

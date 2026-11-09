@@ -12,3 +12,4 @@ export * from './official';
 export * from './alerts';
 export * from './audit';
 export * from './gate';
+export * from './quirks';

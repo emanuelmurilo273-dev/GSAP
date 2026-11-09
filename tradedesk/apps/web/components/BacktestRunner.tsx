@@ -55,6 +55,7 @@ export default function BacktestRunner({ symbols, exchange, initial }: { symbols
           {err && <p className="text-sm text-neon-pink">{err}</p>}
         </form>
       </Panel>
+      {res?.dataNote && <p className="rounded-lg border border-filter/40 bg-filter/10 p-3 text-xs text-filter">{res.dataNote}</p>}
       {res && <MetricsView m={res.metrics} equity={res.equity} symbol={res.symbol} days={res.days} tf={res.tf} />}
       {res && <p className="text-sm text-neon-green">✔ Backtest registrado. Se quiser operar com estes parâmetros, salve-os em <a href="/app/settings">Config</a> e rode o backtest com a configuração salva.</p>}
     </div>

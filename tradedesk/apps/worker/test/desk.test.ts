@@ -4,6 +4,7 @@ import { DEFAULT_PARAMS, closeAllPositions, enableBlockers, type TradeRow } from
 import { enter } from '../src/agents/executor';
 import { dailyGuard, monitorPositions } from '../src/agents/risk';
 import { FakeSb, MockExchange } from './mock';
+import { checkBybitPermissions } from '../../../packages/core/src/exchange';
 
 const U = 'user-1';
 const P = { ...DEFAULT_PARAMS }; // stop 3%, alvo 6%, trailing 2%, 5%/trade, perda diária 5%
@@ -156,7 +157,8 @@ test('Fechar todas: falha em uma posição não impede as outras', async () => {
   ex.setPrice('ETH/USDT', 50);
   await enter(as, ax, U, 'BTC/USDT', 100, 10_000, 9_000, P, 0.8, '');
   await enter(as, ax, U, 'ETH/USDT', 50, 10_000, 8_000, P, 0.8, '');
-  ex.balances.BTC = { free: 0, total: 0 }; ex.orders.find((o) => o.symbol === 'BTC/USDT' && o.status === 'open')!.status = 'canceled'; // BTC sumiu da carteira
+  sb.rows('trades').find((t) => t.symbol === 'BTC/USDT')!.stop_order_id = null; // posição sem stop na corretora
+  ex.balances.BTC = { free: 0, total: 0 }; // e o BTC sumiu da carteira
   const r = await closeAllPositions(as, ax, U);
   assert.equal(r.closed, 1);
   assert.equal(r.errors.length, 1);
@@ -175,4 +177,78 @@ test('Ligar/pausar: só liga com corretora, backtest e termo; sem estratégia ap
   process.env.STRATEGY_APPROVED = 'true';
   assert.deepEqual(enableBlockers({ ...ok, isOwner: false }), []);
   delete process.env.STRATEGY_APPROVED;
+});
+
+// ----------------------------------------------------------------- BYBIT
+const bybit = async () => {
+  const sb = new FakeSb();
+  const ex = new MockExchange('USDT', 10_000, 'bybit');
+  ex.setPrice('BTC/USDT', 100);
+  return { sb, ex, as: (sb as unknown) as any, ax: (ex as unknown) as any };
+};
+
+test('Bybit: abre posição e cria stop CONDICIONAL na corretora (sem reservar saldo)', async () => {
+  const { sb, ex, as, ax } = await bybit();
+  const t = await enter(as, ax, U, 'BTC/USDT', 100, 10_000, 9_000, P, 0.8, '');
+  assert.ok(t);
+  const stop = ex.orders.find((o) => o.conditional);
+  assert.ok(stop, 'stop condicional deveria existir');
+  assert.equal(stop.stopPrice, 97);
+  assert.equal(sb.rows('trades')[0].stop_order_id, stop.id);
+  assert.ok(ex.balances.BTC.free > 0, 'Bybit não reserva o saldo do stop');
+});
+
+test('Bybit: stop dispara na corretora → posição registrada como fechada com prejuízo', async () => {
+  const { sb, ex, as, ax } = await bybit();
+  await enter(as, ax, U, 'BTC/USDT', 100, 10_000, 9_000, P, 0.8, '');
+  ex.movePrice('BTC/USDT', 96.5);
+  await monitorPositions(as, ax, openTrades(sb), new Map([['BTC/USDT', 96.5]]), P);
+  const t = sb.rows('trades')[0];
+  assert.equal(t.status, 'closed');
+  assert.ok(t.pnl < 0);
+  assert.ok(ex.paramsSeen.some(([, p]: any) => p.trigger === true), 'consulta do stop usa {trigger:true}');
+});
+
+test('Bybit: alvo atingido cancela o stop condicional com {trigger:true} e vende a mercado', async () => {
+  const { sb, ex, as, ax } = await bybit();
+  await enter(as, ax, U, 'BTC/USDT', 100, 10_000, 9_000, P, 0.8, '');
+  ex.prices['BTC/USDT'] = 107;
+  await monitorPositions(as, ax, openTrades(sb), new Map([['BTC/USDT', 107]]), P);
+  assert.equal(sb.rows('trades')[0].exit_reason, 'alvo atingido');
+  assert.ok(!ex.orders.some((o) => o.status === 'open'), 'stop cancelado');
+  assert.ok(ex.paramsSeen.some(([k, p]: any) => k === 'cancelOrder' && p.trigger === true));
+});
+
+test('Bybit: se a corretora não deixa consultar o stop e o ativo sumiu da carteira, registra stop executado (estimado)', async () => {
+  const { sb, ex, as, ax } = await bybit();
+  await enter(as, ax, U, 'BTC/USDT', 100, 10_000, 9_000, P, 0.8, '');
+  ex.failFetchOrder = true;
+  ex.movePrice('BTC/USDT', 96); // stop dispara; a carteira fica sem BTC
+  await monitorPositions(as, ax, openTrades(sb), new Map([['BTC/USDT', 96]]), P);
+  const t = sb.rows('trades')[0];
+  assert.equal(t.status, 'closed');
+  assert.match(t.exit_reason, /estimado/);
+  assert.ok(t.pnl < 0);
+});
+
+test('Segurança: stop ainda aberto que não consegue ser cancelado NÃO vira "fechado" falsamente', async () => {
+  const { sb, ex, as, ax } = setup(); // Binance: o stop reserva o saldo
+  await enter(as, ax, U, 'BTC/USDT', 100, 10_000, 9_000, P, 0.8, '');
+  ex.failCancel = true;
+  const r = await closeAllPositions(as, ax, U);
+  assert.equal(r.closed, 0);
+  assert.equal(r.errors.length, 1);
+  assert.match(r.errors[0], /continua aberto/);
+  assert.equal(openTrades(sb).length, 1, 'posição segue aberta no registro');
+});
+
+test('Bybit: permissões da chave — recusa saque, só leitura, sem spot; falha para o lado seguro', () => {
+  const ok = { readOnly: 0, ips: '1.2.3.4', permissions: { Spot: ['SpotTrade'], Wallet: ['AccountTransfer'] } };
+  assert.equal(checkBybitPermissions(ok).ok, true);
+  const w = checkBybitPermissions({ ...ok, permissions: { ...ok.permissions, Wallet: ['AccountTransfer', 'Withdraw'] } });
+  assert.equal(w.ok, false); assert.match((w as any).reason, /SAQUE/);
+  assert.equal(checkBybitPermissions({ ...ok, readOnly: 1 }).ok, false);
+  assert.equal(checkBybitPermissions({ ...ok, permissions: { Spot: [], Wallet: [] } }).ok, false);
+  assert.equal(checkBybitPermissions(undefined).ok, false, 'resposta inesperada → recusa');
+  assert.equal(checkBybitPermissions({ readOnly: 0 }).ok, false, 'sem permissions → recusa');
 });

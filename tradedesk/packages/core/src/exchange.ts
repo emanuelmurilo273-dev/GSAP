@@ -14,8 +14,28 @@ export function makeExchange(id: ExchangeId, creds?: Creds): Ex {
   const publicOverride = id === 'binance' && !creds ? { urls: { api: { public: 'https://data-api.binance.vision/api/v3' } } } : {};
   const ex = new Cls({ enableRateLimit: true, timeout: 20_000, options: { adjustForTimeDifference: true, ...(id === 'binance' ? { fetchMarkets: { types: ['spot'] } } : {}) }, ...publicOverride, ...creds });
   // BINANCE_TESTNET=true: ordens vão para testnet.binance.vision (dinheiro de mentira). Chaves de testnet só funcionam lá.
-  if (id === 'binance' && creds && testnetMode()) ex.setSandboxMode(true);
+  if ((id === 'binance' || id === 'bybit') && creds && testnetMode()) ex.setSandboxMode(true);
   return ex;
+}
+
+/**
+ * Interpreta a resposta de GET /v5/user/query-api da Bybit. FALHA PARA O LADO SEGURO: se não der para ter certeza
+ * de que a chave NÃO pode sacar e PODE negociar spot, recusa.
+ */
+export function checkBybitPermissions(r: any): KeyCheck {
+  const perms = r?.permissions;
+  if (!perms || typeof perms !== 'object') return { ok: false, reason: 'Não consegui ler as permissões da chave na Bybit. Por segurança ela foi recusada.' };
+  const wallet: string[] = Array.isArray(perms.Wallet) ? perms.Wallet : [];
+  if (wallet.some((x) => /withdraw/i.test(String(x)))) return { ok: false, reason: 'Chave RECUSADA: tem permissão de SAQUE. Crie outra chave sem marcar "Saque" (Withdraw).' };
+  if (Number(r?.readOnly) === 1) return { ok: false, reason: 'Chave só de leitura. Ative a permissão Leitura e Escrita (Read-Write) com Spot Trade.' };
+  const spot: string[] = Array.isArray(perms.Spot) ? perms.Spot : [];
+  if (!spot.some((x) => /spottrade/i.test(String(x)))) return { ok: false, reason: 'Chave sem permissão de Spot Trade. Marque "Spot > Trade".' };
+  const ips = String(r?.ips ?? '');
+  return {
+    ok: true, verified: true,
+    permissions: { trade: true, withdraw: false, ipRestrict: !!ips && ips !== '*', spot },
+    note: !ips || ips === '*' ? 'Recomendado: restrinja a chave ao seu IP na Bybit.' : undefined,
+  };
 }
 
 export type KeyCheck =
@@ -33,7 +53,7 @@ export type KeyCheck =
 export async function validateKeys(id: ExchangeId, creds: Creds, attestNoWithdraw: boolean): Promise<KeyCheck> {
   const ex = makeExchange(id, creds);
   try {
-    if (id === 'binance' && testnetMode()) {
+    if ((id === 'binance' || id === 'bybit') && testnetMode()) {
       await ex.fetchBalance(); // testnet não tem saque real
       return { ok: true, verified: true, permissions: { trade: true, withdraw: false, testnet: true }, note: 'TESTNET: ordens com dinheiro de mentira.' };
     }
@@ -55,6 +75,15 @@ export async function validateKeys(id: ExchangeId, creds: Creds, attestNoWithdra
         },
         note: r.ipRestrict ? undefined : 'Recomendado: restrinja a chave aos IPs do servidor na Binance.',
       };
+    }
+    if (id === 'bybit') {
+      const fn = (ex as any).privateGetV5UserQueryApi;
+      if (typeof fn !== 'function') return { ok: false, reason: 'Não foi possível consultar as permissões da chave (versão do CCXT).' };
+      const r = await fn.call(ex);
+      const chk = checkBybitPermissions(r?.result);
+      if (!chk.ok) return chk;
+      await ex.fetchBalance();
+      return chk;
     }
     // Mercado Bitcoin
     if (!attestNoWithdraw) return { ok: false, reason: 'Confirme que a chave NÃO possui permissão de saque.' };
@@ -108,4 +137,17 @@ export async function fetchPortfolio(ex: Ex, quote: string) {
     } catch { /* ativo sem par na moeda de cotação: ignora */ }
   }
   return { equity, free: ((bal.free ?? {}) as unknown as Record<string, number>)[quote] ?? 0, holdings };
+}
+
+/**
+ * Dados históricos para backtest. Tenta a própria corretora; se a API pública dela estiver bloqueada/indisponível,
+ * usa a Binance (data-api.binance.vision) como REFERÊNCIA de preço do mesmo par e avisa em `source`.
+ */
+export async function fetchHistoryFallback(id: ExchangeId, symbol: string, tf: Timeframe, days: number): Promise<{ candles: Candle[]; source: ExchangeId }> {
+  try {
+    const c = await fetchHistory(makeExchange(id), symbol, tf, days);
+    if (c.length >= 200) return { candles: c, source: id };
+  } catch { /* cai para a referência */ }
+  if (id === 'binance') throw new Error('dados da Binance indisponíveis');
+  return { candles: await fetchHistory(makeExchange('binance'), symbol, tf, days), source: 'binance' };
 }

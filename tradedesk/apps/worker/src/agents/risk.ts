@@ -1,4 +1,4 @@
-import { closeTrade, log, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
+import { closeTrade, log, stopOrderParams, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { brtDay } from '../lib/util';
 
@@ -24,7 +24,7 @@ export async function monitorPositions(sb: SupabaseClient, ex: Ex, open: TradeRo
     if (!price) continue;
     try {
       if (t.stop_order_id) {
-        const o: any = await ex.fetchOrder(t.stop_order_id, t.symbol).catch(() => null);
+        const o: any = await ex.fetchOrder(t.stop_order_id, t.symbol, stopOrderParams(ex)).catch(() => null);
         if (o?.status === 'closed' && (o.filled ?? 0) > 0) { await closeTrade(sb, ex, t, 'stop'); continue; }
       }
       const peak = Math.max(t.peak_price, price);
