@@ -42,6 +42,14 @@ export const EXCHANGES: Record<ExchangeId, { label: string; ccxt: string }> = {
   mercado: { label: 'Mercado Bitcoin', ccxt: 'mercado' },
 };
 
+/** Mercado Bitcoin: desligado até haver como verificar a permissão de saque da chave. */
+export const mercadoEnabled = () => process.env.ENABLE_MERCADO_BITCOIN === 'true';
+export const enabledExchangeIds = (): ExchangeId[] => (mercadoEnabled() ? ['binance', 'mercado'] : ['binance']);
+export const testnetMode = () => process.env.BINANCE_TESTNET === 'true';
+/** Aprovação da estratégia pela pesquisa (research/RESEARCH.md). Sem aprovação, só testnet e conta do dono. */
+export const strategyApproved = () => process.env.STRATEGY_APPROVED === 'true';
+export const realModeAllowed = (isOwner: boolean) => testnetMode() || strategyApproved() || isOwner;
+
 export const RISK_TERMS_VERSION = '2026-11-01';
 
 export interface TradeRow {

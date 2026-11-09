@@ -1,4 +1,4 @@
-import { closeTrade, decrypt, log, makeExchange, type TradeRow } from '@desk/core';
+import { closeAllPositions, decrypt, log, makeExchange } from '@desk/core';
 import { NextResponse } from 'next/server';
 import { apiSubscriber } from '@/lib/auth';
 
@@ -20,14 +20,6 @@ export async function POST() {
   const ex = makeExchange(acc.exchange, { apiKey: decrypt(acc.api_key_enc), secret: decrypt(acc.api_secret_enc) });
   await ex.loadMarkets();
   await log(admin, userId, 'logger', 'warn', 'FECHAR TODAS AS POSIÇÕES acionado pelo cliente.');
-  let closed = 0;
-  const errors: string[] = [];
-  for (const t of open as TradeRow[]) {
-    try { await closeTrade(admin, ex, t, 'fechamento manual'); closed++; }
-    catch (e: any) {
-      errors.push(`${t.symbol}: ${String(e?.message ?? e).slice(0, 100)}`);
-      await log(admin, userId, 'executor', 'error', `Falha ao fechar ${t.symbol}: ${String(e?.message ?? e)}`);
-    }
-  }
+  const { closed, errors } = await closeAllPositions(admin, ex, userId);
   return NextResponse.json({ closed, failed: errors.length, errors });
 }

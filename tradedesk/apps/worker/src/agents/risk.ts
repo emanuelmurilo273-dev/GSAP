@@ -1,5 +1,6 @@
 import { closeTrade, log, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
-import { brtDay, sb } from '../lib/env';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { brtDay } from '../lib/util';
 
 /** Equity que o robô enxerga: saldo da moeda de cotação + posições abertas do próprio robô a mercado. */
 export async function botEquity(ex: Ex, quote: string, open: TradeRow[]) {
@@ -17,7 +18,7 @@ export async function botEquity(ex: Ex, quote: string, open: TradeRow[]) {
 }
 
 /** 5 · RISK — monitora stop / alvo / trailing das posições abertas. */
-export async function monitorPositions(ex: Ex, open: TradeRow[], prices: Map<string, number>, p: StrategyParams) {
+export async function monitorPositions(sb: SupabaseClient, ex: Ex, open: TradeRow[], prices: Map<string, number>, p: StrategyParams) {
   for (const t of open) {
     const price = prices.get(t.symbol);
     if (!price) continue;
@@ -44,7 +45,7 @@ export async function monitorPositions(ex: Ex, open: TradeRow[], prices: Map<str
 }
 
 /** Limite de perda diária. Atingiu → para de abrir posições até o dia seguinte (posições abertas mantêm stop). */
-export async function dailyGuard(userId: string, equity: number, p: StrategyParams) {
+export async function dailyGuard(sb: SupabaseClient, userId: string, equity: number, p: StrategyParams) {
   const day = brtDay();
   let { data: st } = await sb.from('daily_state').select('*').eq('user_id', userId).eq('day', day).maybeSingle();
   if (!st) {
@@ -58,5 +59,5 @@ export async function dailyGuard(userId: string, equity: number, p: StrategyPara
     await log(sb, userId, 'risk', 'warn', `LIMITE DIÁRIO ATINGIDO (${(dayPnlPct * 100).toFixed(2)}%). Robô não abre novas posições até amanhã.`);
     return { halted: true, dayPnlPct };
   }
-  return { halted: st.halted as boolean, dayPnlPct };
+  return { halted: !!st.halted, dayPnlPct };
 }

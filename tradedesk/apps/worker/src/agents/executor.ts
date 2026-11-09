@@ -1,5 +1,5 @@
 import { closeTrade, log, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
-import { sb } from '../lib/env';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 function fees(order: any, base: string, quote: string) {
   let inBase = 0;
@@ -18,7 +18,7 @@ function fees(order: any, base: string, quote: string) {
  * nasce com stop; na Binance o stop também fica na corretora (STOP_LOSS_LIMIT) e sobrevive a falhas do worker.
  */
 export async function enter(
-  ex: Ex, userId: string, symbol: string, price: number, equity: number, free: number,
+  sb: SupabaseClient, ex: Ex, userId: string, symbol: string, price: number, equity: number, free: number,
   p: StrategyParams, score: number, analysis: string,
 ) {
   const [base, quote] = symbol.split('/');

@@ -9,3 +9,6 @@ export * from './llm';
 export * from './email';
 export * from './asaas';
 export * from './official';
+export * from './alerts';
+export * from './audit';
+export * from './gate';

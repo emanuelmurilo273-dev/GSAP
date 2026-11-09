@@ -83,3 +83,18 @@ export async function closeTrade(sb: SupabaseClient, ex: Ex, t: TradeRow, reason
   await log(sb, t.user_id, 'executor', 'trade', `SAÍDA ${t.symbol} @ ${exitPrice} · ${exitReason} · P&L ${pnl.toFixed(2)} ${quote}`, { tradeId: t.id, pnl });
   return { exitPrice: exitPrice as number, pnl };
 }
+
+/** Botão "Fechar todas as posições": tenta fechar todas; uma falha não impede as outras. */
+export async function closeAllPositions(sb: SupabaseClient, ex: Ex, userId: string, reason = 'fechamento manual') {
+  const { data: open } = await sb.from('trades').select('*').eq('user_id', userId).eq('status', 'open');
+  let closed = 0;
+  const errors: string[] = [];
+  for (const t of (open ?? []) as TradeRow[]) {
+    try { await closeTrade(sb, ex, t, reason); closed++; }
+    catch (e: any) {
+      errors.push(`${t.symbol}: ${String(e?.message ?? e).slice(0, 100)}`);
+      await log(sb, userId, 'executor', 'error', `Falha ao fechar ${t.symbol}: ${String(e?.message ?? e)}`);
+    }
+  }
+  return { closed, errors };
+}

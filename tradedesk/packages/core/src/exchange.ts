@@ -1,5 +1,5 @@
 import ccxt, { type Exchange } from 'ccxt';
-import { EXCHANGES, TF_MS, type Candle, type ExchangeId, type Timeframe } from './types';
+import { EXCHANGES, TF_MS, mercadoEnabled, testnetMode, type Candle, type ExchangeId, type Timeframe } from './types';
 
 export type Creds = { apiKey: string; secret: string };
 export type Ex = Exchange;
@@ -7,11 +7,15 @@ export type Ex = Exchange;
 export function makeExchange(id: ExchangeId, creds?: Creds): Ex {
   const meta = EXCHANGES[id];
   if (!meta) throw new Error(`corretora não suportada: ${id}`);
+  if (id === 'mercado' && creds && !mercadoEnabled()) throw new Error('Mercado Bitcoin está desativado (ENABLE_MERCADO_BITCOIN=false)');
   const Cls = (ccxt as unknown as Record<string, new (o: object) => Ex>)[meta.ccxt];
   // Dados públicos (backtest, landing): endpoint "vision" da Binance, que não sofre o bloqueio geográfico (HTTP 451)
   // do api.binance.com em IPs dos EUA (Vercel). Operações com chave continuam no endpoint oficial.
   const publicOverride = id === 'binance' && !creds ? { urls: { api: { public: 'https://data-api.binance.vision/api/v3' } } } : {};
-  return new Cls({ enableRateLimit: true, timeout: 20_000, options: { adjustForTimeDifference: true, ...(id === 'binance' ? { fetchMarkets: { types: ['spot'] } } : {}) }, ...publicOverride, ...creds });
+  const ex = new Cls({ enableRateLimit: true, timeout: 20_000, options: { adjustForTimeDifference: true, ...(id === 'binance' ? { fetchMarkets: { types: ['spot'] } } : {}) }, ...publicOverride, ...creds });
+  // BINANCE_TESTNET=true: ordens vão para testnet.binance.vision (dinheiro de mentira). Chaves de testnet só funcionam lá.
+  if (id === 'binance' && creds && testnetMode()) ex.setSandboxMode(true);
+  return ex;
 }
 
 export type KeyCheck =
@@ -29,6 +33,10 @@ export type KeyCheck =
 export async function validateKeys(id: ExchangeId, creds: Creds, attestNoWithdraw: boolean): Promise<KeyCheck> {
   const ex = makeExchange(id, creds);
   try {
+    if (id === 'binance' && testnetMode()) {
+      await ex.fetchBalance(); // testnet não tem saque real
+      return { ok: true, verified: true, permissions: { trade: true, withdraw: false, testnet: true }, note: 'TESTNET: ordens com dinheiro de mentira.' };
+    }
     if (id === 'binance') {
       const fn = (ex as any).sapiGetAccountApiRestrictions;
       if (typeof fn !== 'function') return { ok: false, reason: 'Não foi possível consultar as permissões da chave (versão do CCXT).' };

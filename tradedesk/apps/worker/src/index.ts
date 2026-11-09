@@ -1,4 +1,6 @@
 import { runOfficialBacktests } from '@desk/core';
+import { createServer } from 'node:http';
+import { adminAlert } from '@desk/core';
 import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { dunning, payout } from './jobs/billing';
@@ -16,6 +18,9 @@ await queue.upsertJobScheduler('official', { pattern: '0 4 * * 1' }, { name: 'of
 await queue.upsertJobScheduler('dunning', { pattern: '0 * * * *' }, { name: 'dunning' });   // de hora em hora
 await queue.upsertJobScheduler('payout', { pattern: '0 15 * * *' }, { name: 'payout' });    // 12:00 BRT
 
+let lastTick = Date.now();
+const startedAt = Date.now();
+
 const worker = new Worker(
   'desk',
   async (job) => {
@@ -23,6 +28,8 @@ const worker = new Worker(
       case 'tick': {
         const { data } = await sb.from('bot_settings').select('user_id').eq('bot_enabled', true);
         const slot = Math.floor(Date.now() / 60_000);
+        lastTick = Date.now();
+        await sb.from('worker_heartbeat').upsert({ id: 1, ts: new Date().toISOString(), info: { bots: data?.length ?? 0, region: process.env.FLY_REGION ?? process.env.RAILWAY_REPLICA_REGION ?? 'n/a' } });
         for (const r of data ?? []) await queue.add('cycle', { userId: r.user_id }, { jobId: `cycle-${r.user_id}-${slot}` });
         return { queued: data?.length ?? 0 };
       }
@@ -46,3 +53,19 @@ worker.on('failed', (job, err) => console.error(`[job ${job?.name}] falhou:`, er
 worker.on('ready', () => console.log('[worker] mesa de 6 agentes rodando 24h'));
 
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { await worker.close(); await queue.close(); process.exit(0); });
+
+// ---- healthcheck HTTP (Fly/Railway/Docker): 200 só se Redis responde e o tick rodou nos últimos 3 min
+createServer(async (req, res) => {
+  if (req.url !== '/health') { res.writeHead(404).end(); return; }
+  let redisOk = false;
+  try { redisOk = (await connection.ping()) === 'PONG'; } catch { /* redis fora */ }
+  const age = Date.now() - lastTick;
+  const grace = Date.now() - startedAt < 180_000; // no boot, dá 3 min até o 1º tick
+  const ok = redisOk && (age < 180_000 || grace);
+  res.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' }).end(JSON.stringify({ ok, redisOk, lastTickSecondsAgo: Math.round(age / 1000) }));
+}).listen(Number(process.env.PORT ?? 8080), () => console.log('[worker] healthcheck em /health'));
+
+// avisa o dono se o worker cair por exceção não tratada
+for (const ev of ['uncaughtException', 'unhandledRejection'] as const) {
+  process.on(ev, async (e) => { console.error(ev, e); await adminAlert(sb, 'worker-crash', 'Worker com erro fatal', `<p>${ev}: ${String((e as any)?.message ?? e)}</p>`, 30).catch(() => undefined); if (ev === 'uncaughtException') process.exit(1); });
+}
