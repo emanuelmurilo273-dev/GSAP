@@ -10,6 +10,12 @@ function Test-Docker { docker info 2>&1 | Out-Null; return ($LASTEXITCODE -eq 0)
 function Test-PortFree($p) {
   try { $l = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Any, $p); $l.Start(); $l.Stop(); return $true } catch { return $false }
 }
+function Get-DockerPorts {
+  $used = @()
+  $lines = docker ps --format '{{.Ports}}' 2>$null
+  foreach ($l in $lines) { foreach ($m in [regex]::Matches([string]$l, ':(\d+)->')) { $used += [int]$m.Groups[1].Value } }
+  return $used
+}
 function Read-Env { return [IO.File]::ReadAllText($envPath, [Text.Encoding]::UTF8) }
 function Write-Env($t) { [IO.File]::WriteAllText($envPath, $t, $utf8) }
 function Get-Env($name) {
@@ -73,7 +79,8 @@ if (-not $configured) {
 
 # ---------- porta livre para o site ----------
 $port = 3000
-while (-not (Test-PortFree $port) -and $port -lt 3020) { $port++ }
+$dockerPorts = Get-DockerPorts
+while ((($dockerPorts -contains $port) -or -not (Test-PortFree $port)) -and $port -lt 3020) { $port++ }
 if ($port -ge 3020) { Fail "Nenhuma porta livre entre 3000 e 3019. Feche programas que usam essas portas e tente de novo." }
 if ($port -ne 3000) { Write-Host "A porta 3000 esta ocupada. Usando a porta $port." -ForegroundColor Yellow }
 if (-not (Get-Env 'WEB_PORT')) { Write-Env ((Read-Env).TrimEnd() + "`nWEB_PORT=$port`n") }
@@ -84,8 +91,21 @@ $siteUrl = "http://localhost:$port"
 # ---------- subir ----------
 Write-Host ""
 Write-Host "Construindo e iniciando (a primeira vez demora alguns minutos)..." -ForegroundColor Green
-if ($configured) { docker compose up -d --build } else { docker compose up -d --build web redis }
-if ($LASTEXITCODE -ne 0) { Fail "docker compose falhou. Veja as mensagens acima." }
+$started = $false
+for ($try = 1; $try -le 15; $try++) {
+  Set-Env 'WEB_PORT' "$port"
+  if ((Get-Env 'NEXT_PUBLIC_APP_URL') -like 'http://localhost*') { Set-Env 'NEXT_PUBLIC_APP_URL' "http://localhost:$port" }
+  $siteUrl = "http://localhost:$port"
+  if ($configured) { docker compose up -d --build 2>&1 | Tee-Object -Variable log | Out-Host }
+  else { docker compose up -d --build web redis 2>&1 | Tee-Object -Variable log | Out-Host }
+  if ($LASTEXITCODE -eq 0) { $started = $true; break }
+  if (($log -join "`n") -match 'port is already allocated|address already in use|ports are not available') {
+    Write-Host "Porta $port ocupada. Tentando a porta $($port + 1)..." -ForegroundColor Yellow
+    docker compose down 2>&1 | Out-Null
+    $port++
+  } else { break }
+}
+if (-not $started) { Fail "docker compose falhou. Veja as mensagens acima. Dica: rode 'docker ps' para ver o que usa as portas." }
 
 Write-Host "Aguardando o site responder..."
 $up = $false
