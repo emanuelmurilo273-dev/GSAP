@@ -4,6 +4,17 @@
 > O código de cripto (Binance/Bybit, pasta `apps/web/app/app`, worker BullMQ) continua no repositório como **legado**, sem uso.
 > **Comece por [`docs/B3-GUIA.md`](docs/B3-GUIA.md)**: conta Clear, MT5, conta DEMO, conector no seu PC e VPS.
 
+## ⚠️ Diagnóstico de perdas e proteções v2 (leia primeiro)
+
+O robô estava perdendo dinheiro. Foi feita uma autópsia completa: **[`DIAGNOSTICO.md`](DIAGNOSTICO.md)**.
+
+- **Proteção imediata** (migration `007_b3_protecao_diagnostico.sql`, aplicada pelo instalador): volta ao **SIMULADOR**, **trava o modo real** (`real_locked`), limite de perda do perfil Conservador (R$ 100/dia, R$ 50/operação, 1 contrato, 3 operações/dia). A trava só abre na aba **Saúde do robô**, digitando `LIBERAR APÓS DIAGNÓSTICO`; mesmo aberta, o modo real ainda exige as demais liberações. O conector também respeita a trava.
+- **Regras v2** (sempre ligadas, `connector/hexadesk_connector/safety.py`): nada nos primeiros 15 min; nada 15 min antes/depois de notícia forte; para o dia após 2 perdas seguidas; stop **técnico** (≥1×ATR e além da última região de preço) com alvo ≥1,5× o stop; a operação só entra se o risco dela **cabe no que resta do limite de perda do dia**; nunca aumenta a mão depois de perda (sem martingale, sem preço médio, sem tirar stop).
+- **Correções de execução**: desvio máximo de preço das ordens agora é de 2–3 ticks (era 20/30 fixos: no mini dólar isso era mais de 4× o stop), e o robô só enxerga/zera as **suas** posições (magic number), nunca as manuais.
+- **Autópsia dos SEUS trades**: `connector\Autopsia.bat` (gera `DIAGNOSTICO-SEUS-DADOS.md`). Ela lê o banco e **não altera nada**. Cortes (horário/ativo/regime/lado) só são sugeridos com prova estatística.
+- **Saúde do robô** (`/b3/saude`): semáforo + expectativa por operação em R$. **Verde só com ≥100 operações e margem de erro acima de zero.**
+- **Novo visual**: tela inicial com saldo, resultado do dia, botão LIGAR/DESLIGAR, uma frase do robô e cartões de operações com "por quê?". O painel técnico antigo está em `/b3/detalhes`. Capturas em `docs/screenshots/v2-*.png`.
+
 ## Duas melhorias novas (ao vivo + inteligência)
 
 - **Ao vivo** (`/b3/live`): candles M1/M5/M15 em tempo real, VWAP, médias, volume, marcadores de compra/venda do robô, linhas de stop e alvo, livro de ofertas e *times & trades*. O conector envia só as diferenças (Supabase Realtime) e, se o canal cair, o painel volta sozinho para sondagem de 1 s. **Passou de 5 s sem tick → alerta vermelho "DADOS ATRASADOS".**

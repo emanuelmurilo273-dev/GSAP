@@ -5,6 +5,8 @@ import LandingView from '@/components/LandingView';
 import { Logo, Panel } from '@/components/ui';
 import Dashboard from '../../app/Dashboard';
 import B3Dashboard from '../../b3/B3Dashboard';
+import Home from '../../b3/Home';
+import Saude from '../../b3/saude/Saude';
 import Inteligencia from '../../b3/inteligencia/Inteligencia';
 import LiveChart from '../../b3/live/LiveChart';
 import ModeBanner from '../../b3/ModeBanner';
@@ -52,6 +54,19 @@ function demoData() {
 }
 
 
+function liveDemo() {
+    const now = Date.now(); const t0 = Math.floor(now / 1000 / 60) * 60;
+    let p = 130000, seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) - 0.5;
+    const m1 = Array.from({ length: 200 }, (_, i) => { const o = p; p += rnd() * 60 + Math.sin(i / 14) * 12; const h = Math.max(o, p) + Math.abs(rnd()) * 25, l = Math.min(o, p) - Math.abs(rnd()) * 25; return [t0 - (199 - i) * 60, o, h, l, p, Math.round(200 + Math.abs(rnd()) * 900)]; });
+    const agg = (n: number) => { const out: number[][] = []; for (const b of m1) { const k = Math.floor(b[0] / (60 * n)) * 60 * n; const l = out[out.length - 1]; if (l && l[0] === k) { l[2] = Math.max(l[2], b[2]); l[3] = Math.min(l[3], b[3]); l[4] = b[4]; l[5] += b[5]; } else out.push([k, b[1], b[2], b[3], b[4], b[5]]); } return out; };
+    const last = m1[m1.length - 1][4];
+    const book = [...Array.from({ length: 8 }, (_, i) => ({ side: 'sell', price: last + 5 * (i + 1), vol: 20 + ((i * 37) % 90) })), ...Array.from({ length: 8 }, (_, i) => ({ side: 'buy', price: last - 5 * i, vol: 15 + ((i * 53) % 110) }))];
+    const trades = Array.from({ length: 30 }, (_, i) => ({ t: now - i * 1700, p: last + (i % 3) * 5 - 5, v: 1 + ((i * 7) % 25), side: i % 3 ? 'buy' : 'sell' }));
+    const snapshot = { real_ms: now, symbols: { WIN: { last: { t: now, bid: last - 5, ask: last, last }, last_tick_real_ms: now - 400, book, trades: trades.reverse(), bars: { M1: m1, M5: agg(5), M15: agg(15) }, flow: { buy: 640, sell: 410, delta: 230, imbalance: 0.22, big_lots: 3, trades: 180, book_imbalance: 0.1 } } },
+      __trades: [{ id: 1, root: 'WIN', contract: 'WINZ26', side: 'buy', status: 'open', price_open: last - 40, sl: last - 190, tp: last + 185, opened_at: new Date(now - 12 * 60_000).toISOString() }, { id: 2, root: 'WIN', contract: 'WINZ26', side: 'sell', status: 'closed', price_open: m1[120][1], pnl: -60, opened_at: new Date(m1[120][0] * 1000).toISOString(), closed_at: new Date(m1[135][0] * 1000).toISOString() }] };
+    return snapshot;
+}
+
 export default async function Preview({ params }: { params: Promise<{ page: string }> }) {
   if (process.env.PREVIEW_PAGES !== 'true') notFound();
   const { page } = await params;
@@ -87,16 +102,37 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
       </div>
     );
   }
+  if (page === 'b3-home' || page === 'b3-saude' || page === 'b3-saude-verde') {
+    const now = Date.now(); const ts = (m: number) => new Date(now - m * 60_000).toISOString();
+    const demoHome = {
+      settings: { enabled: true, mode: 'sim' }, connectorAgeSec: 2,
+      status: { state: 'trading', equity: 10248.6, balance: 10130, day_pnl: 120.4, halted: false, source: 'internal' },
+      open: [{ id: 1, side: 'buy', volume: 1, contract: 'WINZ26', status: 'open', opened_at: ts(14), pnl: null, why: 'Comprei porque a média rápida cruzou para cima da lenta e o mercado estava em tendência. Stop 120 pontos (técnico, pelo ATR e pela última região de preço) e alvo 1,5× maior.' }],
+      trades: [{ id: 2, side: 'sell', volume: 1, contract: 'WINZ26', status: 'closed', opened_at: ts(95), pnl: 54, why: null, close_reason: 'stop/alvo na corretora' }, { id: 3, side: 'buy', volume: 1, contract: 'WDOZ26', status: 'closed', opened_at: ts(190), pnl: -38.5, close_reason: 'stop/alvo na corretora' }, { id: 4, side: 'buy', volume: 1, contract: 'WINZ26', status: 'closed', opened_at: ts(260), pnl: 104.9, close_reason: 'zeragem de fim de dia' }],
+      decisions: [], logs: [], __live: undefined as any,
+    };
+    if (page === 'b3-home') {
+      const lv: any = liveDemo();
+      return (
+        <div><ModeBanner initial="sim" demo demoInternal />
+          <div className="mx-auto max-w-3xl px-4 pb-12 sm:px-6"><header className="flex items-center justify-between py-4"><Logo /><span className="text-xs text-dim">Início</span></header>
+            <div className="mb-4 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div>
+            <Home demo={{ ...demoHome, __live: lv }} /></div></div>);
+    }
+    const mk = (n: number, e: number, light: string, headline: string, reasons: string[]) => ({ n, wins: Math.round(n * 0.4), winRate: 0.4, avgWin: 57, avgLoss: 41, expectancy: e, profitFactor: e > 0 ? 1.4 : 0.82, total: n * e, lastExpectancy: e, ci: [e - 9, e + 9], light, headline, reasons });
+    const bad = mk(148, -7.4, 'vermelho', 'Perdendo dinheiro — recomendo parar', ['A média por operação é zero ou negativa: não há sinal de vantagem.']);
+    const good = mk(160, 11.2, 'verde', 'Com vantagem e lucrando', ['Lucro médio positivo e acima da margem de erro, com amostra suficiente.']);
+    const h = page === 'b3-saude' ? bad : good;
+    const data = { current: 'internal', lock: { locked: true, reason: 'Travado até o diagnóstico de perdas (DIAGNOSTICO.md) ser aprovado pelo dono.', mode: 'sim' },
+      groups: [{ id: 'internal', label: 'Simulador interno (preços artificiais)', health: h, costs: { gross: h.n * h.expectancy + 410, fees: 410, net: h.n * h.expectancy } }, { id: 'demo', label: 'Conta demo do MT5 (preços reais)', health: mk(6, 3, 'cinza', 'Ainda poucas operações para avaliar', []), costs: { gross: 20, fees: 2, net: 18 } }, { id: 'real', label: 'Conta real (dinheiro de verdade)', health: mk(0, 0, 'cinza', 'Ainda poucas operações para avaliar', []), costs: { gross: 0, fees: 0, net: 0 } }] };
+    return (
+      <div><ModeBanner initial="sim" demo demoInternal />
+        <div className="mx-auto max-w-3xl px-4 pb-12 sm:px-6"><header className="flex items-center justify-between py-4"><Logo /><span className="text-xs text-dim">Saúde do robô</span></header>
+          <div className="mb-4 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div>
+          <h1 className="mb-4 text-2xl font-semibold tracking-tight">Saúde do robô</h1><Saude demo={data} /></div></div>);
+  }
   if (page === 'b3-live' || page === 'b3-intel') {
-    const now = Date.now(); const t0 = Math.floor(now / 1000 / 60) * 60;
-    let p = 130000, seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) - 0.5;
-    const m1 = Array.from({ length: 200 }, (_, i) => { const o = p; p += rnd() * 60 + Math.sin(i / 14) * 12; const h = Math.max(o, p) + Math.abs(rnd()) * 25, l = Math.min(o, p) - Math.abs(rnd()) * 25; return [t0 - (199 - i) * 60, o, h, l, p, Math.round(200 + Math.abs(rnd()) * 900)]; });
-    const agg = (n: number) => { const out: number[][] = []; for (const b of m1) { const k = Math.floor(b[0] / (60 * n)) * 60 * n; const l = out[out.length - 1]; if (l && l[0] === k) { l[2] = Math.max(l[2], b[2]); l[3] = Math.min(l[3], b[3]); l[4] = b[4]; l[5] += b[5]; } else out.push([k, b[1], b[2], b[3], b[4], b[5]]); } return out; };
-    const last = m1[m1.length - 1][4];
-    const book = [...Array.from({ length: 8 }, (_, i) => ({ side: 'sell', price: last + 5 * (i + 1), vol: 20 + ((i * 37) % 90) })), ...Array.from({ length: 8 }, (_, i) => ({ side: 'buy', price: last - 5 * i, vol: 15 + ((i * 53) % 110) }))];
-    const trades = Array.from({ length: 30 }, (_, i) => ({ t: now - i * 1700, p: last + (i % 3) * 5 - 5, v: 1 + ((i * 7) % 25), side: i % 3 ? 'buy' : 'sell' }));
-    const snapshot = { real_ms: now, symbols: { WIN: { last: { t: now, bid: last - 5, ask: last, last }, last_tick_real_ms: now - 400, book, trades: trades.reverse(), bars: { M1: m1, M5: agg(5), M15: agg(15) }, flow: { buy: 640, sell: 410, delta: 230, imbalance: 0.22, big_lots: 3, trades: 180, book_imbalance: 0.1 } } },
-      __trades: [{ id: 1, root: 'WIN', contract: 'WINZ26', side: 'buy', status: 'open', price_open: last - 40, sl: last - 190, tp: last + 185, opened_at: new Date(now - 12 * 60_000).toISOString() }, { id: 2, root: 'WIN', contract: 'WINZ26', side: 'sell', status: 'closed', price_open: m1[120][1], pnl: -60, opened_at: new Date(m1[120][0] * 1000).toISOString(), closed_at: new Date(m1[135][0] * 1000).toISOString() }] };
+    const snapshot = liveDemo(); const now = Date.now();
     const ts = (m: number) => new Date(now - m * 60_000).toISOString();
     const curve = (k: number) => { let e = 0; return Array.from({ length: 30 }, (_, i) => ({ t: now - (30 - i) * 86_400_000, v: (e += Math.sin(i / 3) * 40 + k) })); };
     const mt = (trades: number, sessions: number, pf: number, dd: number, sh: number, pnl: number) => ({ trades, sessions, profitFactor: pf, maxDrawdown: dd, sharpe: sh, pnl });

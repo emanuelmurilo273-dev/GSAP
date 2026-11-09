@@ -28,6 +28,8 @@ class FakeGateway:
         self.connect_calls: list[str] = []
         self.tick_buffer: list = []        # TickRec injetados pelos testes
         self.book_levels: list[tuple] = []
+        self.fee_rt: dict[str, float] = {}      # R$ por contrato, ida e volta (emolumentos+corretagem), por raiz ('WIN'/'WDO')
+        self.stop_slip_ticks = 0.0             # derrapagem (em ticks) quando o stop dispara ou na zeragem a mercado
 
     # --- conexão
     def connect(self, creds: Credentials) -> None:
@@ -86,16 +88,21 @@ class FakeGateway:
         self._positions.append(p)
         return OrderResult(True, ticket=p.ticket, price=price, retcode=10009)
 
-    def _finish(self, p: Position, price: float) -> None:
-        profit = self._profit(p, price)
+    def _finish(self, p: Position, price: float, slip: bool = False) -> None:
+        sp = self.specs[p.symbol]
+        if slip and self.stop_slip_ticks:                       # stop é ordem a mercado: sai pior que o gatilho
+            price += (-1 if p.side == "buy" else 1) * self.stop_slip_ticks * sp.tick_size
+        gross = self._profit(p, price)
+        fees = self.fee_rt.get(p.symbol[:3], 0.0) * p.volume
+        profit = gross - fees
         self.balance += profit
         self._positions = [x for x in self._positions if x.ticket != p.ticket]
-        self._closed[p.ticket] = ClosedInfo(price, profit, 0.0)
+        self._closed[p.ticket] = ClosedInfo(price, profit, 0.0, fees, gross)
 
     def close_position(self, p: Position, comment: str = "") -> OrderResult:
         t = self.tick(p.symbol)
         price = t.bid if p.side == "buy" else t.ask
-        self._finish(p, price)
+        self._finish(p, price, slip=True)
         return OrderResult(True, ticket=p.ticket, price=price, retcode=10009)
 
     def cancel_orders(self) -> int:
@@ -125,7 +132,7 @@ class FakeGateway:
             if p.symbol != symbol:
                 continue
             if p.sl and ((p.side == "buy" and price <= p.sl) or (p.side == "sell" and price >= p.sl)):
-                self._finish(p, p.sl)
+                self._finish(p, p.sl, slip=True)
             elif p.tp and ((p.side == "buy" and price >= p.tp) or (p.side == "sell" and price <= p.tp)):
                 self._finish(p, p.tp)
             else:

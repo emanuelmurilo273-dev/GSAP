@@ -21,6 +21,11 @@ export async function POST(req: Request) {
   }
 
   if (b.action === 'unlock_real') {
+    const { data: lk } = await admin.from('b3_settings').select('real_locked').eq('id', 1).maybeSingle();
+    if (lk?.real_locked !== false) {          // coluna ausente/true = TRAVADO (diagnóstico de perdas ainda não aprovado)
+      await auditOwner(admin, who, 'b3.unlock_real.denied', { reason: 'real_locked' }, req);
+      return NextResponse.json({ error: 'Modo REAL TRAVADO até você aprovar o diagnóstico de perdas (aba "Saúde do robô").' }, { status: 423 });
+    }
     const c = await realChecklist(admin);
     const d = unlockDecision({ strategyApproved: c.strategyApproved, simSessions: c.simSessions, confirm1: b.confirm1 === true, confirm2: b.confirm2 === true, confirm3: b.confirm3 === true, phrase: String(b.phrase ?? ''), riskPhrase: String(b.riskPhrase ?? '') });
     if (!d.ok) {

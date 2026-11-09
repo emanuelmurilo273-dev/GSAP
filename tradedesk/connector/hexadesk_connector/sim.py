@@ -30,6 +30,7 @@ BAR_SECONDS = 300  # candles de 5 min
 START_PX = {"WIN": 130_000.0, "WDO": 5_400.0}
 SIGMA = {"WIN": 0.00005, "WDO": 0.00004}   # volatilidade por segundo simulado
 AUTOSTART_KEY = "b3_internal_sim_autostart"
+SIM_FEES = {"WIN": 0.50, "WDO": 2.00}   # R$ por contrato, ida e volta (valores provisórios)
 
 
 class SimGateway(FakeGateway):
@@ -45,6 +46,8 @@ class SimGateway(FakeGateway):
                     specs[symbol_for("WIN", y, m)] = WIN_SPEC
         super().__init__(symbols=specs, mode="demo", balance=balance)
         self.rng = random.Random(seed)
+        self.fee_rt = dict(SIM_FEES)               # PLACEHOLDER: confirme emolumentos+corretagem na Clear
+        self.stop_slip_ticks = 1.0                 # 1 tick de derrapagem quando o stop dispara / zeragem a mercado
         self.trending = trending   # False (padrão): mercado NEUTRO, sem tendência embutida (não infla o resultado)
         self.speed = speed
         self.t = datetime.combine(d, time(9, 0), tzinfo=SP)
@@ -161,12 +164,12 @@ def _age_seconds(iso: str | None) -> float:
 
 
 class SimRunner:
-    def __init__(self, store: Store, cfg: Config | None = None, balance: float = 10_000.0, speed: float = 30.0, seed: int | None = None, trending: bool = False, sink=None):
+    def __init__(self, store: Store, cfg: Config | None = None, balance: float = 10_000.0, speed: float = 30.0, seed: int | None = None, trending: bool = False, sink=None, rules: str | None = None):
         self.store = store
         self.cfg = cfg or Config()
         self.gw = SimGateway(balance=balance, seed=seed, speed=speed, trending=trending)
         secrets = {"demo": {"login": 1_000_001, "password": "-", "server": SERVER}}
-        self.engine = Engine(self.gw, store, self.cfg, secrets, now_fn=self.gw.sim_now, signal_fn=baseline_signal, source="internal")
+        self.engine = Engine(self.gw, store, self.cfg, secrets, now_fn=self.gw.sim_now, signal_fn=baseline_signal, source="internal", rules=rules)
         self.yielded = False
         self.live = LiveCollector(self.gw, self._symbols, sink) if sink is not None else None   # sem gravar em disco: dados sintéticos
         self.engine.live = self.live

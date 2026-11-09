@@ -12,6 +12,7 @@ from hexadesk_connector.intel import ml  # noqa: E402
 from hexadesk_connector.intel.indicators import ema  # noqa: E402
 from hexadesk_connector.intel.pipeline import IntelPipeline  # noqa: E402
 from hexadesk_connector.risk import adaptive_size  # noqa: E402
+from hexadesk_connector.safety import technical_stop  # noqa: E402
 
 
 @dataclass
@@ -26,6 +27,9 @@ class Inst:
     close_min: int = 20 * 60      # última abertura
     flat_min: int = 20 * 60 + 30  # zeragem
     base_units: int = 4           # tamanho base (para o risco adaptativo reduzir)
+    atr_stop: bool = False        # v2: stop técnico (estrutura + ATR) com risco por operação CONSTANTE (a mão encolhe quando o stop alarga)
+    stop_cap: float = 0.012       # v2 (modo pct): stop técnico máximo, fração do preço; acima disso não entra
+    halt_losses: int = 0          # v2: depois de N perdas seguidas no dia, para por hoje (0 = desligado)
 
 
 def cross_signals(c: list[tuple]) -> list[str | None]:
@@ -50,6 +54,7 @@ def simulate(c: list[tuple], inst: Inst, cfg: dict | None = None, lo: int = 60, 
     pipe = IntelPipeline(cfg)
     ar = pipe.cfg["adaptive_risk"]
     trades, pos, streak, last = [], None, 0, None
+    dstreak, dday = 0, None
     for i in range(lo, hi):
         b = c[i]
         m = _min(b[0])
@@ -61,8 +66,14 @@ def simulate(c: list[tuple], inst: Inst, cfg: dict | None = None, lo: int = 60, 
             if exit_p is not None:
                 trades.append(_close(pos, exit_p, b[0], inst))
                 streak = streak + 1 if trades[-1]["pnl"] < 0 else 0
+                dstreak = dstreak + 1 if trades[-1]["pnl"] < 0 else 0
                 pos = None
+        day_i = int(b[0] // 86400)
+        if day_i != dday:
+            dday, dstreak = day_i, 0
         if pos or sig[i] is None or not (inst.open_min <= m <= inst.close_min):
+            continue
+        if inst.halt_losses and dstreak >= inst.halt_losses:
             continue
         side = sig[i]
         ctx = {"side": side, "candles": c[max(0, i - 360): i + 1], "now": datetime.fromtimestamp(b[0], tz=timezone.utc), "flow": None, "user_events": [], "symbol": "X"}
@@ -77,8 +88,16 @@ def simulate(c: list[tuple], inst: Inst, cfg: dict | None = None, lo: int = 60, 
             break
         entry = c[i + 1][1]
         stop = inst.stop * entry if inst.mode == "pct" else inst.stop
+        riskadj = 1.0
+        if inst.atr_stop:
+            tick = 0.0001 * entry if inst.mode == "pct" else 5.0
+            cap = inst.stop_cap * entry if inst.mode == "pct" else inst.stop * 3
+            dist, _ = technical_stop(c[max(0, i - 120): i + 1], side, entry, tick, cap)
+            if dist is None:
+                continue
+            riskadj, stop = min(1.0, stop / dist), dist
         sgn = 1 if side == "buy" else -1
-        pos = {"side": side, "entry": entry, "sl": entry - sgn * stop, "tp": entry + sgn * stop * inst.rr, "size": n, "t_open": c[i + 1][0], "day": int(c[i + 1][0] // 86400)}
+        pos = {"side": side, "entry": entry, "sl": entry - sgn * stop, "tp": entry + sgn * stop * inst.rr, "size": n, "riskadj": riskadj, "t_open": c[i + 1][0], "day": int(c[i + 1][0] // 86400)}
         # (a entrada ocorre na abertura do próximo candle; o gerenciamento começa nele)
         s2 = sgn
         nb = c[i + 1]
@@ -91,7 +110,7 @@ def simulate(c: list[tuple], inst: Inst, cfg: dict | None = None, lo: int = 60, 
 
 def _close(pos: dict, exit_p: float, t: float, inst: Inst) -> dict:
     sgn = 1 if pos["side"] == "buy" else -1
-    frac = pos["size"] / inst.base_units
+    frac = pos["size"] / inst.base_units * pos.get("riskadj", 1.0)
     if inst.mode == "pct":
         r = ((exit_p - pos["entry"]) * sgn / pos["entry"] - 2 * inst.cost_side) * frac
         return {"t_open": pos["t_open"], "t_close": t, "day": pos["day"], "pnl": r, "size": pos["size"], "side": pos["side"]}

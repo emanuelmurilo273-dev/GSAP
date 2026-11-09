@@ -136,6 +136,12 @@ Como **nenhuma estratégia foi aprovada**, o modo real só abre no **modo LIMITA
 5. **Campeão × desafiante**: um desafiante só pode ser promovido depois de ≥10 pregões em paralelo com preços reais do MT5. O botão fica bloqueado e mostra o que falta.
 6. **Analyst (IA)**: só resume o contexto do dia. Não decide, não manda ordens.
 
+## 6d) Diagnóstico de perdas e a trava do modo real
+
+- Depois da migration 007 o robô fica no **SIMULADOR** e o modo real **travado**. Para ver como ele está de verdade: aba **Saúde do robô** (semáforo) e `connector\Autopsia.bat` (relatório completo dos seus trades).
+- O simulador interno usa preços inventados: **ele não prova nada sobre o mercado real**. Só a conta demo do MT5 (preços reais) e, depois, a real contam.
+- Para destravar o real: leia `DIAGNOSTICO.md`, e só se a Saúde do robô estiver **verde** (com ≥100 operações na demo), digite `LIBERAR APÓS DIAGNÓSTICO` na aba Saúde do robô. Depois disso valem as liberações normais (tela de Configurações).
+
 ## 7) Segurança e limites (como o robô se protege)
 
 - **Duas travas para o modo REAL**: uma no site (com estratégia aprovada: 20 pregões na demo do MT5 + confirmações + `OPERAR REAL`; sem estratégia aprovada: só o **modo LIMITADO** acima) e outra **na máquina do conector** (`allow_real`, só se você digitar `PERMITIR REAL` em `python -m hexadesk_connector configurar --permitir-real`).

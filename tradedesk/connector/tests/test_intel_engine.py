@@ -198,3 +198,13 @@ class Shadow(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def setUpModule():      # estes testes cobrem o MOTOR (stops fixos, limites…); as regras v2 têm testes próprios em test_safety.py
+    import hexadesk_connector.engine as _E
+    _E.DEFAULT_RULES = "legacy"
+
+
+def tearDownModule():
+    import hexadesk_connector.engine as _E
+    _E.DEFAULT_RULES = "v2"

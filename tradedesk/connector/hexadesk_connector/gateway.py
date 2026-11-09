@@ -55,8 +55,10 @@ class OrderResult:
 @dataclass
 class ClosedInfo:
     price_close: float
-    profit: float
+    profit: float          # LÍQUIDO (já com corretagem/emolumentos/swap)
     time: float
+    fees: float = 0.0      # custos explícitos pagos (R$, positivo)
+    gross: float | None = None   # resultado antes dos custos explícitos
 
 
 @dataclass
@@ -155,8 +157,16 @@ class RealMt5Gateway:
 
     def positions(self) -> list[Position]:
         mt5 = self._lib()
-        r = mt5.positions_get() or []
+        r = [p for p in (mt5.positions_get() or []) if getattr(p, "magic", self.MAGIC) == self.MAGIC]   # só as do robô: nunca mexe em posição manual sua
         return [Position(p.ticket, p.symbol, "buy" if p.type == mt5.POSITION_TYPE_BUY else "sell", p.volume, p.price_open, p.sl, p.tp, p.profit, p.time) for p in r]
+
+    def _deviation(self, symbol: str, ticks: int) -> int:
+        """Derrapagem máxima aceita, em PONTOS do MT5 = `ticks` ticks do ativo (antes era 20/30 fixos: no WDO isso passava de 4× o stop)."""
+        try:
+            info = self._lib().symbol_info(symbol)
+            return max(1, int(round(ticks * float(info.trade_tick_size) / float(info.point))))
+        except Exception:
+            return ticks
 
     def _send(self, req: dict) -> OrderResult:
         mt5 = self._lib()
@@ -178,7 +188,7 @@ class RealMt5Gateway:
             return OrderResult(False, comment="sem cotação")
         buy = side == "buy"
         req = {"action": mt5.TRADE_ACTION_DEAL, "symbol": symbol, "volume": float(volume), "type": mt5.ORDER_TYPE_BUY if buy else mt5.ORDER_TYPE_SELL,
-               "price": t.ask if buy else t.bid, "sl": float(sl), "tp": float(tp), "deviation": 20, "magic": self.MAGIC, "comment": comment[:30], "type_time": mt5.ORDER_TIME_GTC}
+               "price": t.ask if buy else t.bid, "sl": float(sl), "tp": float(tp), "deviation": self._deviation(symbol, 2), "magic": self.MAGIC, "comment": comment[:30], "type_time": mt5.ORDER_TIME_GTC}
         res = self._send(req)
         if res.ok:  # ticket da POSIÇÃO (o que o MT5 devolve em `order` é o da ordem)
             for p in self.positions():
@@ -198,7 +208,7 @@ class RealMt5Gateway:
             return OrderResult(False, comment="sem cotação")
         sell = p.side == "buy"
         req = {"action": mt5.TRADE_ACTION_DEAL, "symbol": p.symbol, "volume": float(p.volume), "type": mt5.ORDER_TYPE_SELL if sell else mt5.ORDER_TYPE_BUY,
-               "position": p.ticket, "price": t.bid if sell else t.ask, "deviation": 30, "magic": self.MAGIC, "comment": comment[:30], "type_time": mt5.ORDER_TIME_GTC}
+               "position": p.ticket, "price": t.bid if sell else t.ask, "deviation": self._deviation(p.symbol, 3), "magic": self.MAGIC, "comment": comment[:30], "type_time": mt5.ORDER_TIME_GTC}
         return self._send(req)
 
     def cancel_orders(self) -> int:
@@ -217,7 +227,9 @@ class RealMt5Gateway:
         out = [d for d in deals if d.entry == mt5.DEAL_ENTRY_OUT]
         if not out:
             return None
-        return ClosedInfo(out[-1].price, sum(d.profit + d.commission + d.swap for d in deals), float(out[-1].time))
+        gross = sum(d.profit for d in deals)
+        fees = -sum(d.commission + getattr(d, "fee", 0.0) + d.swap for d in deals)   # MT5 devolve custos negativos
+        return ClosedInfo(out[-1].price, gross - fees, float(out[-1].time), fees, gross)
 
     def margin(self, symbol, side, volume, price):
         mt5 = self._lib()

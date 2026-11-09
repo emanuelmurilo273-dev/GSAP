@@ -1,5 +1,5 @@
-import B3Dashboard from './B3Dashboard';
+import Home from './Home';
 
 export default function Page() {
-  return <B3Dashboard />;
+  return <Home />;
 }

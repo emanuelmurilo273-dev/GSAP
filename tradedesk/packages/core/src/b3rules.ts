@@ -44,3 +44,7 @@ export function applyLimitedCaps<T extends Record<string, any>>(s: T): T {
     risk_per_trade_brl: Math.min(Number(s.risk_per_trade_brl), LIMITED_CAPS.riskPerTradeBrl),
   };
 }
+
+/** Frase para destravar o modo real depois do diagnóstico (a trava `real_locked` nasce LIGADA na migration 007). */
+export const UNLOCK_DIAG_PHRASE = 'LIBERAR APÓS DIAGNÓSTICO';
+export const CONSERVATIVE = { dailyLossBrl: 100, riskPerTradeBrl: 50, maxContracts: 1, maxTrades: 3 } as const;

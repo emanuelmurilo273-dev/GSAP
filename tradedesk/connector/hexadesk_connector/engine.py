@@ -21,7 +21,10 @@ from .config import Config
 from .contracts import current_contract
 from .gateway import Account, Credentials, Gateway
 from .intel.pipeline import IntelPipeline
-from .risk import adaptive_size, day_state, size_contracts
+from .risk import PROFILE_RISK, adaptive_size, day_state, size_contracts
+from . import safety
+from .intel.news import NewsFilter
+from .intel.regime import classify as classify_regime
 from .shadow import ShadowManager
 from .store import Store, StoreError
 from .strategy import baseline_signal
@@ -30,6 +33,7 @@ SP = ZoneInfo("America/Sao_Paulo")
 STALE_SECONDS = 120
 STORE_DOWN_LIMIT = 60
 HEARTBEAT_SECONDS = 5
+DEFAULT_RULES = "v2"
 
 
 # Tetos do modo REAL LIMITADO (estratégia não validada). Repetem packages/core/src/b3rules.ts: mantenha os dois iguais.
@@ -49,6 +53,15 @@ def effective_settings(s: dict) -> dict:
     return s
 
 
+def _why_text(side: str, dec, stop_pts: float, rr: float, rules: str) -> str:
+    """Frase em português simples para o botão "por quê?" do painel."""
+    lado = "comprei" if side == "buy" else "vendi"
+    cruz = "a média rápida cruzou para cima da lenta" if side == "buy" else "a média rápida cruzou para baixo da lenta"
+    reg = {"tendencia": "o mercado estava em tendência", "lateral": "o mercado estava andando de lado", "volatil": "o mercado estava muito agitado"}.get(getattr(dec, "regime", None) or "", "")
+    stop = f"Stop {stop_pts:.0f} pontos (técnico, pelo ATR e pela última região de preço) e alvo {rr:.1f}× maior." if rules == "v2" else f"Stop fixo de {stop_pts:.0f} pontos."
+    return f"{lado.capitalize()} porque {cruz}" + (f" e {reg}" if reg else "") + f". {stop}"
+
+
 def hm(text: str) -> time:
     h, m = text.split(":")
     return time(int(h), int(m))
@@ -57,10 +70,13 @@ def hm(text: str) -> time:
 class Engine:
     def __init__(self, gw: Gateway, store: Store, cfg: Config, secrets: dict,
                  now_fn: Callable[[], datetime] | None = None, mono_fn: Callable[[], float] | None = None,
-                 signal_fn: Callable = baseline_signal, source: str = "mt5", live=None, shadow: ShadowManager | None = None):
+                 signal_fn: Callable = baseline_signal, source: str = "mt5", live=None, shadow: ShadowManager | None = None, rules: str | None = None):
         self.gw, self.store, self.cfg, self.secrets = gw, store, cfg, secrets
         self.source = source  # 'mt5' (conta demo/real) ou 'internal' (simulador com preços artificiais)
         self.live, self.shadow = live, shadow
+        self.rules = rules or DEFAULT_RULES                     # 'v2' = proteções da autópsia (padrão); 'legacy' só existe para comparar antes × depois
+        self.day_losses = 0                    # perdas SEGUIDAS no dia
+        self.blocks: dict = {}
         self.intel = IntelPipeline()          # camadas de inteligência: TODAS desligadas até o campeão ligar alguma
         self.champion_id = None
         self._champ_cfg: dict | None = None
@@ -172,10 +188,15 @@ class Engine:
             reason = self.intent.pop(ticket, None)
             patch: dict = {"status": "closed", "closed_at": self.now().isoformat(), "close_reason": reason or "stop/alvo na corretora"}
             if info:
-                patch.update(price_close=info.price_close, pnl=info.profit)
+                patch.update(price_close=info.price_close, pnl=info.profit, fees=round(info.fees, 2), gross_pnl=None if info.gross is None else round(info.gross, 2))
             self._safe(self.store.update_trade, tid, patch)
             if info:
                 self.loss_streak = self.loss_streak + 1 if info.profit < 0 else 0
+                self.day_losses = self.day_losses + 1 if info.profit < 0 else 0
+                if self.rules == "v2" and self.day_losses >= safety.MAX_LOSSES_IN_ROW and self.sess and not self.sess.get("halted"):
+                    self.sess["halted"], self.sess["halt_reason"] = True, f"{safety.MAX_LOSSES_IN_ROW} perdas seguidas"
+                    self._safe(self.store.upsert_session, dict(self.sess))
+                    self.log("warn", "risk", f"{self.day_losses} PERDAS SEGUIDAS: o robô para por hoje (sem novas entradas até amanhã).")
             self.log("trade", "executor", f"SAÍDA ticket {ticket}: {patch['close_reason']} · P&L {info.profit if info else '?'} R$")
             del self.tracked[ticket]
 
@@ -189,6 +210,7 @@ class Engine:
             row = {"day": key[0], "mode": mode, "source": self.source, "start_equity": acct.equity, "pnl": 0.0, "trades": 0, "halted": False, "active_minutes": 0}
             self._safe(self.store.upsert_session, row)
         self.sess = row
+        self.day_losses = 0
         self.active_seconds = float(row.get("active_minutes", 0)) * 60
         return row
 
@@ -234,7 +256,8 @@ class Engine:
         if not is_business_day(now.date(), self.extra):
             return "closed_holiday"
         t = now.time()
-        if not (hm(s["open_from"]) <= t <= hm(s["open_until"])):
+        start = safety.earliest_entry(hm(s["open_from"])) if self.rules == "v2" else hm(s["open_from"])
+        if not (start <= t <= hm(s["open_until"])):
             return "outside_hours"
         if sess.get("halted"):
             return "halted"
@@ -270,6 +293,11 @@ class Engine:
         expected = "demo" if s["mode"] == "sim" else "real"
         if acct.mode != expected:
             self.error = f"Conta {acct.mode.upper()} conectada, mas o modo é {'SIMULADOR' if s['mode'] == 'sim' else 'REAL'}. Operação BLOQUEADA."
+            self.state = "error"
+            self._heartbeat(now, s, acct)
+            return
+        if s["mode"] == "real" and s.get("real_locked", True):
+            self.error = "Modo REAL TRAVADO até o diagnóstico ser aprovado (real_locked). Operação BLOQUEADA."
             self.state = "error"
             self._heartbeat(now, s, acct)
             return
@@ -334,24 +362,59 @@ class Engine:
             ctx = {"side": side, "candles": self.gw.candles(contract, self.cfg.timeframe, 300), "now": now, "symbol": contract, "user_events": self.user_events,
                    "flow": self.live.flow(contract) if self.live else None}
             dec = self.intel.evaluate(ctx)
+            regime = dec.regime or classify_regime(ctx["candles"])["regime"]     # sempre registra o regime (para a autópsia), mesmo com a camada desligada
+            if dec.allow and self.rules == "v2":
+                why = self._safety_block(ctx, root, side, regime)
+                if why:
+                    dec = type(dec)(False, f"Não entrei: {why}", regime, dec.prob, layers=dec.layers)
             self._safe(self.store.log_decision, {"symbol": contract, "decision": "entrou" if dec.allow else "nao_entrou", "reason": dec.text or ("entrou" if dec.allow else ""),
-                                                 "regime": dec.regime, "prob": dec.prob, "version": str(self.champion_id), "details": {"layers": dec.layers, "side": side}})
+                                                 "regime": regime, "prob": dec.prob, "version": str(self.champion_id), "details": {"layers": dec.layers, "side": side}})
             if not dec.allow:
                 self.log("refuse", "analyst", f"{contract}: {dec.reason}")
                 continue
+            dec.regime = regime
             self._open(s, acct, root, contract, side, sess, dec)
             held = {p.symbol for p in self.gw.positions()}
+
+    def _safety_block(self, ctx: dict, root: str, side: str, regime: str | None) -> str | None:
+        """Proteções fixas da v2 que não dependem das camadas de inteligência: notícia forte e bloqueios provados pelo diagnóstico."""
+        blocked, why = NewsFilter(15, True).blocked(ctx["now"], ctx.get("user_events"))
+        if blocked:
+            return why
+        return safety.blocked_by_config(self.blocks, root, ctx["now"], side, regime)
 
     def _open(self, s: dict, acct: Account, root: str, contract: str, side: str, sess: dict, dec=None) -> None:
         spec = self.gw.spec(contract)
         if not spec.trade_allowed:
             self.log("refuse", "filter", f"RECUSA {contract}: negociação não permitida no símbolo.")
             return
-        stop_pts = float(s["stop_points_win"] if root == "WIN" else s["stop_points_wdo"])
+        stop_pts, atr_pts = float(s["stop_points_win"] if root == "WIN" else s["stop_points_wdo"]), None   # modo antigo: stop fixo do painel
+        if self.rules == "v2":                         # stop TÉCNICO (estrutura + ATR), nunca um número fixo
+            tk = self.gw.tick(contract)
+            ref = (tk.ask if side == "buy" else tk.bid) if tk else 0.0
+            cs = self.gw.candles(contract, self.cfg.timeframe, 120)
+            risk_brl = min(acct.balance * PROFILE_RISK.get(s["profile"], PROFILE_RISK["conservador"]), float(s["risk_per_trade_brl"]))
+            cap_pts = risk_brl / spec.brl_per_point        # o stop técnico só vale se 1 contrato cabe no risco da operação
+            stop_pts, why = safety.technical_stop(cs, side, ref, spec.tick_size or 1.0, cap_pts)
+            if stop_pts is None:
+                self.log("refuse", "risk", f"RECUSA {contract}: {why}.")
+                return
+            from .intel.indicators import atr as _atr
+            atr_pts = round(_atr(cs)[-1], 2)
         n = size_contracts(acct.balance, s["profile"], float(s["risk_per_trade_brl"]), stop_pts, spec, int(s["max_contracts"]))
         if n <= 0:
             self.log("refuse", "risk", f"RECUSA {contract}: risco por operação não comporta nem 1 contrato (stop {stop_pts} pts).")
             return
+        if self.rules == "v2":          # orçamento do dia: o risco da nova operação (+ o das abertas) tem que CABER no que resta do limite de perda
+            held = self.gw.positions()
+            open_risk = sum(abs(p.price_open - p.sl) * self.gw.spec(p.symbol).brl_per_point * p.volume for p in held if p.sl)
+            budget = float(s["daily_loss_brl"]) + (acct.equity - sess["start_equity"]) - open_risk
+            per_contract = stop_pts * spec.brl_per_point
+            fit = int(budget // per_contract) if per_contract > 0 and budget > 0 else 0
+            if fit < 1:
+                self.log("refuse", "risk", f"RECUSA {contract}: sobra só {max(budget, 0):.0f} R$ do limite de perda do dia e a operação arrisca {per_contract:.0f} R$.")
+                return
+            n = min(n, fit)
         ar = self.intel.cfg["adaptive_risk"]                       # e) risco adaptativo: só REDUZ; nunca aumenta para recuperar perda
         n = adaptive_size(n, self.loss_streak, self.last_size, bool(dec and dec.high_vol), ar["after_losses"], ar["mult"], ar["high_vol_mult"], ar["enabled"])
         t = self.gw.tick(contract)
@@ -364,7 +427,8 @@ class Engine:
         rnd = lambda x: round(round(x / tick) * tick, spec.digits or 6)
         sign = 1 if side == "buy" else -1
         sl = rnd(price - sign * stop_pts)
-        tp = rnd(price + sign * stop_pts * float(s.get("rr", 1.5)))
+        rr = safety.effective_rr(s.get("rr")) if self.rules == "v2" else float(s.get("rr", 1.5))
+        tp = rnd(price + sign * stop_pts * rr)
         res = self.gw.send_order(contract, side, n, sl, tp, "hexadesk")
         if not res.ok:
             self.log("error", "executor", f"Ordem recusada em {contract}: {res.comment} (código {res.retcode}).")
@@ -380,7 +444,9 @@ class Engine:
             self.cooldown[contract] = self.mono() + 300
             return
         tid = self._safe(self.store.insert_trade, {"mode": s["mode"], "source": self.source, "root": root, "contract": contract, "side": side, "volume": n, "price_open": pos.price_open,
-                                                  "sl": pos.sl, "tp": pos.tp, "ticket": pos.ticket, "opened_at": self.now().isoformat(), "stop_points": stop_pts})
+                                                  "sl": pos.sl, "tp": pos.tp, "ticket": pos.ticket, "opened_at": self.now().isoformat(), "stop_points": stop_pts,
+                                                  "price_signal": price, "regime": dec.regime if dec else None, "atr_pts": atr_pts,
+                                                  "why": _why_text(side, dec, stop_pts, rr, self.rules)})
         if tid is not None:
             self.tracked[pos.ticket] = tid
         sess["trades"] = sess.get("trades", 0) + 1
@@ -397,6 +463,7 @@ class Engine:
         if champ and cfg != self._champ_cfg:
             self._champ_cfg, self.champion_id = cfg, champ.get("id")
             self.intel = IntelPipeline(cfg)
+            self.blocks = cfg.get("blocks") or {}
             self.log("info", "analyst", f"Versão campeã carregada: {champ.get('name')} (camadas ligadas: {', '.join(k for k, v in self.intel.cfg.items() if v.get('enabled')) or 'nenhuma'}).")
         self.user_events = self._safe(self.store.get_events) or []
 

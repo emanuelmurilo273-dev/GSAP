@@ -237,17 +237,26 @@ class ModeSafety(unittest.TestCase):
 
     def test_real_mode_needs_both_locks(self):
         for allow, unlocked, expect in [(False, False, 0), (True, False, 0), (False, True, 0), (True, True, 1)]:
-            eng, gw, store, clock, sig = make(dict(mode="real", real_unlocked=unlocked, symbols=["WIN"]), cfg=Config(allow_real=allow))
+            eng, gw, store, clock, sig = make(dict(mode="real", real_locked=False, real_unlocked=unlocked, symbols=["WIN"]), cfg=Config(allow_real=allow))
             run(eng, clock); sig.fire(); run(eng, clock)
             self.assertEqual(len(gw.positions()), expect, f"allow={allow} unlocked={unlocked}")
 
+    def test_real_mode_locked_by_diagnosis_even_with_both_locks(self):
+        eng, gw, store, clock, sig = make(dict(mode="real", real_locked=True, real_unlocked=True, symbols=["WIN"]), cfg=Config(allow_real=True))
+        run(eng, clock); sig.fire(); run(eng, clock)
+        self.assertEqual(gw.positions(), [])
+        self.assertIn("TRAVADO", eng.error)
+        eng2, gw2, store2, clock2, sig2 = make(dict(mode="real", real_unlocked=True, symbols=["WIN"]), cfg=Config(allow_real=True))   # coluna ausente = travado
+        run(eng2, clock2); sig2.fire(); run(eng2, clock2)
+        self.assertEqual(gw2.positions(), [])
+
     def test_real_mode_refuses_demo_account(self):
-        eng, gw, store, clock, sig = make(dict(mode="real", real_unlocked=True), gw=FakeGateway(mode="demo"), cfg=Config(allow_real=True))
+        eng, gw, store, clock, sig = make(dict(mode="real", real_locked=False, real_unlocked=True), gw=FakeGateway(mode="demo"), cfg=Config(allow_real=True))
         run(eng, clock); sig.fire(); run(eng, clock)
         self.assertEqual(gw.positions(), [])
 
     def test_switching_to_simulator_flattens_disables_and_reconnects_demo(self):
-        eng, gw, store, clock, sig = make(dict(mode="real", real_unlocked=True, symbols=["WIN"]), cfg=Config(allow_real=True))
+        eng, gw, store, clock, sig = make(dict(mode="real", real_locked=False, real_unlocked=True, symbols=["WIN"]), cfg=Config(allow_real=True))
         run(eng, clock); sig.fire(); run(eng, clock)
         self.assertEqual(len(gw.positions()), 1)
         store.settings.update(mode="sim", real_unlocked=False)       # botão "voltar ao simulador"
@@ -278,7 +287,7 @@ class Heartbeat(unittest.TestCase):
 class RealLimited(unittest.TestCase):
     """Modo REAL LIMITADO (estratégia não validada): tetos valem ACIMA das configurações, mesmo que o painel mande mais."""
     def real(self, **over):
-        return make(dict(mode="real", real_unlocked=True, real_limited=True, max_contracts=30, daily_loss_brl=5000, max_trades_per_day=40,
+        return make(dict(mode="real", real_locked=False, real_unlocked=True, real_limited=True, max_contracts=30, daily_loss_brl=5000, max_trades_per_day=40,
                          risk_per_trade_brl=900, profile="agressivo", **over), cfg=Config(allow_real=True))
 
     def test_contracts_capped_at_one(self):
@@ -328,10 +337,20 @@ class RealLimited(unittest.TestCase):
         self.assertEqual(gw.positions(), [])
 
     def test_unlimited_real_mode_is_not_capped(self):
-        eng, gw, store, clock, sig = make(dict(mode="real", real_unlocked=True, real_limited=False, max_contracts=3, risk_per_trade_brl=600, profile="agressivo", symbols=["WIN"]), cfg=Config(allow_real=True))
+        eng, gw, store, clock, sig = make(dict(mode="real", real_locked=False, real_unlocked=True, real_limited=False, max_contracts=3, risk_per_trade_brl=600, profile="agressivo", symbols=["WIN"]), cfg=Config(allow_real=True))
         run(eng, clock); sig.fire(); run(eng, clock)
         self.assertEqual(gw.positions()[0].volume, 3)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def setUpModule():      # estes testes cobrem o MOTOR (stops fixos, limites…); as regras v2 têm testes próprios em test_safety.py
+    import hexadesk_connector.engine as _E
+    _E.DEFAULT_RULES = "legacy"
+
+
+def tearDownModule():
+    import hexadesk_connector.engine as _E
+    _E.DEFAULT_RULES = "v2"

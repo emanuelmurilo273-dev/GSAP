@@ -11,7 +11,7 @@ from hexadesk_connector.config import Config  # noqa: E402
 from hexadesk_connector.sim import AUTOSTART_KEY, SimRunner  # noqa: E402
 from hexadesk_connector.store import MemoryStore  # noqa: E402
 
-S = {"enabled": False, "mode": "sim", "real_unlocked": False, "symbols": ["WIN", "WDO"], "profile": "conservador", "risk_per_trade_brl": 50, "max_contracts": 2,
+S = {"enabled": False, "mode": "sim", "real_unlocked": False, "symbols": ["WIN", "WDO"], "profile": "moderado", "risk_per_trade_brl": 120, "max_contracts": 2,
      "daily_loss_brl": 150, "daily_target_brl": None, "max_trades_per_day": 6, "stop_points_win": 150, "stop_points_wdo": 5, "rr": 1.5,
      "open_from": "09:05", "open_until": "17:00", "flat_at": "17:30"}
 
@@ -37,9 +37,9 @@ class Sim(unittest.TestCase):
         self.assertGreater(len(closed), 5)
         self.assertAlmostEqual(r.gw.balance, 10_000 + sum(t["pnl"] for t in closed), places=2)   # contabilidade fecha
         self.assertEqual({t["source"] for t in st.trades}, {"internal"})          # nunca confundido com a conta demo do MT5
-        for iso in opened_at:                                                      # nunca abriu fora de 09:05–17:00
+        for iso in opened_at:                                                      # nunca abriu fora de 09:15–17:00 (primeiros 15 min são proibidos)
             hh, mm = int(iso[11:13]), int(iso[14:16])
-            self.assertTrue(time(9, 5) <= time(hh, mm) <= time(17, 0), iso)
+            self.assertTrue(time(9, 15) <= time(hh, mm) <= time(17, 0), iso)
         self.assertFalse([m for l, a, m in st.logs if l == "error"])
 
     def test_internal_days_do_not_count_as_mt5_sessions(self):
@@ -95,7 +95,7 @@ class Sim(unittest.TestCase):
             st = MemoryStore(dict(S, enabled=True)); r = SimRunner(st, Config(), seed=seed); run_days(r, 6)
             closed = [t for t in st.trades if t["status"] == "closed"]
             tot += sum(t["pnl"] for t in closed); n += len(closed)
-        self.assertGreater(n, 60)
+        self.assertGreater(n, 15)      # a v2 opera MENOS (só setups cujo stop técnico cabe no risco)
         self.assertLess(abs(tot) / 4, 600)          # média por simulação perto de zero (sem "vantagem" artificial)
 
 

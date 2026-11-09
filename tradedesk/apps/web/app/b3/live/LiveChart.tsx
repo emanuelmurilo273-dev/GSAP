@@ -16,14 +16,14 @@ function vwap(bars: Bar[]) {
   return bars.map((b) => { const d = Math.floor(b[0] / 86400); if (d !== day) { day = d; pv = 0; v = 0; } const tp = (b[2] + b[3] + b[4]) / 3; pv += tp * b[5]; v += b[5]; return { time: b[0] as UTCTimestamp, value: v ? pv / v : b[4] }; });
 }
 
-export default function LiveChart({ demo }: { demo?: Any }) {
+export default function LiveChart({ demo, clean = false }: { demo?: Any; clean?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const S = useRef<Any>({});
   const lines = useRef<IPriceLine[]>([]);
   const snap = useRef<Any | null>(demo ?? null);
   const [sym, setSym] = useState<string>('');
-  const [tf, setTf] = useState<'M1' | 'M5' | 'M15'>('M1');
+  const [tf, setTf] = useState<'M1' | 'M5' | 'M15'>(clean ? 'M5' : 'M1');
   const [view, setView] = useState<Any | null>(demo ?? null);   // book, T&T, fluxo, último tick (leve; o gráfico é atualizado direto)
   const [trades, setTrades] = useState<Any[]>([]);
   const [err, setErr] = useState('');
@@ -33,6 +33,7 @@ export default function LiveChart({ demo }: { demo?: Any }) {
   const symRef = useRef(sym), tfRef = useRef(tf);
   symRef.current = sym; tfRef.current = tf;
 
+  const ready = Object.keys(view?.symbols ?? {}).length > 0;   // o contêiner do gráfico só existe quando já há dados
   // ── gráfico ──
   useEffect(() => {
     if (!box.current) return;
@@ -41,14 +42,15 @@ export default function LiveChart({ demo }: { demo?: Any }) {
       grid: { vertLines: { color: 'rgba(255,255,255,.04)' }, horzLines: { color: 'rgba(255,255,255,.04)' } },
       crosshair: { mode: CrosshairMode.Normal }, timeScale: { timeVisible: true, secondsVisible: false, borderColor: 'rgba(255,255,255,.1)' }, rightPriceScale: { borderColor: 'rgba(255,255,255,.1)' },
     });
-    const candle = c.addCandlestickSeries({ upColor: '#3ddc84', downColor: '#ff5d5d', borderVisible: false, wickUpColor: '#3ddc84', wickDownColor: '#ff5d5d' });
+    const candle = c.addCandlestickSeries({ upColor: '#3ddc84', downColor: '#ff5d5d', borderVisible: false, wickUpColor: '#3ddc84', wickDownColor: '#ff5d5d', priceFormat: { type: 'price', precision: 0, minMove: 1 } });
     const vol = c.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'vol', color: 'rgba(120,140,180,.35)' });
     c.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     const line = (color: string, w: 1 | 2 = 1) => c.addLineSeries({ color, lineWidth: w, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
     S.current = { candle, vol, vwap: line('#f5c542', 2), ema9: line('#58a6ff'), ema21: line('#c678dd'), sma50: line('#8b949e') };
+    if (clean) for (const k of ['vol', 'vwap', 'ema9', 'ema21', 'sma50']) S.current[k].applyOptions({ visible: false });   // visual limpo: só candles, entradas, saídas, stop e alvo
     chart.current = c;
-    return () => { c.remove(); chart.current = null; };
-  }, []);
+    return () => { c.remove(); chart.current = null; S.current = {}; };
+  }, [ready]);
 
   const redraw = useCallback(() => {
     const s = snap.current?.symbols?.[symRef.current]; const o = S.current;
@@ -125,7 +127,7 @@ export default function LiveChart({ demo }: { demo?: Any }) {
   const lastRecvRef = useRef(0); lastRecvRef.current = lastRecv;
 
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(id); }, []);
-  useEffect(() => { redraw(); drawTrades(trades); }, [sym, tf, redraw, drawTrades, trades]);
+  useEffect(() => { redraw(); drawTrades(trades); }, [sym, tf, redraw, drawTrades, trades, ready]);
   useEffect(() => {
     if (demo) return setTrades(demo.__trades ?? []) as void;
     const load = async () => { const j = await fetch('/api/b3/state').then((x) => x.json()).catch(() => null); if (j) setTrades([...(j.open ?? []), ...(j.trades ?? [])]); };
@@ -148,13 +150,17 @@ export default function LiveChart({ demo }: { demo?: Any }) {
   return (
     <div className="space-y-3">
       {stale && <div role="alert" className="rounded-lg border border-risk/60 bg-risk/15 px-3 py-2 text-sm font-semibold text-risk">⚠ DADOS ATRASADOS — {age == null ? 'nenhum tick recebido ainda' : `sem tick há ${age.toFixed(0)} s`}. Não confie neste gráfico até voltar.</div>}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={`${clean ? 'hidden' : 'flex'} flex-wrap items-center gap-2`}>
         {names.map((n) => <button key={n} onClick={() => setSym(n)} className={`rounded-md border px-3 py-1 text-xs font-bold ${n === sym ? 'border-executor bg-executor/15 text-executor' : 'border-white/10 text-dim'}`}>{n}</button>)}
         <span className="mx-1 h-4 w-px bg-white/10" />
         {(['M1', 'M5', 'M15'] as const).map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1 text-xs font-bold ${t === tf ? 'border-executor bg-executor/15 text-executor' : 'border-white/10 text-dim'}`}>{t}</button>)}
         <span className="ml-auto text-xs text-dim">último tick: <b className="text-ink">{lastTxt}</b> · canal: {channel === 'realtime' ? 'tempo real' : channel === 'polling' ? 'sondagem 1 s' : '—'}</span>
       </div>
-      {!names.length ? <EmptyState>Ainda sem dados ao vivo. Ligue o conector (ele envia ticks, candles e livro de ofertas).</EmptyState> : (
+      {clean && !!names.length ? (
+        <Panel title={`${sym} · ao vivo`} right={<span className="text-[10px] text-dim">último tick {lastTxt}</span>}>
+          <div ref={box} className="h-[300px] w-full sm:h-[360px]" role="img" aria-label={`Gráfico de ${sym}`} />
+        </Panel>
+      ) : !names.length ? <EmptyState>Ainda sem dados ao vivo. Ligue o conector (ele envia ticks, candles e livro de ofertas).</EmptyState> : (
         <div className="grid items-start gap-3 lg:grid-cols-[1fr_280px]">
           <Panel title={`${sym} · ${tf}`} right={<span className="text-[10px] text-dim"><i style={{ color: '#f5c542' }}>━</i> VWAP <i style={{ color: '#58a6ff' }}>━</i> EMA9 <i style={{ color: '#c678dd' }}>━</i> EMA21 <i style={{ color: '#8b949e' }}>━</i> MM50</span>}>
             <div ref={box} className="h-[420px] w-full" role="img" aria-label={`Gráfico de candles de ${sym}`} />

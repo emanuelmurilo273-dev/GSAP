@@ -79,12 +79,25 @@ class SupabaseStore:
         except StoreError:
             pass  # log nunca derruba o robô
 
+    # colunas novas (migration 007). Se ainda não existirem no banco, grava só as antigas: um trade NUNCA deixa de ser registrado.
+    _NEW_TRADE_COLS = ("fees", "gross_pnl", "price_signal", "regime", "why", "atr_pts")
+
     def insert_trade(self, row):
-        r = self._req("POST", "b3_trades", None, row, "return=representation")
+        try:
+            r = self._req("POST", "b3_trades", None, row, "return=representation")
+        except StoreError as e:
+            if "PGRST204" not in str(e) and "column" not in str(e).lower():
+                raise
+            r = self._req("POST", "b3_trades", None, {k: v for k, v in row.items() if k not in self._NEW_TRADE_COLS}, "return=representation")
         return r[0]["id"]
 
     def update_trade(self, id, patch):
-        self._req("PATCH", "b3_trades", {"id": f"eq.{id}"}, patch)
+        try:
+            self._req("PATCH", "b3_trades", {"id": f"eq.{id}"}, patch)
+        except StoreError as e:
+            if "PGRST204" not in str(e) and "column" not in str(e).lower():
+                raise
+            self._req("PATCH", "b3_trades", {"id": f"eq.{id}"}, {k: v for k, v in patch.items() if k not in self._NEW_TRADE_COLS})
 
     def open_trades(self, mode):
         return self._req("GET", "b3_trades", {"status": "eq.open", "mode": f"eq.{mode}", "select": "*"}) or []

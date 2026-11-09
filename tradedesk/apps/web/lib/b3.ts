@@ -7,7 +7,7 @@ const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Numbe
 const hhmm = (v: unknown, d: string) => (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : d);
 const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 
-/** Sanitiza as configurações vindas do navegador. Horários: abrir ≥ 09:00, parar de abrir ≤ 17:20, zerar entre 16:00 e 17:45. */
+/** Sanitiza as configurações vindas do navegador. Horários: abrir ≥ 09:15, parar de abrir ≤ 17:20, zerar entre 16:00 e 17:45. */
 export function cleanB3Settings(b: any, cur: any) {
   const out = cleanRaw(b, cur);
   return cur.mode === 'real' && cur.real_limited ? applyLimitedCaps(out) : out;   // modo limitado: tetos valem sempre
@@ -18,7 +18,7 @@ function cleanRaw(b: any, cur: any) {
   let open_until = hhmm(b.open_until, cur.open_until);
   let flat_at = hhmm(b.flat_at, cur.flat_at);
   const clampT = (t: string, lo: string, hi: string) => (mins(t) < mins(lo) ? lo : mins(t) > mins(hi) ? hi : t);
-  const of = clampT(open_from, '09:00', '17:00');
+  const of = clampT(open_from, '09:15', '17:00');   // nada nos primeiros 15 min do pregão
   open_until = clampT(open_until, of, '17:20');
   flat_at = clampT(flat_at, '16:00', '17:45');
   if (mins(flat_at) < mins(open_until)) flat_at = open_until;
@@ -34,7 +34,7 @@ function cleanRaw(b: any, cur: any) {
     max_trades_per_day: Math.round(num(b.max_trades_per_day, 1, 50, cur.max_trades_per_day)),
     stop_points_win: num(b.stop_points_win, 20, 1000, cur.stop_points_win),
     stop_points_wdo: num(b.stop_points_wdo, 1, 50, cur.stop_points_wdo),
-    rr: num(b.rr, 0.5, 5, cur.rr),
+    rr: num(b.rr, 1.5, 5, cur.rr),                    // relação risco/retorno mínima 1:1,5
     open_from: of, open_until, flat_at,
   };
 }

@@ -165,6 +165,19 @@ def retreinar(a) -> None:
     store.log("info", "analyst", f"Retreino semanal: {r['status']}")
 
 
+def autopsia(a) -> None:
+    """Autópsia dos SEUS trades (simulador + demo + real): grava DIAGNOSTICO-SEUS-DADOS.md. Só lê o banco; não altera nada."""
+    _, cfg, sec = _load()
+    os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"] = cfg.supabase_url, sec.get("supabase_key", "")
+    root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(root))
+    from research_b3 import autopsia as A
+    out = Path.cwd() / "DIAGNOSTICO-SEUS-DADOS.md"
+    sys.argv = ["autopsia", "--supabase", "--out", str(out)]
+    A.main()
+    print(f"\nPronto: abra {out}")
+
+
 def simular(a) -> None:
     """Simulador interno: mercado artificial, dinheiro fictício, sem MT5. Lê SUPABASE_URL/SUPABASE_KEY do ambiente (Docker) ou da configuração local."""
     from .sim import SimRunner
@@ -183,12 +196,12 @@ def main() -> None:
     p = argparse.ArgumentParser(prog="hexadesk_connector")
     sub = p.add_subparsers(dest="cmd")
     c = sub.add_parser("configurar"); c.add_argument("--permitir-real", action="store_true")
-    sub.add_parser("testar"); sub.add_parser("rodar"); sub.add_parser("retreinar")
+    sub.add_parser("testar"); sub.add_parser("rodar"); sub.add_parser("retreinar"); sub.add_parser("autopsia")
     m = sub.add_parser("simular", help="simulador interno (mercado artificial, dinheiro fictício, sem MT5)")
     m.add_argument("--saldo", type=float, default=10_000.0); m.add_argument("--velocidade", type=float, default=30.0)
     m.add_argument("--seed", type=int, default=None); m.add_argument("--tendencias", action="store_true", help="embute tendências no mercado artificial (infla o resultado; só para testar o motor)")
     a = p.parse_args()
-    {"configurar": configurar, "testar": testar, "rodar": rodar, "simular": simular, "retreinar": retreinar}.get(a.cmd, lambda _: p.print_help())(a)
+    {"configurar": configurar, "testar": testar, "rodar": rodar, "simular": simular, "retreinar": retreinar, "autopsia": autopsia}.get(a.cmd, lambda _: p.print_help())(a)
 
 
 if __name__ == "__main__":
