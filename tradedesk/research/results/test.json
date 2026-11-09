@@ -1,0 +1,456 @@
+{
+ "ranAt": "2026-11-09T04:52:25.677Z",
+ "results": [
+  {
+   "family": "trend",
+   "name": "Tendência (EMA cross + ADX)",
+   "tf": "15m",
+   "params": {
+    "fast": 20,
+    "slow": 50,
+    "adxMin": 25,
+    "stop": 0.04
+   },
+   "valObj": 0.6039398780430489,
+   "test": {
+    "trades": 369,
+    "winRate": 0.23306233062330622,
+    "pf": 0.7594731370740763,
+    "ret": -0.2553996283668254,
+    "maxDD": 0.3211254434846784,
+    "sharpe": -1.407893193353202,
+    "obj": 0.7594731370740763
+   },
+   "perPair": [
+    {
+     "pair": "BTCUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.1646716961520267,
+     "maxDD": 0.24485606963239814,
+     "sharpe": -0.9903468966954683,
+     "avgTrade": null,
+     "ret": -0.1646716961520267
+    },
+    {
+     "pair": "ETHUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.29026942936290046,
+     "maxDD": 0.3716043597464408,
+     "sharpe": -1.2818449077563085,
+     "avgTrade": null,
+     "ret": -0.29026942936290046
+    },
+    {
+     "pair": "SOLUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.311257759585549,
+     "maxDD": 0.3641260240651072,
+     "sharpe": -1.3535073786280234,
+     "avgTrade": null,
+     "ret": -0.311257759585549
+    }
+   ],
+   "buyHold": {
+    "ret": 0.08397628508766797,
+    "maxDD": 0.335336627312603,
+    "sharpe": 0.5181157479494002
+   },
+   "checks": {
+    "pf": {
+     "value": 0.7594731370740763,
+     "need": ">= 1.3",
+     "ok": false
+    },
+    "maxDD": {
+     "value": 0.3211254434846784,
+     "need": "<= 20%",
+     "ok": false
+    },
+    "trades": {
+     "value": 369,
+     "need": ">= 100",
+     "ok": true
+    },
+    "pairs": {
+     "value": 0,
+     "need": ">= 2 de 3",
+     "ok": false
+    },
+    "sharpe": {
+     "value": -1.407893193353202,
+     "need": "> buy&hold (0.52)",
+     "ok": false
+    }
+   },
+   "approved": false,
+   "from": "2026-04-04",
+   "to": "2026-11-09"
+  },
+  {
+   "family": "breakout",
+   "name": "Rompimento (Donchian)",
+   "tf": "1h",
+   "params": {
+    "nIn": 80,
+    "nOut": 20,
+    "stop": 0.04
+   },
+   "valObj": 0.586609759434437,
+   "test": {
+    "trades": 82,
+    "winRate": 0.2804878048780488,
+    "pf": 0.8905731722052533,
+    "ret": -0.08289744440746871,
+    "maxDD": 0.1888281800158646,
+    "sharpe": -0.42782455607319214,
+    "obj": 0.8905731722052533
+   },
+   "perPair": [
+    {
+     "pair": "BTCUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.04212484219509127,
+     "maxDD": 0.17695468252965443,
+     "sharpe": -0.22173317730487777,
+     "avgTrade": null,
+     "ret": -0.04212484219509127
+    },
+    {
+     "pair": "ETHUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.1660638358184815,
+     "maxDD": 0.2567753217099317,
+     "sharpe": -0.7429280398425835,
+     "avgTrade": null,
+     "ret": -0.1660638358184815
+    },
+    {
+     "pair": "SOLUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.04050365520883337,
+     "maxDD": 0.22577917147961574,
+     "sharpe": -0.03518635155605311,
+     "avgTrade": null,
+     "ret": -0.04050365520883337
+    }
+   ],
+   "buyHold": {
+    "ret": 0.08397628508766797,
+    "maxDD": 0.3316153695410841,
+    "sharpe": 0.5306633287916904
+   },
+   "checks": {
+    "pf": {
+     "value": 0.8905731722052533,
+     "need": ">= 1.3",
+     "ok": false
+    },
+    "maxDD": {
+     "value": 0.1888281800158646,
+     "need": "<= 20%",
+     "ok": true
+    },
+    "trades": {
+     "value": 82,
+     "need": ">= 100",
+     "ok": false
+    },
+    "pairs": {
+     "value": 0,
+     "need": ">= 2 de 3",
+     "ok": false
+    },
+    "sharpe": {
+     "value": -0.42782455607319214,
+     "need": "> buy&hold (0.53)",
+     "ok": false
+    }
+   },
+   "approved": false,
+   "from": "2026-04-04",
+   "to": "2026-11-09"
+  },
+  {
+   "family": "meanrev",
+   "name": "Reversão à média (RSI + Bollinger)",
+   "tf": "4h",
+   "params": {
+    "rsiMax": 25,
+    "k": 2,
+    "stop": 0.06
+   },
+   "valObj": 0.9314160378570178,
+   "test": {
+    "trades": 15,
+    "winRate": 0.7333333333333333,
+    "pf": 0.9962951116775558,
+    "ret": -0.0023527832623423395,
+    "maxDD": 0.0890934518575251,
+    "sharpe": 0.006047881201814609,
+    "obj": 0.7044870295302085
+   },
+   "perPair": [
+    {
+     "pair": "BTCUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.06061496704751479,
+     "maxDD": 0.1285177366792172,
+     "sharpe": -0.7748330061731651,
+     "avgTrade": null,
+     "ret": -0.06061496704751479
+    },
+    {
+     "pair": "ETHUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": 0.08952481187168804,
+     "maxDD": 0.08845426178125934,
+     "sharpe": 1.1184649158199544,
+     "avgTrade": null,
+     "ret": 0.08952481187168804
+    },
+    {
+     "pair": "SOLUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.0359681946112006,
+     "maxDD": 0.06444377002988333,
+     "sharpe": -0.8261180942124576,
+     "avgTrade": null,
+     "ret": -0.0359681946112006
+    }
+   ],
+   "buyHold": {
+    "ret": 0.08397628508766797,
+    "maxDD": 0.3225550322642139,
+    "sharpe": 0.5162050037512538
+   },
+   "checks": {
+    "pf": {
+     "value": 0.9962951116775558,
+     "need": ">= 1.3",
+     "ok": false
+    },
+    "maxDD": {
+     "value": 0.0890934518575251,
+     "need": "<= 20%",
+     "ok": true
+    },
+    "trades": {
+     "value": 15,
+     "need": ">= 100",
+     "ok": false
+    },
+    "pairs": {
+     "value": 1,
+     "need": ">= 2 de 3",
+     "ok": false
+    },
+    "sharpe": {
+     "value": 0.006047881201814609,
+     "need": "> buy&hold (0.52)",
+     "ok": false
+    }
+   },
+   "approved": false,
+   "from": "2026-04-04",
+   "to": "2026-11-09"
+  },
+  {
+   "family": "momentum",
+   "name": "Momentum + regime (SMA200)",
+   "tf": "15m",
+   "params": {
+    "look": 20,
+    "thr": 0.03,
+    "stop": 0.04
+   },
+   "valObj": 0.5749798788612217,
+   "test": {
+    "trades": 97,
+    "winRate": 0.32989690721649484,
+    "pf": 0.7413248473992763,
+    "ret": -0.064868179092057,
+    "maxDD": 0.10577939497955116,
+    "sharpe": -0.8088108277269638,
+    "obj": 0.7413248473992763
+   },
+   "perPair": [
+    {
+     "pair": "BTCUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": 0.027218216448359422,
+     "maxDD": 0.07264429347624976,
+     "sharpe": 0.667394641311411,
+     "avgTrade": null,
+     "ret": 0.027218216448359422
+    },
+    {
+     "pair": "ETHUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": 0.004911174402695284,
+     "maxDD": 0.13576606867274077,
+     "sharpe": 0.13533724391850147,
+     "avgTrade": null,
+     "ret": 0.004911174402695284
+    },
+    {
+     "pair": "SOLUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.22673392812722604,
+     "maxDD": 0.26871553970141615,
+     "sharpe": -2.111311624818988,
+     "avgTrade": null,
+     "ret": -0.22673392812722604
+    }
+   ],
+   "buyHold": {
+    "ret": 0.08397628508766797,
+    "maxDD": 0.335336627312603,
+    "sharpe": 0.5181157479494002
+   },
+   "checks": {
+    "pf": {
+     "value": 0.7413248473992763,
+     "need": ">= 1.3",
+     "ok": false
+    },
+    "maxDD": {
+     "value": 0.10577939497955116,
+     "need": "<= 20%",
+     "ok": true
+    },
+    "trades": {
+     "value": 97,
+     "need": ">= 100",
+     "ok": false
+    },
+    "pairs": {
+     "value": 2,
+     "need": ">= 2 de 3",
+     "ok": true
+    },
+    "sharpe": {
+     "value": -0.8088108277269638,
+     "need": "> buy&hold (0.52)",
+     "ok": false
+    }
+   },
+   "approved": false,
+   "from": "2026-04-04",
+   "to": "2026-11-09"
+  },
+  {
+   "family": "atrcombo",
+   "name": "Rompimento + regime + ATR (stop e tamanho)",
+   "tf": "1h",
+   "params": {
+    "nIn": 55,
+    "kStop": 3,
+    "mTrail": 3
+   },
+   "valObj": 0.573970901223714,
+   "test": {
+    "trades": 111,
+    "winRate": 0.25225225225225223,
+    "pf": 0.8066844178436285,
+    "ret": 0.005469177255800872,
+    "maxDD": 0.10710266562752338,
+    "sharpe": 0.13513390658975424,
+    "obj": 0.8066844178436285
+   },
+   "perPair": [
+    {
+     "pair": "BTCUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.046548427163448314,
+     "maxDD": 0.12533632184962457,
+     "sharpe": -0.48261844015789485,
+     "avgTrade": null,
+     "ret": -0.046548427163448314
+    },
+    {
+     "pair": "ETHUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": 0.06342516188326597,
+     "maxDD": 0.12039176471345546,
+     "sharpe": 0.5086996512748284,
+     "avgTrade": null,
+     "ret": 0.06342516188326597
+    },
+    {
+     "pair": "SOLUSDT",
+     "trades": 0,
+     "winRate": null,
+     "pf": null,
+     "totalRet": -0.0004692029524149266,
+     "maxDD": 0.10137260617026646,
+     "sharpe": 0.0688580444094447,
+     "avgTrade": null,
+     "ret": -0.0004692029524149266
+    }
+   ],
+   "buyHold": {
+    "ret": 0.08397628508766797,
+    "maxDD": 0.3316153695410841,
+    "sharpe": 0.5306633287916904
+   },
+   "checks": {
+    "pf": {
+     "value": 0.8066844178436285,
+     "need": ">= 1.3",
+     "ok": false
+    },
+    "maxDD": {
+     "value": 0.10710266562752338,
+     "need": "<= 20%",
+     "ok": true
+    },
+    "trades": {
+     "value": 111,
+     "need": ">= 100",
+     "ok": true
+    },
+    "pairs": {
+     "value": 1,
+     "need": ">= 2 de 3",
+     "ok": false
+    },
+    "sharpe": {
+     "value": 0.13513390658975424,
+     "need": "> buy&hold (0.53)",
+     "ok": false
+    }
+   },
+   "approved": false,
+   "from": "2026-04-04",
+   "to": "2026-11-09"
+  }
+ ]
+}
