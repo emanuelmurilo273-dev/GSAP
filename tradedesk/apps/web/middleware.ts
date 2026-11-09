@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 /** Renova a sessão e manda visitantes sem login para /login. A autorização real é feita nas páginas/rotas (servidor). */
 export async function middleware(req: NextRequest) {
   let res = NextResponse.next({ request: req });
-  const sb = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const sb = createServerClient(process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookieOptions: { name: 'sb-hexadesk-auth' },
     cookies: {
       getAll: () => req.cookies.getAll(),
       setAll: (list: { name: string; value: string; options: CookieOptions }[]) => {

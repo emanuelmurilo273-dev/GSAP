@@ -10,10 +10,15 @@ Robô que opera cripto **na conta da corretora do próprio cliente** (nunca guar
 
 ---
 
-## Como usar no Windows (1 clique)
-1. Instale o **Docker Desktop** e abra-o (espere ficar verde).
-2. Extraia a pasta e dê duplo clique em **`Instalar-Windows.bat`**. Ele abre o site em `http://localhost:3000` (modo prévia, sem login/pagamento).
-3. Para ativar tudo, preencha o arquivo `.env` (próxima seção) e rode o instalador de novo. Para parar: `Parar-Windows.bat`.
+## Como usar no Windows (1 clique, sem criar conta em site nenhum)
+1. Instale o **Docker Desktop** e o **Node.js (versão LTS)**. Abra o Docker Desktop (espere ficar verde).
+2. Extraia a pasta e dê duplo clique em **`Instalar-Windows.bat`**.
+3. Quando perguntar *"Instalar o banco e o login automaticamente neste PC?"*, responda **S**. Ele pede **seu e-mail e uma senha**, baixa e inicia um Supabase **local** (na primeira vez leva 5–15 min), cria sua conta de **dono** e **abre o site já logado**.
+4. Nas próximas vezes, rode o instalador de novo: ele sobe tudo e abre já logado. (Ou entre em `/owner/login` com e-mail e senha.) Para parar: `Parar-Windows.bat` — seus dados ficam guardados.
+
+**Instalação local = sem 2FA** (só vale com o site em `localhost`; em qualquer endereço de internet o 2FA volta a ser obrigatório, mesmo que `OWNER_REQUIRE_2FA=false`). Dados e login ficam só no seu PC.
+Se não tiver o Node.js, o instalador abre a página de download; sem ele, o site sobe em *modo prévia* (sem login).
+Para um site na internet com clientes, use o Supabase na nuvem (próxima seção).
 
 ## Passo a passo das contas (faça nesta ordem)
 

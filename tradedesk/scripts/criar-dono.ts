@@ -3,7 +3,7 @@
  *   Windows: duplo clique em Criar-Dono-Windows.bat
  *   Linha de comando: npx tsx --env-file=.env scripts/criar-dono.ts
  * Precisa no .env: OWNER_EMAIL, SUPABASE_URL, SUPABASE_KEY (service_role). Opcional: RESEND_API_KEY (e-mail com o link).
- * Não define senha: a senha e o 2FA você cria no primeiro acesso (tela /owner/security).
+ * Senha: se OWNER_PASSWORD estiver definida no ambiente, é usada; senão você cria senha + 2FA no 1º acesso (/owner/security).
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -32,11 +32,15 @@ async function main() {
   let id = await findUserId();
   let created = false;
   if (!id) {
-    const { data, error } = await sb.auth.admin.createUser({ email, email_confirm: true });
+    const { data, error } = await sb.auth.admin.createUser({ email, email_confirm: true, ...(process.env.OWNER_PASSWORD ? { password: process.env.OWNER_PASSWORD } : {}) });
     if (error || !data.user) { console.error(`✖ Erro ao criar usuário: ${error?.message}`); process.exit(1); }
     id = data.user.id; created = true;
   }
 
+  if (!created && process.env.OWNER_PASSWORD) {
+    const u = await sb.auth.admin.updateUserById(id, { password: process.env.OWNER_PASSWORD, email_confirm: true });
+    if (u.error) { console.error(`✖ Não consegui definir a senha: ${u.error.message}`); process.exit(1); }
+  }
   const up = await sb.from('profiles').upsert({ id, email, role: 'owner' });
   if (up.error) { console.error(`✖ Erro ao definir role=owner: ${up.error.message}`); process.exit(1); }
   await sb.from('bot_settings').upsert({ user_id: id }, { ignoreDuplicates: true });
@@ -48,7 +52,7 @@ async function main() {
   if (check.data?.role !== 'owner') { console.error('✖ Verificação falhou: role não ficou owner.'); process.exit(1); }
 
   const { data: link, error: lerr } = await sb.auth.admin.generateLink({ type: 'magiclink', email });
-  const url = link?.properties?.hashed_token ? `${app}/auth/callback?token_hash=${link.properties.hashed_token}&type=magiclink&next=/owner/security` : null;
+  const url = link?.properties?.hashed_token ? `${app}/auth/callback?token_hash=${link.properties.hashed_token}&type=magiclink&next=${process.env.OWNER_REQUIRE_2FA === 'false' ? '/app' : '/owner/security'}` : null;
   if (lerr || !url) { console.error(`✖ Conta ok, mas não gerei o link: ${lerr?.message}`); process.exit(1); }
 
   let mailed = false;
@@ -57,6 +61,7 @@ async function main() {
     mailed = await sendEmail(email, 'Seu acesso de dono', emailLayout('acesso do dono', `<p><a style="color:#3ddc84;font-size:16px" href="${url}">&gt; ENTRAR (link único)</a></p><p style="color:#8392a1">Depois do link: defina a senha e ative o 2FA.</p>`));
   }
 
+  console.log(`AUTOLOGIN_URL=${url}`); // lido pelo instalador (abre o navegador já logado)
   console.log(`\n✔ Conta de dono ${created ? 'CRIADA' : 'já existia — reparada'}: ${email}  (role=owner, sem assinatura, nunca bloqueada)`);
   console.log(mailed ? `✔ Link de acesso enviado para ${email}.` : `\nAbra este link (uso único) para entrar agora:\n\n${url}\n`);
   console.log('Depois do link: 1) defina uma senha (12+ caracteres)  2) escaneie o QR no Google Authenticator  3) você cai no painel do robô.');

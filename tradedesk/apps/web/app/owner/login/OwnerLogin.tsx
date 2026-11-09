@@ -13,6 +13,8 @@ export default function OwnerLogin() {
   const [busy, setBusy] = useState(false);
 
   async function afterPassword() {
+    const mode = await fetch('/api/owner/mode').then((r) => r.json()).catch(() => ({ requires2fa: true }));
+    if (!mode.requires2fa) return finish(); // instalação local: sem 2FA
     const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
     if (aal?.currentLevel === 'aal2') return finish();
     if (aal?.nextLevel === 'aal2') return setStep('totp');

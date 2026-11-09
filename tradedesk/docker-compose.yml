@@ -17,6 +17,7 @@ services:
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-HEXADESK}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
     env_file: .env
+    extra_hosts: ["host.docker.internal:host-gateway"]   # acessa o Supabase local rodando no seu PC
     ports: ["${WEB_PORT:-3000}:3000"]
     restart: unless-stopped
 
@@ -25,6 +26,7 @@ services:
       context: .
       target: worker
     env_file: .env
+    extra_hosts: ["host.docker.internal:host-gateway"]
     environment:
       REDIS_URL: redis://redis:6379   # sobrescreve o valor do .env dentro do Docker
     depends_on: [redis]

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { redirect } from 'next/navigation';
 import { supabaseAdmin } from './supabase/admin';
 import { supabaseServer } from './supabase/server';
-import { aalOf, ensureOwner } from './owner';
+import { aalOf, ensureOwner, twoFactorRequired } from './owner';
 
 export async function currentUser() {
   const sb = await supabaseServer();
@@ -20,7 +20,7 @@ async function ownerSession(user: { id: string; email?: string | null; email_con
   if (role !== 'owner') return null;
   const sb = await supabaseServer();
   const aal = await aalOf(sb as any);
-  return { profile: { ...(prof ?? {}), role: 'owner' }, aal2: aal.current === 'aal2', hasFactor: aal.next === 'aal2' || aal.current === 'aal2' };
+  return { profile: { ...(prof ?? {}), role: 'owner' }, aal2: !twoFactorRequired() || aal.current === 'aal2', hasFactor: aal.next === 'aal2' || aal.current === 'aal2' };
 }
 
 /** Para páginas: exige login + assinatura ativa (o dono entra sem assinatura, mas só com 2FA). */

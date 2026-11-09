@@ -2,6 +2,14 @@ import 'server-only';
 import { audit } from '@desk/core';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 
+/**
+ * 2FA do dono é obrigatório. Única exceção: instalação LOCAL (OWNER_REQUIRE_2FA=false E site em localhost/127.0.0.1).
+ * Em qualquer endereço de internet a variável é IGNORADA e o 2FA continua obrigatório.
+ */
+export const twoFactorRequired = () => {
+  const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(process.env.NEXT_PUBLIC_APP_URL ?? '');
+  return !(process.env.OWNER_REQUIRE_2FA === 'false' && local);
+};
 export const ownerEmail = () => (process.env.OWNER_EMAIL ?? '').trim().toLowerCase();
 export const isOwnerEmail = (email?: string | null) => !!ownerEmail() && (email ?? '').toLowerCase() === ownerEmail();
 export const clientIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
