@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     const { data: chk, error } = await admin.from('checkouts').insert({ email, name, cpf_cnpj: cpfCnpj }).select('id').single();
     if (error || !chk) throw new Error(error?.message);
     const customer = await asaas.createCustomer({ name, email, cpfCnpj, externalReference: chk.id });
-    const sub = await asaas.createSubscription({ customer: customer.id, value, externalReference: chk.id, description: `Assinatura ${process.env.NEXT_PUBLIC_APP_NAME ?? 'NEONDESK'}` });
+    const sub = await asaas.createSubscription({ customer: customer.id, value, externalReference: chk.id, description: `Assinatura ${process.env.NEXT_PUBLIC_APP_NAME ?? 'HEXADESK'}` });
     const pays = await asaas.subscriptionPayments(sub.id);
     const first = pays?.data?.[0];
     if (!first) throw new Error('cobrança inicial não gerada');

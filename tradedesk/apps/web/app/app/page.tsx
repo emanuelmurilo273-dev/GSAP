@@ -1,8 +1,9 @@
+import { realModeAllowed, testnetMode } from '@desk/core';
 import { requireSubscriber } from '@/lib/auth';
 import Dashboard from './Dashboard';
 
 export default async function Page() {
-  const { user, admin } = await requireSubscriber();
+  const { user, admin, isOwner } = await requireSubscriber();
   const now = Date.now();
   const brtStart = (d: number) => new Date(Math.floor((d - 3 * 3600_000) / 86_400_000) * 86_400_000 + 3 * 3600_000).toISOString();
   const dayStart = brtStart(now);
@@ -22,6 +23,8 @@ export default async function Page() {
   return (
     <Dashboard
       userId={user.id}
+      realBlocked={!realModeAllowed(isOwner)}
+      testnet={testnetMode()}
       settings={s.data}
       account={acc.data}
       initial={{ open: open.data ?? [], closed: closed.data ?? [], logs: logs.data ?? [], agents: agents.data ?? [] }}

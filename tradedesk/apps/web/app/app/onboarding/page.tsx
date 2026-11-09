@@ -1,4 +1,4 @@
-import { RISK_TERMS_VERSION } from '@desk/core';
+import { RISK_TERMS_VERSION, enabledExchangeIds, testnetMode } from '@desk/core';
 import { requireSubscriber } from '@/lib/auth';
 import Onboarding from './Onboarding';
 
@@ -14,6 +14,8 @@ export default async function Page() {
       backtest={!!s?.backtest_done_at}
       risk={!!s?.risk_accepted_at && s.risk_terms_version === RISK_TERMS_VERSION}
       enabled={!!s?.bot_enabled}
+      exchanges={enabledExchangeIds()}
+      testnet={testnetMode()}
     />
   );
 }

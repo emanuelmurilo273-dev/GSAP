@@ -1,9 +1,11 @@
 import { Panel, dateOnly, num } from '@/components/ui';
+import { redirect } from 'next/navigation';
 import { requireSubscriber } from '@/lib/auth';
 import CancelButton from './CancelButton';
 
 export default async function Page() {
-  const { user, sub, admin } = await requireSubscriber();
+  const { user, sub, admin, isOwner } = await requireSubscriber();
+  if (isOwner) redirect('/admin'); // o dono não tem assinatura
   const { data: pays } = await admin.from('payments').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(24);
   return (
     <div className="space-y-4">

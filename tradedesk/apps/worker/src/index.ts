@@ -9,7 +9,23 @@ import { dailyReports } from './jobs/report';
 import { need, sb } from './lib/env';
 
 const connection = new Redis(need('REDIS_URL'), { maxRetriesPerRequest: null });
+connection.on('error', (e) => console.error('[redis]', e.message));
 const queue = new Queue('desk', { connection, defaultJobOptions: { removeOnComplete: 100, removeOnFail: 500 } });
+
+let lastTick = Date.now();
+const startedAt = Date.now();
+
+// ---- healthcheck HTTP (Fly/Railway/Docker): 200 só se Redis responde e o tick rodou nos últimos 3 min
+createServer(async (req, res) => {
+  if (req.url !== '/health') { res.writeHead(404).end(); return; }
+  let redisOk = false;
+  try { redisOk = (await Promise.race([connection.ping(), new Promise<string>((_, rej) => setTimeout(() => rej(new Error('timeout')), 2000))])) === 'PONG'; } catch { /* redis fora */ }
+  const age = Date.now() - lastTick;
+  const grace = Date.now() - startedAt < 180_000; // no boot, dá 3 min até o 1º tick
+  const ok = redisOk && (age < 180_000 || grace);
+  res.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' }).end(JSON.stringify({ ok, redisOk, lastTickSecondsAgo: Math.round(age / 1000) }));
+}).listen(Number(process.env.PORT ?? 8080), () => console.log('[worker] healthcheck em /health'));
+
 
 // agenda (UTC; Brasília = UTC-3)
 await queue.upsertJobScheduler('tick', { every: 60_000 }, { name: 'tick' });           // a cada minuto
@@ -17,9 +33,6 @@ await queue.upsertJobScheduler('report', { pattern: '0 0 * * *' }, { name: 'repo
 await queue.upsertJobScheduler('official', { pattern: '0 4 * * 1' }, { name: 'official' }); // segunda 01:00 BRT
 await queue.upsertJobScheduler('dunning', { pattern: '0 * * * *' }, { name: 'dunning' });   // de hora em hora
 await queue.upsertJobScheduler('payout', { pattern: '0 15 * * *' }, { name: 'payout' });    // 12:00 BRT
-
-let lastTick = Date.now();
-const startedAt = Date.now();
 
 const worker = new Worker(
   'desk',
@@ -53,17 +66,6 @@ worker.on('failed', (job, err) => console.error(`[job ${job?.name}] falhou:`, er
 worker.on('ready', () => console.log('[worker] mesa de 6 agentes rodando 24h'));
 
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { await worker.close(); await queue.close(); process.exit(0); });
-
-// ---- healthcheck HTTP (Fly/Railway/Docker): 200 só se Redis responde e o tick rodou nos últimos 3 min
-createServer(async (req, res) => {
-  if (req.url !== '/health') { res.writeHead(404).end(); return; }
-  let redisOk = false;
-  try { redisOk = (await connection.ping()) === 'PONG'; } catch { /* redis fora */ }
-  const age = Date.now() - lastTick;
-  const grace = Date.now() - startedAt < 180_000; // no boot, dá 3 min até o 1º tick
-  const ok = redisOk && (age < 180_000 || grace);
-  res.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' }).end(JSON.stringify({ ok, redisOk, lastTickSecondsAgo: Math.round(age / 1000) }));
-}).listen(Number(process.env.PORT ?? 8080), () => console.log('[worker] healthcheck em /health'));
 
 // avisa o dono se o worker cair por exceção não tratada
 for (const ev of ['uncaughtException', 'unhandledRejection'] as const) {

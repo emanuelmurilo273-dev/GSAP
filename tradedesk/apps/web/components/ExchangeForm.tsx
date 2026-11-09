@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { btn, btnDanger } from '@/components/ui';
 
-export default function ExchangeForm({ connected, onDone }: { connected?: { exchange: string; hint: string; verified: boolean } | null; onDone?: () => void }) {
+export default function ExchangeForm({ connected, onDone, exchanges = ['binance'], testnet = false }: { connected?: { exchange: string; hint: string; verified: boolean } | null; onDone?: () => void; exchanges?: string[]; testnet?: boolean }) {
   const [exchange, setExchange] = useState<'binance' | 'mercado'>('binance');
   const [apiKey, setKey] = useState('');
   const [secret, setSecret] = useState('');
@@ -39,7 +39,7 @@ export default function ExchangeForm({ connected, onDone }: { connected?: { exch
       )}
       <form onSubmit={save} className="space-y-3">
         <div><label>Corretora</label>
-          <select value={exchange} onChange={(e) => setExchange(e.target.value as any)}><option value="binance">Binance</option><option value="mercado">Mercado Bitcoin</option></select></div>
+          <select value={exchange} onChange={(e) => setExchange(e.target.value as any)}><option value="binance">Binance{testnet ? ' (TESTNET)' : ''}</option>{exchanges.includes('mercado') && <option value="mercado">Mercado Bitcoin</option>}</select></div>
         <div><label>API Key</label><input value={apiKey} onChange={(e) => setKey(e.target.value)} autoComplete="off" required /></div>
         <div><label>API Secret</label><input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="off" required /></div>
         {exchange === 'mercado' && (

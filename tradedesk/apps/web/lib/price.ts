@@ -11,4 +11,4 @@ export async function getPlanPrice(): Promise<number> {
   return Number(process.env.PLAN_PRICE ?? 7000);
 }
 
-export const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export { brl } from './price-format';

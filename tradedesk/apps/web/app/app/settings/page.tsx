@@ -1,3 +1,4 @@
+import { enabledExchangeIds, testnetMode } from '@desk/core';
 import { requireSubscriber } from '@/lib/auth';
 import SettingsForm from './SettingsForm';
 
@@ -10,7 +11,7 @@ export default async function Page() {
   return (
     <div className="space-y-4">
       <h1 className="text-lg text-neon-purple">&gt; configurações</h1>
-      <SettingsForm s={s} acc={acc} />
+      <SettingsForm s={s} acc={acc} exchanges={enabledExchangeIds()} testnet={testnetMode()} />
     </div>
   );
 }

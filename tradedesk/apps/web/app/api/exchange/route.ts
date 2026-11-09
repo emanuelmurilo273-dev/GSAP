@@ -1,4 +1,4 @@
-import { EXCHANGES, encrypt, validateKeys, type ExchangeId } from '@desk/core';
+import { EXCHANGES, enabledExchangeIds, encrypt, validateKeys, type ExchangeId } from '@desk/core';
 import { NextResponse } from 'next/server';
 import { apiSubscriber } from '@/lib/auth';
 
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const exchange = b.exchange as ExchangeId;
   const apiKey = String(b.apiKey ?? '').trim();
   const secret = String(b.secret ?? '').trim();
-  if (!(exchange in EXCHANGES) || apiKey.length < 8 || secret.length < 8) return NextResponse.json({ error: 'dados inválidos' }, { status: 400 });
+  if (!(exchange in EXCHANGES) || !enabledExchangeIds().includes(exchange) || apiKey.length < 8 || secret.length < 8) return NextResponse.json({ error: exchange === 'mercado' ? 'Mercado Bitcoin está temporariamente indisponível.' : 'dados inválidos' }, { status: 400 });
 
   const { count } = await admin.from('trades').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'open');
   if (count) return NextResponse.json({ error: 'Feche as posições abertas antes de trocar a chave/corretora.' }, { status: 409 });

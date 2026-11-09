@@ -1,0 +1,29 @@
+# Worker no Fly.io, FORA dos EUA (Binance bloqueia IPs americanos). Regiões boas: fra (Frankfurt), ams (Amsterdã), sin (Singapura).
+#   fly launch --no-deploy --copy-config   (aceite o nome)   →   fly secrets set ...   →   fly deploy
+app = "hexadesk-worker"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile.worker"
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"     # o robô opera 24h: nunca desligar
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "60s"
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

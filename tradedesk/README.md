@@ -1,66 +1,117 @@
-# NEONDESK — robô de trading com mesa de 6 agentes (SaaS)
+# HEXADESK — robô de cripto com mesa de 6 agentes
 
-> Nome provisório: troque com `NEXT_PUBLIC_APP_NAME`.
-> **Opera com dinheiro real na conta da corretora do cliente. Leia a seção "Antes de vender" abaixo.**
+Robô que opera cripto **na conta da corretora do próprio cliente** (nunca guardamos dinheiro). Seis agentes trabalham 24h: **Scout** (coleta) → **Filter** (filtra) → **Analyst** (nota 0–1) → **Executor** (ordem) → **Risk** (stop/alvo/limite diário) → **Logger** (registro).
 
-```
-apps/web      Next.js 15 + TS + Tailwind  → Vercel  (landing, checkout, login, dashboard, admin, APIs, webhook)
-apps/worker   Node + BullMQ + Redis        → Railway (cron a cada minuto, 6 agentes, relatórios, dunning, repasse)
-packages/core Indicadores, estratégia, backtest, AES-256-GCM, CCXT, Asaas, Resend, LLM (usado por web e worker)
-supabase/     migrations/001_init.sql (tabelas + RLS + realtime)
-```
+> ## ⚠️ Leia antes de vender
+> 1. **Nenhuma estratégia passou na pesquisa de validação** (`research/RESEARCH.md`: 5 famílias × 3 pares × 3 timeframes, 3 anos, walk-forward, teste final uma única vez). Por isso, `STRATEGY_APPROVED=false` e **clientes não conseguem ligar o robô em conta real**. Só funciona em *testnet* (dinheiro de mentira) e na **conta do dono**.
+> 2. A estratégia padrão do app tem backtest real **negativo** (BTC/USDT 1h: −0,53% em 90 dias; −3,75% em 365 dias).
+> 3. Vender uma "gestão automática de investimento" pode exigir registro/autorização (CVM) e tem regras do Código de Defesa do Consumidor. **Fale com um advogado antes de cobrar.**
+> 4. Nada aqui foi testado com dinheiro real nem com as contas reais de Asaas/Resend/Supabase (ver "O que foi testado").
 
-## Os 6 agentes (`apps/worker/src/agents`)
-| # | Agente | O que faz |
+---
+
+## Como usar no Windows (1 clique)
+1. Instale o **Docker Desktop** e abra-o (espere ficar verde).
+2. Extraia a pasta e dê duplo clique em **`Instalar-Windows.bat`**. Ele abre o site em `http://localhost:3000` (modo prévia, sem login/pagamento).
+3. Para ativar tudo, preencha o arquivo `.env` (próxima seção) e rode o instalador de novo. Para parar: `Parar-Windows.bat`.
+
+## Passo a passo das contas (faça nesta ordem)
+
+### 1. Supabase (banco + login) — grátis
+1. Crie um projeto em supabase.com.
+2. **SQL Editor** → cole e rode `supabase/migrations/001_init.sql` e depois `002_owner_audit_health.sql`.
+3. **Project Settings → API**: copie *Project URL* → `SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_URL`; *anon public* → `NEXT_PUBLIC_SUPABASE_ANON_KEY`; *service_role* → `SUPABASE_KEY` (secreta).
+4. **Authentication → URL Configuration**: *Site URL* = endereço do seu site; em *Redirect URLs* adicione `SEU_SITE/auth/callback`.
+5. **Authentication → Multi-Factor**: confirme que **TOTP** está habilitado (necessário para o 2FA do dono).
+
+### 2. Chave de criptografia
+`ENCRYPTION_KEY` — o instalador do Windows gera sozinho. À mão: `openssl rand -hex 32`. **Guarde um backup**: sem ela, as chaves de corretora salvas ficam ilegíveis.
+
+### 3. Conta do dono (você)
+1. Coloque seu e-mail em `OWNER_EMAIL` (recebe também os alertas).
+2. Abra `SEU_SITE/owner/login` → **"Primeiro acesso: enviar link mágico"** → clique no link do e-mail.
+3. Defina uma senha (12+ caracteres) e escaneie o QR no Google Authenticator/Authy.
+4. Pronto: você cai direto no **Admin**. Próximos logins: e-mail + senha + código de 6 dígitos. (O link mágico sozinho **não** abre o Admin: sempre exige o 2FA.)
+- Você não precisa de assinatura, nunca é bloqueado e não aparece na lista de assinantes. Todo login seu e toda ação no Admin ficam no **log de auditoria**.
+
+### 4. Binance **TESTNET** (dinheiro de mentira) — comece por aqui
+1. Entre em testnet.binance.vision (login com GitHub) → *Generate HMAC-SHA-256 Key*.
+2. No `.env`: `BINANCE_TESTNET=true`. No app, conecte essa chave em *Config*.
+3. Rode backtest → aceite o termo → ligue o robô e acompanhe as ordens no testnet.
+
+### 5. Asaas (pagamentos) — comece no sandbox
+1. Conta em sandbox.asaas.com → *Integrações → Chave de API* → `ASAAS_API_KEY`; `ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3`.
+2. *Integrações → Webhooks*: URL `SEU_SITE/api/webhooks/asaas`, **token de autenticação** = o mesmo valor de `ASAAS_WEBHOOK_SECRET` (invente um longo), eventos de cobrança e de assinatura.
+3. Repasse Pix: `OWNER_PIX_KEY` e `OWNER_PIX_KEY_TYPE`. O Asaas pode exigir **autorização da transferência**; nesse caso o repasse fica "aguardando autorização", você recebe e-mail e vê um alerta no Admin (aprove no Asaas).
+4. Webhook precisa de endereço público: em testes locais use ngrok/cloudflared.
+
+### 6. Resend (e-mails) — `RESEND_API_KEY`, e `EMAIL_FROM` com domínio verificado.
+### 7. LLM (opcional) — `LLM_API_KEY` (Anthropic ou OpenAI). Sem ela o Analyst usa só a nota técnica.
+
+## Publicar na internet
+
+**Site → Vercel**
+1. Importe o repositório; *Root Directory* = `apps/web`; ligue *Include source files outside of the Root Directory*.
+2. Cadastre todas as variáveis do `.env.example` (menos `REDIS_URL`/`WEB_PORT`). Defina `CRON_SECRET` (o `vercel.json` já agenda o vigia a cada 5 min — em plano grátis a Vercel só aceita cron diário; use então um monitor externo chamando `/api/cron/watchdog` com `Authorization: Bearer CRON_SECRET`).
+3. Em `NEXT_PUBLIC_APP_URL` coloque o endereço final do site.
+
+**Worker (o robô 24h) — fora dos EUA** (a Binance bloqueia IPs americanos, erro HTTP 451)
+- **Fly.io (Frankfurt):** `fly launch --no-deploy --copy-config` → `fly secrets set SUPABASE_URL=... SUPABASE_KEY=... REDIS_URL=... ENCRYPTION_KEY=... RESEND_API_KEY=... OWNER_EMAIL=... LLM_API_KEY=... (e demais)` → `fly deploy`. A região está em `fly.toml` (`fra`; alternativas `ams`, `sin`).
+- **Railway (Europa):** novo projeto a partir do repositório (usa `railway.json` + `Dockerfile.worker`) → *Settings → Region* = **Europe West (Amsterdã)** → adicione um Redis e variáveis (o `REDIS_URL` vem do plugin).
+- **Redis:** Upstash (grátis) ou o plugin do Railway.
+- **Saúde:** o worker responde `GET /health` (200 = Redis ok e ciclo rodando nos últimos 3 min); as duas plataformas já usam isso para reiniciar. Se o worker parar, o vigia (`/api/cron/watchdog`) **manda e-mail ao dono** e o Admin mostra "Worker parado". Se a chave de API de um cliente falhar, o robô dele pausa e **cliente e dono recebem e-mail**.
+
+## Validação de 30 dias (conta do dono)
+1. Conecte **sua** conta Binance real em *Config* (use valor pequeno, ex.: o que você aceita perder), rode o backtest e ligue o robô — o dono pode operar em real mesmo sem estratégia aprovada.
+2. No **Admin → Validação**, clique *Iniciar janela de 30 dias*. O painel compara, lado a lado, o resultado **real** com o **backtest do mesmo período e dos mesmos parâmetros** (acerto, fator de lucro, média por trade, resultado). Real muito pior que o backtest = a simulação é otimista.
+
+## Pesquisa de estratégia
+`research/` tem tudo: `download.ts` (dados), `engine.ts` + `strategies.ts` (simulador e 5 famílias), `run.ts select|test` (validação / teste final **uma vez**, travado em `results/test.lock.json`), `report.ts` (gera `RESEARCH.md`). Resultado: **0 aprovadas**. Para pesquisar de novo é preciso dados novos como novo teste final — repetir o mesmo teste invalida o método.
+
+## Modos e flags (`.env`)
+| Variável | Padrão | O que faz |
 |---|---|---|
-| 1 | Scout | candles fechados dos pares (`BASE/QUOTE`) via CCXT |
-| 2 | Filter | descarta por liquidez (volume 24h), spread (>0,2%) e volatilidade (ATR/preço > 3%) |
-| 3 | Analyst | nota 0–1 (tendência EMA 9/21 30% · RSI 20% · MACD 20% · volume 15% · S/R 15%) + LLM que resume e ajusta a nota em [-0,15, +0,05] |
-| 4 | Executor | ordem a mercado, tamanho = min(% do saldo, saldo livre) |
-| 5 | Risk | stop (Binance: `STOP_LOSS_LIMIT` na própria corretora), alvo, trailing, limite de perda diária (para novas entradas até o dia seguinte), **1 posição por par — nunca preço médio** |
-| 6 | Logger | `bot_logs` (entradas, saídas, recusas + motivo), relatório diário por e-mail (21h BRT) |
+| `STRATEGY_APPROVED` | `false` | `true` só se a pesquisa aprovar uma estratégia. `false` = clientes sem modo real |
+| `BINANCE_TESTNET` | `false` | `true` = ordens na Binance Spot Testnet |
+| `ENABLE_MERCADO_BITCOIN` | `false` | Mercado Bitcoin escondido (não dá para verificar permissão de saque da chave) |
+| `OWNER_EMAIL` | — | vira dono no 1º login (exige senha + 2FA para o Admin) |
+| `PREVIEW_PAGES` | `false` | só em desenvolvimento: libera `/preview/*` (dados de EXEMPLO) |
 
-Fila: `tick` a cada minuto enfileira 1 job `cycle` por cliente ligado (com trava Redis por cliente). Jobs agendados: relatório diário, backtest oficial (segunda), dunning (hora em hora), repasse Pix (diário).
-
-## Subir
-1. **Supabase**: crie o projeto, rode `supabase/migrations/001_init.sql`. Auth → URL Configuration: `Site URL` = seu domínio, Redirect URL `https://SEU_DOMINIO/auth/callback`. Depois de criar sua própria conta, torne-se owner: `update profiles set role='owner' where email='voce@...';`
-2. **Variáveis**: copie `.env.example`. `SUPABASE_KEY` = **service_role** (só servidor/worker). `ENCRYPTION_KEY` = `openssl rand -hex 32` (guarde um backup: sem ela as chaves dos clientes ficam ilegíveis).
-3. **Vercel**: Root Directory `apps/web`, "Include files outside root" ligado, `npm install` na raiz. Todas as env vars do `.env.example` (exceto `REDIS_URL`).
-4. **Railway** (worker): serviço Node com start `npm run start -w @desk/worker` + plugin Redis (`REDIS_URL`). **Escolha uma região que a Binance permita (ex.: Europa/Ásia). IPs dos EUA recebem HTTP 451.** Se possível, fixe IP de saída e restrinja a API Key da Binance a ele.
-5. **Asaas**: Webhook → `https://SEU_DOMINIO/api/webhooks/asaas`, **token de autenticação = `ASAAS_WEBHOOK_SECRET`**, eventos de cobrança e assinatura. Teste antes no sandbox (`ASAAS_BASE_URL`). Para o repasse automático, o Asaas pode exigir autorização de transferência (token/webhook de autorização) — configure na conta.
-6. **Resend**: verifique o domínio e ajuste `EMAIL_FROM`.
-
-Local: `npm install && npm test && npm run typecheck && npm run dev:web` (e `npm run dev:worker` com Redis).
-
-## Segurança (como cada requisito foi atendido)
-- **Webhook**: header `asaas-access-token` comparado em tempo constante; sem segredo configurado → recusa tudo. Eventos idempotentes (`webhook_events`).
-- **Acesso nunca pelo front**: conta nasce só no webhook validado; `requireSubscriber()`/`apiSubscriber()` checam `subscriptions` no servidor em toda página/rota; o worker também pausa quem perdeu acesso. Login só para quem já existe (`shouldCreateUser:false`).
-- **Chaves**: AES-256-GCM; tabela `exchange_accounts` sem nenhuma policy RLS (inacessível pela API pública); nunca voltam ao navegador (só `…últimos4`).
-- **Saque**: Binance → lê `account/apiRestrictions` e **recusa** `enableWithdrawals=true` ou sem trade spot. **Mercado Bitcoin não expõe as permissões da chave**: validamos que a chave funciona e exigimos declaração expressa do cliente (marcado como "declarada", não "verificada"). Não é possível garantir o requisito "recusar saque" nessa corretora.
-- **RLS**: o cliente só lê os próprios dados; todas as escritas passam por rotas de servidor/worker (service_role). `unique index` impede 2 posições abertas no mesmo par.
-- Dunning: `PAYMENT_OVERDUE` marca `overdue_since`; após 3 dias o worker bloqueia, pausa o robô e envia e-mail de cobrança com a fatura.
-
-## Transparência
-Saldo = `fetchBalance` da corretora. P&L = fechamentos registrados a partir das ordens executadas (taxa real da ordem quando a corretora informa; senão 0,1% estimado). Landing mostra só linhas `kind='official'` de `backtests` (com período, data do cálculo e custos) ou diz que ainda não rodou.
-
-## Antes de vender (leia)
-**Backtest real da estratégia padrão** (BTC/USDT, 1h, Binance, taxa 0,1% + slippage 0,05%/execução, rodado em 09/11/2026 com este código):
-
-| Período | Trades | Acerto | Resultado | Fator de lucro | Drawdown | Buy&hold |
-|---|---|---|---|---|---|---|
-| 90 dias | 21 | 38% | **−0,53%** | 0,75 | 1,2% | +18,5% |
-| 365 dias | 104 | 40% | **−3,75%** | 0,62 | 3,8% | −27,6% |
-
-Ou seja: **com os parâmetros pedidos (nota ≥ 0,7, stop 3%, alvo 6%, 5%/trade) a estratégia não mostra vantagem estatística** nesses dados. Não "calibrei" os parâmetros até o gráfico ficar bonito — isso seria overfitting e propaganda enganosa, e o requisito é exibir números reais. Cobrar R$ 7.000/mês por algo assim, com a landing exibindo isso, é um risco comercial e regulatório (CDC, CVM — oferta de gestão/recomendação de investimentos pode exigir registro). Recomendo: pesquisar a estratégia com validação out-of-sample/walk-forward antes de lançar, validar o modelo de negócio com advogado, e testar o worker com valores pequenos por semanas.
-
-Limitações conhecidas: backtest não inclui o LLM nem spread/liquidez históricos; stop/alvo intra-candle resolvem empate a favor do stop; limite diário usa saldo da moeda de cotação + posições do robô (depósitos/saques no meio do dia distorcem); MB só tem stop por software (worker, 1 min) e a compatibilidade da ccxt `mercado` com a API v4 deve ser testada; preço novo vale para novas assinaturas; nenhum teste automatizado cobre ordens reais — **teste em conta pequena**.
-
-## Windows (1 clique)
-Instale o Docker Desktop, depois de duplo clique em **Instalar-Windows.bat** (e **Parar-Windows.bat** para parar).
-
-## Docker
+## Testes e verificação
 ```bash
-cp .env.example .env      # preencha (Supabase na nuvem; rode a migration 001 lá antes)
-docker compose up --build # web em http://localhost:3000 + worker + redis
+npm install
+npm test                 # núcleo (indicadores, backtest, AES, acesso) + RLS num Postgres real (PGlite)
+npm run test -w @desk/worker   # Executor e Risk com corretora simulada
+npm run typecheck
+npx tsx scripts/e2e.ts --mock  # jornada: o que dá para rodar sem contas externas
+npx tsx scripts/e2e.ts         # jornada completa em SANDBOX (exige as variáveis listadas no topo do arquivo)
 ```
-Rodando o worker na sua máquina/servidor, o IP de saída precisa ser de região aceita pela Binance (não EUA).
+
+## O que foi testado de verdade (e o que não foi)
+| Item | Situação |
+|---|---|
+| Indicadores, backtest, AES-256-GCM, regras de acesso | ✅ testes automatizados (6) |
+| **RLS no Postgres** (usuário A nunca vê dados de B; anônimo; dono sem/com 2FA; service_role) | ✅ 8 testes contra Postgres real (PGlite) rodando as migrations 001+002 |
+| Executor + Risk (abrir, stop na corretora, alvo, trailing, limite diário, fechar todas, nunca preço médio, liga/pausa) | ✅ 13 testes com **corretora simulada** (não é a Binance de verdade) |
+| Pesquisa de estratégia | ✅ executada com dados reais da Binance (3 anos) |
+| Healthcheck do worker | ✅ testado com Redis real: 200 saudável / 503 sem Redis |
+| Build do site, telas em 390px e 1440px (`docs/screenshots/`), sem rolagem horizontal | ✅ |
+| **Ordens na Binance Testnet** | ⚠️ código pronto (`BINANCE_TESTNET`), **não executado**: exige chaves suas |
+| **Asaas sandbox** (assinatura, Pix, webhook, inadimplência, cancelamento, repasse) | ⚠️ código pronto, **não executado** (sem chave); nomes de campos da transferência pendente de autorização **não foram verificados** na API real |
+| **Resend** (envio real) | ⚠️ templates prontos (`docs/email-preview.html`), envio **não testado** |
+| **Supabase** na nuvem, login do dono com TOTP | ⚠️ **não testado** de ponta a ponta (RLS foi testado em Postgres local) |
+| Docker (`docker compose up`, `Dockerfile.worker`) | ⚠️ não consegui rodar o daemon Docker no ambiente de desenvolvimento; instalação isolada do worker e o worker em si foram testados fora do Docker |
+
+## Segurança
+Webhook com token comparado em tempo constante e eventos idempotentes · acesso decidido no servidor (middleware + checagem em toda página/rota + RLS) · chaves AES-256-GCM, tabela de chaves sem nenhuma policy · chave com saque é recusada na Binance · dono exige 2FA (aal2) também nas policies RLS · auditoria de logins e ações do dono · nenhuma senha/e-mail fixo no código.
+
+## Estrutura
+```
+apps/web      Next.js 15 (site, painel, admin, APIs, webhook)
+apps/worker   BullMQ + Redis (6 agentes, relatórios, cobrança, repasse, /health)
+packages/core indicadores, estratégia, backtest, CCXT, Asaas, Resend, LLM
+research/     pesquisa de estratégia + RESEARCH.md
+supabase/     migrations 001 e 002
+scripts/      instalador Windows, e2e
+docs/         screenshots, preview de e-mail
+```

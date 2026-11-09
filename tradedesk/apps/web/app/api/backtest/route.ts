@@ -1,4 +1,4 @@
-import { EXCHANGES, fetchHistory, makeExchange, runBacktest, type ExchangeId } from '@desk/core';
+import { EXCHANGES, enabledExchangeIds, fetchHistory, makeExchange, runBacktest, type ExchangeId } from '@desk/core';
 import { NextResponse } from 'next/server';
 import { apiSubscriber } from '@/lib/auth';
 import { cleanParams } from '@/lib/params';
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   if (!g.ok) return g.res;
   const { userId, admin } = g.data;
   const b = await req.json().catch(() => ({}));
-  const exchange = (b.exchange in EXCHANGES ? b.exchange : 'binance') as ExchangeId;
+  const exchange = (b.exchange in EXCHANGES && enabledExchangeIds().includes(b.exchange) ? b.exchange : 'binance') as ExchangeId;
   const symbol = String(b.symbol ?? '');
   const days = [30, 90, 365].includes(Number(b.days)) ? Number(b.days) : 90;
   if (!/^[A-Z0-9]{2,10}\/(USDT|BRL)$/.test(symbol)) return NextResponse.json({ error: 'par inválido (ex.: BTC/USDT)' }, { status: 400 });

@@ -8,6 +8,8 @@ export interface BacktestCfg {
   /** slippage por execução (0.0005 = 0,05%) */
   slippagePct: number;
   initialEquity: number;
+  /** não abre posições antes deste instante (candles anteriores servem só de aquecimento dos indicadores) */
+  startT: number;
 }
 
 export const DEFAULT_COSTS = { feePct: 0.001, slippagePct: 0.0005 };
@@ -61,6 +63,7 @@ export function runBacktest(c: Candle[], cfg: Partial<BacktestCfg> = {}): Backte
   const fee = cfg.feePct ?? DEFAULT_COSTS.feePct;
   const slip = cfg.slippagePct ?? DEFAULT_COSTS.slippagePct;
   const initial = cfg.initialEquity ?? 1000;
+  const startT = cfg.startT ?? 0;
 
   const s = buildSeries(c);
   let cash = initial;
@@ -144,7 +147,7 @@ export function runBacktest(c: Candle[], cfg: Partial<BacktestCfg> = {}): Backte
     }
 
     // 4) novo sinal no fechamento
-    if (!pos && !haltedToday && i < c.length - 1 && !(s.atrPct[i] > params.maxVolPct)) {
+    if (k.t >= startT && !pos && !haltedToday && i < c.length - 1 && !(s.atrPct[i] > params.maxVolPct)) {
       const sc = scoreAt(s, c, i, params);
       if (sc && sc.score >= params.minScore) pending = sc.score;
     }
@@ -165,7 +168,7 @@ export function runBacktest(c: Candle[], cfg: Partial<BacktestCfg> = {}): Backte
     streak = t.pnl <= 0 ? streak + 1 : 0;
     maxStreak = Math.max(maxStreak, streak);
   }
-  const first = c[WARMUP];
+  const first = c.find((k, idx) => idx >= WARMUP && k.t >= startT) ?? c[WARMUP];
   const last = c[c.length - 1];
   const step = Math.max(1, Math.ceil(equityFull.length / 300));
   const equity = equityFull.filter((_, idx) => idx % step === 0 || idx === equityFull.length - 1);

@@ -31,6 +31,8 @@ export const asaas = {
   subscriptionPayments: (subId: string) => call('GET', `/subscriptions/${subId}/payments`),
   getPayment: (id: string) => call('GET', `/payments/${id}`),
   pixQr: (paymentId: string) => call<{ encodedImage: string; payload: string; expirationDate: string }>('GET', `/payments/${paymentId}/pixQrCode`),
+  /** SANDBOX: marca a cobrança como recebida (simula o pagamento do Pix nos testes). */
+  receiveInCash: (id: string, value: number) => call('POST', `/payments/${id}/receiveInCash`, { paymentDate: today(), value, notifyCustomer: false }),
   cancelSubscription: (id: string) => call('DELETE', `/subscriptions/${id}`),
   updateSubscriptionValue: (id: string, value: number) => call('PUT', `/subscriptions/${id}`, { value, updatePendingPayments: false }),
 

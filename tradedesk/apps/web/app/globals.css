@@ -1,23 +1,48 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root { color-scheme: dark; }
-html, body { background: #050a07; }
+html { background: #05070a; scroll-behavior: smooth; }
 body {
-  color: #c9f7da;
-  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
-  background-image: radial-gradient(ellipse at top, rgba(57,255,136,0.06), transparent 60%);
-  padding-bottom: 64px; /* espaço para o banner fixo de aviso de risco */
+  color: #e6edf3;
+  font-family: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  background-color: #05070a;
+  /* gradiente profundo + grid sutil */
+  background-image:
+    radial-gradient(900px 500px at 15% -10%, rgba(164,120,255,.10), transparent 60%),
+    radial-gradient(800px 500px at 90% 0%, rgba(77,163,255,.08), transparent 60%),
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: auto, auto, 44px 44px, 44px 44px;
+  background-attachment: fixed;
+  padding-bottom: 64px; /* banner fixo de risco */
+  -webkit-font-smoothing: antialiased;
 }
-a { color: #39ff88; }
-::selection { background: #39ff8844; }
-input, select { background: #050a07; border: 1px solid #123524; color: #c9f7da; padding: 10px 12px; width: 100%; }
-input:focus, select:focus { outline: 1px solid #39ff88; }
-label { display: block; font-size: 12px; color: #6b8f7a; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.font-mono, code, pre, table, textarea { font-family: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+a { color: #3ddc84; text-underline-offset: 3px; }
+::selection { background: #3ddc8444; }
 
-@keyframes pulse-dot { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
-@keyframes flow { 0% { left: 0; opacity: 0 } 10% { opacity: 1 } 90% { opacity: 1 } 100% { left: calc(100% - 10px); opacity: 0 } }
-@keyframes glow { 0%,100% { box-shadow: 0 0 0 rgba(57,255,136,0) } 50% { box-shadow: 0 0 18px rgba(57,255,136,.45) } }
+input, select, textarea { background: rgba(255,255,255,.03); border: 1px solid #1b2733; color: #e6edf3; padding: 10px 12px; width: 100%; border-radius: 8px; font-size: 14px; }
+input::placeholder { color: #566472; }
+label { display: block; font-size: 11px; color: #8392a1; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .08em; font-weight: 500; }
+
+/* foco visível para teclado (acessibilidade) */
+:focus-visible { outline: 2px solid #4da3ff; outline-offset: 2px; border-radius: 6px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; border-color: #4da3ff; }
+
+.glass { min-width: 0; background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); border: 1px solid rgba(255,255,255,.07); backdrop-filter: blur(10px); border-radius: 14px; box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 12px 40px -20px rgba(0,0,0,.8); }
+.glass-hover { transition: border-color .2s, transform .2s, box-shadow .2s; }
+.glass-hover:hover { border-color: rgba(255,255,255,.16); transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 50px -20px rgba(0,0,0,.9); }
+
+@keyframes pulse-dot { 0%,100% { opacity: .35; transform: scale(.85) } 50% { opacity: 1; transform: scale(1.15) } }
+@keyframes shimmer { 100% { transform: translateX(100%) } }
 .blink { animation: pulse-dot 1.4s ease-in-out infinite; }
-.cursor::after { content: "▍"; animation: pulse-dot 1s steps(2) infinite; color: #39ff88; }
+.cursor::after { content: "▍"; animation: pulse-dot 1s steps(2) infinite; color: #3ddc84; margin-left: 1px; }
+.skeleton { position: relative; overflow: hidden; background: rgba(255,255,255,.05); border-radius: 8px; }
+.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent); animation: shimmer 1.4s infinite; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

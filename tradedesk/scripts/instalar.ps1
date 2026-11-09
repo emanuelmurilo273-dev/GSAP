@@ -1,4 +1,4 @@
-# NEONDESK - instalador para Windows (usa Docker Desktop). Somente ASCII de proposito.
+# HEXADESK - instalador para Windows (usa Docker Desktop). Somente ASCII de proposito.
 # 'Continue': o PowerShell 5 trata texto no stderr de programas nativos (docker) como erro fatal com 'Stop'
 $ErrorActionPreference = 'Continue'
 Set-Location (Split-Path -Parent $PSScriptRoot)
@@ -26,7 +26,7 @@ function Set-Env($name, $value) {
   Write-Env ([regex]::Replace((Read-Env), "(?m)^$name=[ \t]*[^ \t#\r\n]*", "$name=$value  "))
 }
 
-Write-Host "=== NEONDESK - instalador ===" -ForegroundColor Green
+Write-Host "=== HEXADESK - instalador ===" -ForegroundColor Green
 
 # ---------- Docker ----------
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {

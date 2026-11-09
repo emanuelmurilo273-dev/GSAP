@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { apiOwner } from '@/lib/auth';
+import { auditOwner } from '@/lib/owner';
 
 export async function POST(req: Request) {
   const g = await apiOwner();
@@ -9,5 +10,6 @@ export async function POST(req: Request) {
   const { admin } = g.data;
   await admin.from('subscriptions').update({ blocked_by_admin: blocked }).eq('user_id', userId);
   if (blocked) await admin.from('bot_settings').update({ bot_enabled: false }).eq('user_id', userId);
+  await auditOwner(admin, { id: g.data.userId, email: g.data.email }, 'admin.access', { target: userId, blocked }, req);
   return NextResponse.json({ ok: true });
 }

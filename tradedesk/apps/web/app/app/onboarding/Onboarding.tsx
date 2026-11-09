@@ -4,7 +4,7 @@ import { useState } from 'react';
 import ExchangeForm from '@/components/ExchangeForm';
 import { Panel, btn } from '@/components/ui';
 
-export default function Onboarding({ acc, backtest, risk, enabled }: { acc: { exchange: string; hint: string; verified: boolean } | null; backtest: boolean; risk: boolean; enabled: boolean }) {
+export default function Onboarding({ acc, backtest, risk, enabled, exchanges, testnet }: { acc: { exchange: string; hint: string; verified: boolean } | null; backtest: boolean; risk: boolean; enabled: boolean; exchanges: string[]; testnet: boolean }) {
   const router = useRouter();
   const [agree, setAgree] = useState(false);
   const [msg, setMsg] = useState('');
@@ -27,7 +27,7 @@ export default function Onboarding({ acc, backtest, risk, enabled }: { acc: { ex
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm"><Tag n={1} done={!!acc} title="Conectar corretora" /><Tag n={2} done={backtest} title="Rodar backtest" /><Tag n={3} done={risk} title="Termo de risco" /><Tag n={4} done={enabled} title="Ligar robô" /></div>
 
       <Panel title="1 · conectar corretora" accent="#3aa8ff">
-        <ExchangeForm connected={acc} onDone={() => router.refresh()} />
+        <ExchangeForm connected={acc} onDone={() => router.refresh()} exchanges={exchanges} testnet={testnet} />
       </Panel>
 
       <Panel title="2 · backtest obrigatório" accent="#ff4fa3">

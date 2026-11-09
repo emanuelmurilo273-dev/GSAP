@@ -6,7 +6,7 @@ import ParamFields, { toForm, type PForm, fromForm } from '@/components/ParamFie
 import { Panel, btn } from '@/components/ui';
 import { settingsToParams } from '@/lib/params';
 
-export default function SettingsForm({ s, acc }: { s: any; acc: any }) {
+export default function SettingsForm({ s, acc, exchanges, testnet }: { s: any; acc: any; exchanges: string[]; testnet: boolean }) {
   const router = useRouter();
   const [form, setForm] = useState<PForm>(toForm(settingsToParams(s)));
   const [bases, setBases] = useState<string>((s?.bases ?? ['BTC', 'ETH', 'SOL']).join(', '));
@@ -39,7 +39,7 @@ export default function SettingsForm({ s, acc }: { s: any; acc: any }) {
         </form>
       </Panel>
       <Panel title="corretora" accent="#3aa8ff">
-        <ExchangeForm connected={acc ? { exchange: acc.exchange, hint: acc.key_hint, verified: acc.verified } : null} onDone={() => router.refresh()} />
+        <ExchangeForm connected={acc ? { exchange: acc.exchange, hint: acc.key_hint, verified: acc.verified } : null} onDone={() => router.refresh()} exchanges={exchanges} testnet={testnet} />
       </Panel>
     </div>
   );
