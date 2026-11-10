@@ -39,8 +39,8 @@ function Table({ rows, title }: { rows: Any[]; title: string }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-white/[.07] bg-white/[.03]">
       <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-[0.2em] text-dim">{title}</p>
-      <table className="mt-2 w-full text-sm"><thead><tr className="text-left text-xs text-dim"><th className="px-4 py-1 font-normal">&nbsp;</th><th className="font-normal">Op.</th><th className="font-normal">Acerto</th><th className="font-normal">Por op.</th><th className="pr-4 text-right font-normal">Resultado</th></tr></thead>
-        <tbody>{rows.map((g) => <tr key={g.key} className="border-t border-white/5"><td className="px-4 py-1.5">{g.key}</td><td className="font-mono">{g.n}</td><td className="font-mono">{Math.round(g.winRate * 100)}%</td><td className={`font-mono ${col(g.expectancy)}`}>{brl(g.expectancy, true)}</td><td className={`pr-4 text-right font-mono ${col(g.pnl)}`}>{brl(g.pnl, true)}</td></tr>)}</tbody></table>
+      <div className="overflow-x-auto"><table className="mt-2 w-full min-w-[20rem] text-sm"><thead><tr className="text-left text-xs text-dim"><th className="px-4 py-1 font-normal">&nbsp;</th><th className="font-normal">Op.</th><th className="font-normal">Acerto</th><th className="font-normal">Por op.</th><th className="pr-4 text-right font-normal">Resultado</th></tr></thead>
+        <tbody>{rows.map((g) => <tr key={g.key} className="border-t border-white/5"><td className="px-4 py-1.5">{g.key}</td><td className="font-mono">{g.n}</td><td className="font-mono">{Math.round(g.winRate * 100)}%</td><td className={`font-mono ${col(g.expectancy)}`}>{brl(g.expectancy, true)}</td><td className={`pr-4 text-right font-mono ${col(g.pnl)}`}>{brl(g.pnl, true)}</td></tr>)}</tbody></table></div>
     </div>
   );
 }
@@ -94,7 +94,7 @@ export default function StatsView({ stats: s, excluded = 0, since }: { stats: An
         <p className="mt-3 text-xs text-dim">Verde: dia positivo · vermelho: dia negativo. Nenhum dia é omitido.</p>
       </section>
 
-      <div className="grid gap-3 lg:grid-cols-3"><Table title="Por mercado" rows={s.byMarket} /><Table title="Por ativo" rows={s.bySymbol} /><Table title="Por horário (Brasília)" rows={s.byHour} /></div>
+      <div className="grid gap-3 xl:grid-cols-3"><Table title="Por mercado" rows={s.byMarket} /><Table title="Por ativo" rows={s.bySymbol} /><Table title="Por horário (Brasília)" rows={s.byHour} /></div>
 
       <p className="rounded-2xl bg-white/[.03] p-4 text-xs leading-relaxed text-dim">
         Calculado só de operações <b className="text-ink">reais</b> executadas na corretora, cada uma com o ID da ordem{since ? <>; histórico completo desde <b className="text-ink">{new Date(since).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</b></> : null}. Operações sem ID de ordem na corretora não são contadas{excluded ? ` (${excluded} sem ID)` : ''}. Nenhum período ou dia é filtrado para melhorar os números. Operações em renda variável podem gerar perdas. Resultados passados não garantem resultados futuros.

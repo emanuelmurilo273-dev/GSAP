@@ -57,10 +57,10 @@ export const isExchangeId = (x: string): x is ExchangeId => x === 'binance' || x
 export const mercadoEnabled = () => process.env.ENABLE_MERCADO_BITCOIN === 'true';
 /** Corretoras liberadas: EXCHANGES_ENABLED (ex.: "bybit" ou "bybit,binance"; a 1ª é a padrão na tela). Mercado Bitcoin só com ENABLE_MERCADO_BITCOIN=true. */
 export const enabledExchangeIds = (): ExchangeId[] => {
-  const raw = (process.env.EXCHANGES_ENABLED ?? 'binance,bybit').split(',').map((x) => x.trim().toLowerCase());
+  const raw = (process.env.EXCHANGES_ENABLED ?? 'foxbit').split(',').map((x) => x.trim().toLowerCase());
   const ids = raw.filter((x): x is ExchangeId => isExchangeId(x) && (x !== 'mercado' || mercadoEnabled()));
   if (mercadoEnabled() && !ids.includes('mercado') && process.env.EXCHANGES_ENABLED === undefined) ids.push('mercado');
-  return ids.length ? ids : ['binance'];
+  return ids.length ? ids : ['foxbit'];
 };
 /** Testnet (dinheiro de mentira) para Binance e Bybit: EXCHANGE_TESTNET=true (BINANCE_TESTNET continua valendo). */
 export const testnetMode = () => process.env.EXCHANGE_TESTNET === 'true' || process.env.BINANCE_TESTNET === 'true';

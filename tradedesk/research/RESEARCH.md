@@ -278,3 +278,6 @@ O estudo acima é do cripto (legado). As camadas novas do robô da B3 (regime, f
 
 ## Rodada 2 da B3 (famílias de estratégia)
 Ver [`RESEARCH_B3.md`](RESEARCH_B3.md): rompimento da 1ª hora, tendência com filtro de regime, reversão ao VWAP e pullback foram testados com custos e regras v2 no mercado-proxy; **nenhuma passou na seleção**. O robô ainda não tem vantagem; o modo real continua travado.
+
+## Cripto na Foxbit
+Ver [`RESEARCH_CRIPTO_FOXBIT.md`](RESEARCH_CRIPTO_FOXBIT.md): com dados reais da Foxbit (2 anos) e as taxas reais (0,5%/0,25% por lado), a estratégia atual tem fator de lucro **0,37 a 0,63** nos três ativos. Não aprovada.

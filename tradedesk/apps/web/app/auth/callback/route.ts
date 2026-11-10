@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     if (await ensureOwner(admin, data.user)) {
       await auditOwner(admin, data.user, 'owner.login', { method: 'magic_link' }, req);
       // dono cai direto nas operações (/app); exige 2FA — sem fator cadastrado, vai para /owner/security
-      return NextResponse.redirect(publicUrl(req, safeNext.startsWith('/owner') ? safeNext : (process.env.OWNER_HOME ?? '/b3')));
+      return NextResponse.redirect(publicUrl(req, safeNext.startsWith('/owner') ? safeNext : (process.env.OWNER_HOME ?? '/admin')));
     }
   }
   return NextResponse.redirect(publicUrl(req, safeNext));

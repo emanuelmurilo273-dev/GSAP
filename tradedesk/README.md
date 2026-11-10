@@ -4,6 +4,50 @@
 > O código de cripto (Binance/Bybit, pasta `apps/web/app/app`, worker BullMQ) continua no repositório como **legado**, sem uso.
 > **Comece por [`docs/B3-GUIA.md`](docs/B3-GUIA.md)**: conta Clear, MT5, conta DEMO, conector no seu PC e VPS.
 
+
+# 🚀 Produto final: o que é, o que está pronto e o que NÃO está
+
+**HEXADESK** é um robô de trading automático com app web: **cripto 24h na Foxbit** (BTC/BRL, ETH/BRL, SOL/BRL; Mercado Bitcoin como alternativa) e **B3 (WIN/WDO) pelo MT5 da Clear**, durante o pregão. O dinheiro fica na conta do cliente; o app nunca recebe depósitos.
+
+> ## ⛔ Estado honesto: ainda NÃO tem vantagem comprovada
+> - **Cripto na Foxbit** (2 anos de dados e taxas reais, 0,5% por lado): fator de lucro **0,37 a 0,63**, média de **−0,7% a −1,45% por operação** → [`research/RESEARCH_CRIPTO_FOXBIT.md`](research/RESEARCH_CRIPTO_FOXBIT.md).
+> - **B3**: nenhuma das 5 famílias de estratégia passou na seleção → [`research/RESEARCH_B3.md`](research/RESEARCH_B3.md) e [`DIAGNOSTICO.md`](DIAGNOSTICO.md).
+> - Por isso `STRATEGY_APPROVED=false` e `SALES_OPEN=false`: **a venda não abre, a landing mostra lista de espera e clientes não ligam o robô**. A venda só abre quando uma estratégia passar no teste fora da amostra (PF ≥ 1,3 · perda máx. ≤ 15% · ≥ 300 operações) **e** você mudar as duas variáveis.
+
+## O que está implementado
+| Área | Estado |
+|---|---|
+| Foxbit: ordens, **stop STOP_MARKET na corretora**, taxas reais, chave sem saque (por declaração: a Foxbit não expõe permissões), WebSocket oficial no gráfico | ✅ código + testes com corretora simulada; ⚠️ **nunca rodou com chave real** (use `scripts/ordem-minima.ts --confirmo`) |
+| Proteções de cripto: risco ≤ 1% por operação, sem alavancagem, limite diário, **para após 2 perdas**, máx. operações/dia, **pausa se a conta cair 10% do pico** (e avisa) | ✅ testadas |
+| Proteções da B3: stop no servidor, limite em R$, 2 perdas, zeragem 17:30, 1 contrato até provar, volta ao simulador se cair 10% | ✅ testadas (simulador); ⚠️ nunca no MT5 real |
+| Estatísticas **só reais** (com ID da ordem): hoje/semana/mês/ano/total, acerto, expectativa em R$, fator de lucro, sequências, drawdown, custos separados, calendário, por mercado/ativo/horário, **extrato CSV e PDF** | ✅ |
+| Página pública `/resultados` com o histórico completo (dias negativos incluídos) | ✅ |
+| Landing, FAQ, termos, privacidade (LGPD), aviso de risco, lista de espera, checkout Asaas (Pix/cartão) **atrás da aprovação** | ✅ (textos jurídicos são modelo: **precisam de advogado**) |
+| App: Início, Ao vivo, Estatísticas, Histórico, Configurações, onboarding de 3 passos, glossário "?" | ✅ |
+| Dono: login com senha + 2FA, entra no `/admin` (clientes, receita, **saúde do robô de cada cliente**, erros, versões), auditoria | ✅ |
+| Laboratório (dono): simulador/demo da B3 em `/b3`, campeão × desafiante | ✅ (invisível ao público; nada dele entra nas estatísticas) |
+| Alertas: e-mail por operação, limite, queda de conexão, volta ao simulador e **resumo às 18:00**; push opcional via ntfy | ✅ código; exige Resend e um monitor chamando `/api/cron/watchdog` a cada 5 min |
+| Infra: worker com `restart` + healthcheck + alerta se parar, conector com reinício automático, `/api/health` para uptime, `scripts/backup.sh` | ✅ |
+
+## O que NÃO está pronto (limitações reais)
+1. **B3 para clientes**: o conector e as tabelas da B3 são de **uma conta só (a do dono)**. Cada cliente ter o próprio conector MT5 exige multiusuário nas tabelas `b3_*` e um token por conector: **não foi feito**. Hoje a B3 aparece só para o dono; clientes têm cripto.
+2. **Laboratório de cripto (paper trading)** não existe: a Foxbit não tem testnet e não foi construído um simulador de ordens de cripto. O Laboratório cobre só a B3.
+3. **Push** nativo no celular: só via ntfy (opcional). **PDF**: extrato imprimível ("Salvar como PDF" do navegador), não um gerador de PDF.
+4. **Prints do tutorial do MT5/Foxbit**: são esquemas desenhados, não capturas reais.
+5. **Modelo LightGBM e fluxo de ordens** seguem desligados: nenhum passou no protocolo.
+6. Nada foi testado com dinheiro real, chaves reais da Foxbit/Asaas/Resend ou MT5 real.
+
+## Passo a passo para publicar (quando houver estratégia aprovada)
+1. **Contas**: Supabase (banco), Asaas (cobrança), Resend (e-mail), Foxbit (a sua, para o robô do dono), hospedagem do site (Vercel ou o Docker deste repositório) e do worker (Fly.io região `gru` — ver `fly.toml`), VPS Windows em São Paulo para o conector da B3 (guia: `docs/B3-GUIA.md`, seção 5).
+2. **Banco**: rode as migrations `supabase/migrations/001` a `009` em ordem.
+3. **Variáveis** (`.env.example`): chaves do Supabase/Asaas/Resend, `ENCRYPTION_KEY`, `OWNER_EMAIL`, `OWNER_PIX_KEY`, `EXCHANGES_ENABLED=foxbit`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`.
+4. **Conta de dono**: entre com `OWNER_EMAIL`, ative o 2FA (você cai direto em `/admin`).
+5. **Teste com ordem mínima na SUA conta**: `FOXBIT_KEY=... FOXBIT_SECRET=... npx tsx scripts/ordem-minima.ts --confirmo`. Rode o conector B3 na conta demo da Clear por semanas.
+6. **Monitoramento**: um serviço de uptime em `/api/health` e outro chamando `/api/cron/watchdog` (com `CRON_SECRET`) a cada 5 min; agende `scripts/backup.sh` por dia.
+7. **Aprovação**: só com estratégia aprovada (veja acima), ponha `STRATEGY_APPROVED=true` e `SALES_OPEN=true`. Antes disso a landing mantém a lista de espera.
+8. **Jurídico**: peça a um advogado para revisar termos e privacidade e dizer se o serviço exige autorização da CVM.
+
+
 ## ⚠️ Diagnóstico de perdas e proteções v2 (leia primeiro)
 
 O robô estava perdendo dinheiro. Foi feita uma autópsia completa: **[`DIAGNOSTICO.md`](DIAGNOSTICO.md)**.

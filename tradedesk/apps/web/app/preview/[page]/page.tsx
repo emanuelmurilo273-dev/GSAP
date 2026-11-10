@@ -8,7 +8,13 @@ import B3Dashboard from '../../b3/B3Dashboard';
 import Avancado from '../../b3/avancado/page';
 import Comecar from '../../b3/comecar/Comecar';
 import Historico from '../../b3/historico/Historico';
+import ClientHome from '@/components/ClientHome';
+import CryptoLive from '@/components/CryptoLive';
+import StatsView from '@/components/StatsView';
+import HistoricoReal from '../../app/historico/Historico';
+import OnboardingNovo from '../../app/onboarding/Onboarding';
 import Home from '../../b3/Home';
+import { computeStats, healthOf } from '@desk/core';
 import Saude from '../../b3/saude/Saude';
 import Inteligencia from '../../b3/inteligencia/Inteligencia';
 import LiveChart from '../../b3/live/LiveChart';
@@ -104,6 +110,24 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
         </div>
       </div>
     );
+  }
+  if (page === 'c-home' || page === 'c-stats' || page === 'c-live' || page === 'c-hist' || page === 'c-onb') {
+    const now = Date.now(); let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) - 0.5;
+    const tr = Array.from({ length: 60 }, (_, i) => { const t = now - (60 - i) * 14 * 3600_000; const pnl = Math.round((rnd() * 140 + 4) * 100) / 100; return { id: `x${i}`, market: (i % 5 === 0 ? 'b3' : 'cripto') as 'b3' | 'cripto', symbol: i % 5 === 0 ? 'WINZ26' : ['BTC/BRL', 'ETH/BRL', 'SOL/BRL'][i % 3], side: 'buy' as const, openedAt: new Date(t - 5 * 3600_000).toISOString(), closedAt: new Date(t).toISOString(), pnl, fees: 6 + Math.abs(rnd()) * 6, orderId: `ord-${1000 + i}` }; });
+    const stats = computeStats(tr, { startEquity: 10000 });
+    let p = 415000; const candles = Array.from({ length: 160 }, (_, i) => { const o = p; p += rnd() * 700; return { t: Math.floor(now / 300_000) * 300_000 - (159 - i) * 300_000, o, h: Math.max(o, p) + Math.abs(rnd()) * 250, l: Math.min(o, p) - Math.abs(rnd()) * 250, c: p, v: 0.2 + Math.abs(rnd()) * 3 }; });
+    const open = [{ id: 'o1', market: 'cripto', symbol: 'BTC/BRL', side: 'buy', status: 'open', entry: candles[120].c, stop: candles[120].c * 0.97, target: candles[120].c * 1.06, openedAt: new Date(candles[120].t).toISOString(), closedAt: null, pnl: null, orderId: 'ord-9001', why: 'Comprei BTC porque a nota técnica ficou em 0,78: tendência de alta, volume acima da média e RSI saudável. Stop 3% e alvo 6%.' },
+      { id: 'o2', market: 'cripto', symbol: 'BTC/BRL', side: 'buy', status: 'closed', entry: candles[60].c, exit: candles[80].c, stop: 0, target: 0, openedAt: new Date(candles[60].t).toISOString(), closedAt: new Date(candles[80].t).toISOString(), pnl: 54.3, orderId: 'ord-8800', reason: 'alvo atingido', why: null }];
+    const home = { connected: true, exchange: 'foxbit', enabled: true, pausedReason: null, quote: 'BRL', equity: 10412.35, live: true, error: null, dayPnl: 120.4, dayPct: 0.0117, halted: false, haltedReason: null, open: [{ symbol: 'BTC/BRL' }], logs: [], health: healthOf(tr.slice(-30).map((t) => t.pnl)), b3: { enabled: true, mode: 'real', positions: [], dayPnl: 0 }, hasB3: true };
+    return (
+      <div className="mx-auto max-w-3xl px-4 pb-12 sm:px-6"><header className="flex items-center justify-between py-4"><Logo /><span className="text-xs text-dim">{page}</span></header>
+        <div className="mb-4 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div>
+        {page === 'c-home' && <ClientHome demo={home} />}
+        {page === 'c-stats' && <><h1 className="mb-4 text-2xl font-semibold tracking-tight">Estatísticas</h1><StatsView stats={stats} since={tr[0].closedAt} /></>}
+        {page === 'c-live' && <><h1 className="mb-4 text-2xl font-semibold tracking-tight">Ao vivo</h1><CryptoLive demo={{ candles, trades: open }} /></>}
+        {page === 'c-hist' && <><h1 className="mb-4 text-2xl font-semibold tracking-tight">Histórico</h1><HistoricoReal demo={[...open, ...tr.slice(-8).map((t) => ({ ...t, status: 'closed', volume: 1, reason: 'alvo atingido', why: null }))].map((t: any) => ({ ...t, pnl: t.pnl }))} /></>}
+        {page === 'c-onb' && <OnboardingNovo acc={{ exchange: 'foxbit', hint: '9f3a', verified: false }} risk={false} enabled={false} exchanges={['foxbit']} testnet={false} equity={10000} />}
+      </div>);
   }
   if (page === 'b3-historico' || page === 'b3-comecar' || page === 'b3-avancado') {
     const now = Date.now();

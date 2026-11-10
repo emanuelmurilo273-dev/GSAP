@@ -12,7 +12,7 @@ export default function Waitlist() {
   return (
     <form onSubmit={go} className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row"><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" aria-label="E-mail" className="!w-auto flex-1 rounded-2xl border border-white/10 bg-transparent px-4 py-3" /><button className="rounded-2xl bg-executor px-6 py-3 font-semibold text-bg hover:brightness-110">Entrar na lista de espera</button></div>
-      <label className="flex items-start gap-2 text-xs text-dim"><input type="checkbox" className="mt-0.5 !w-auto" checked={c} onChange={(e) => setC(e.target.checked)} />Aceito receber um e-mail quando a venda abrir. Uso só o e-mail para isso (<a className="underline" href="/privacy">privacidade</a>).</label>
+      <label className="flex items-start gap-2 text-xs normal-case tracking-normal text-dim"><input type="checkbox" className="mt-0.5 !w-auto" checked={c} onChange={(e) => setC(e.target.checked)} />Aceito receber um e-mail quando a venda abrir. Uso só o e-mail para isso (<a className="underline" href="/privacy">privacidade</a>).</label>
       {err && <p role="alert" className="text-sm text-risk">{err}</p>}
     </form>
   );
