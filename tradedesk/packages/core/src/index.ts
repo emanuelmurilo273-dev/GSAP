@@ -19,3 +19,4 @@ export * from './health';
 export * from './protections';
 export * from './stats';
 export * from './emergency';
+export * from './autopsy';

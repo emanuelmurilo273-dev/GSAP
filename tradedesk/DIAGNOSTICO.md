@@ -1,3 +1,22 @@
+# 🛑 EMERGÊNCIA — perdas reais (atualização)
+
+**Conclusão em uma frase: o robô NÃO tem vantagem.** Ele perde dinheiro por construção, e não por um bug isolado.
+
+## O que eu consegui medir (e o que não)
+- **Não tenho acesso às suas contas nem ao seu banco**, então **não sei o valor exato que você perdeu**. Os números reais saem dos seus dados com as ferramentas já prontas, que só leem e não alteram nada:
+  - **Cripto:** `Autopsia-Cripto-Windows.bat` (ou `Autopsia-Cripto-Mac.command`) → gera `DIAGNOSTICO-CRIPTO-SEUS-DADOS.md` com expectativa em R$, custos, recortes (ativo, horário, dia, setup, saída), as 20 piores, comparação com o backtest e auditoria de execução.
+  - **B3:** `connector\Autopsia.bat` → `DIAGNOSTICO-SEUS-DADOS.md`.
+- **O que dá para afirmar sem os seus dados**, porque vem de dados públicos da Foxbit e do próprio código:
+  1. **A estratégia de cripto perde por si só.** Com 2 anos de dados reais da Foxbit e as taxas reais (0,5% por lado), o fator de lucro foi **0,37 a 0,63** e a média por operação **−0,71% a −1,45%**. O prejuízo real que você viu é **coerente com o backtest**: não é overfitting nem azar.
+  2. **As taxas consomem o alvo.** Ida e volta custa ~1% (taker) ou ~0,5% (maker) contra um alvo de 6%, e mais a derrapagem dos stops.
+  3. **A B3 também não tem vantagem comprovada**: das 5 famílias testadas nenhuma passou na seleção (ver `research/RESEARCH_B3.md`), e as regras antigas operavam demais, com stop dentro do ruído.
+
+## Ações imediatas já no código
+- **Chave geral de emergência** (`kill_switch`): liga na migration `010_emergencia.sql`, e o worker de cripto, o conector da B3 e o site **recusam** operar enquanto ela estiver ligada. Botão no `/admin`, e `Parar-Emergencia-Windows.bat` / `Parar-Emergencia-Mac.command` desligam tudo e vendem as posições a mercado.
+- Religar só pelo dono, **com estratégia aprovada** e a frase `RELIGAR APÓS APROVAÇÃO`.
+
+---
+
 # DIAGNÓSTICO — por que o robô perde dinheiro
 
 > **Resumo em 5 linhas**
