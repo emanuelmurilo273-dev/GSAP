@@ -1,5 +1,5 @@
 import {
-  MAX_TRADES_PER_DAY_DEFAULT, adminAlert, buildSeries, killSwitchOn, decrypt, hasAccess, isKeyError, log, makeExchange, realModeAllowed, sendEmail, emailLayout, setAgent, APP_NAME,
+  ADX_MIN, MAX_TRADES_PER_DAY_DEFAULT, adminAlert, adx, atrRules, buildSeries, killSwitchOn, decrypt, hasAccess, isKeyError, log, makeExchange, realModeAllowed, sendEmail, emailLayout, setAgent, APP_NAME,
   type Candle, type Ex, type ExchangeId, type Quote, type StrategyParams, type SubscriptionRow, type TradeRow,
 } from '@desk/core';
 import { analyze } from '../agents/analyst';
@@ -119,9 +119,10 @@ export async function runUserCycle(userId: string) {
 }
 
 async function processSymbol(
-  ex: Ex, userId: string, symbol: string, c: Candle[], p: StrategyParams, quote: Quote,
+  ex: Ex, userId: string, symbol: string, c: Candle[], p0: StrategyParams, quote: Quote,
   open: TradeRow[], equity: number, free: number,
 ) {
+  let p = p0;
   const last = c[c.length - 1];
   const series = buildSeries(c);
   const i = c.length - 1;
@@ -136,6 +137,17 @@ async function processSymbol(
     await mark(null);
     return;
   }
+
+  // MERCADO LATERAL: ADX < 20 → não opera (cruzamento/rompimento em vai-e-volta é onde o robô mais perdia)
+  const ax = adx(c)[i];
+  if (ax < ADX_MIN) {
+    await log(sb, userId, 'filter', 'refuse', `RECUSA ${symbol}: mercado lateral (ADX ${ax.toFixed(0)} < ${ADX_MIN})`);
+    await mark(null);
+    return;
+  }
+  // stop TÉCNICO por ATR e alvo 1:2 (substituem o stop/alvo fixos); no máximo 1 posição por vez
+  const rules = atrRules(series.atrPct[i]);
+  p = { ...p, stopPct: rules.stopPct, targetPct: rules.targetPct, maxPositions: 1 };
 
   // ANALYST
   await setAgent(sb, userId, 'analyst', 'working', symbol);

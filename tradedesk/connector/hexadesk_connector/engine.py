@@ -78,6 +78,7 @@ class Engine:
         self.last_orphan_check = -1e9
         self.peak: float | None = None
         self.blocks: dict = {}
+        self.default_blocks: dict = {"regimes": list(safety.DEFAULT_BLOCKED_REGIMES)}   # sem mercado lateral/volátil (vale mesmo sem versão campeã)
         self.intel = IntelPipeline()          # camadas de inteligência: TODAS desligadas até o campeão ligar alguma
         self.champion_id = None
         self._champ_cfg: dict | None = None
@@ -372,6 +373,8 @@ class Engine:
             return
         self._refresh_real_stats(s)
         s = effective_settings(s, self.real_cache)
+        if self.rules == "v2":      # EMERGÊNCIA: 1 contrato fixo e no máximo 3 operações por dia, qualquer que seja a configuração
+            s = {**s, "max_contracts": safety.FIXED_CONTRACTS, "max_trades_per_day": min(int(s["max_trades_per_day"]), safety.MAX_TRADES_PER_DAY)}
         if not self._ensure_connection(s):
             self.state = "error"
             self._heartbeat(now, s, None)
@@ -441,6 +444,8 @@ class Engine:
     def _entries(self, s: dict, acct: Account, now: datetime, sess: dict) -> None:
         held = {p.symbol for p in self.gw.positions()}
         for root in s["symbols"]:
+            if self.rules == "v2" and held:
+                return    # EMERGÊNCIA: uma posição por vez, no total (WIN e WDO nunca ao mesmo tempo)
             contract = self._contract(root, now.date())
             if any(h.startswith(root) for h in held):
                 continue  # no máximo 1 posição por ativo
@@ -480,7 +485,8 @@ class Engine:
         blocked, why = NewsFilter(15, True).blocked(ctx["now"], ctx.get("user_events"))
         if blocked:
             return why
-        return safety.blocked_by_config(self.blocks, root, ctx["now"], side, regime)
+        blocks = {**self.blocks, "regimes": sorted(set(self.default_blocks.get("regimes", [])) | set(self.blocks.get("regimes", [])))}
+        return safety.blocked_by_config(blocks, root, ctx["now"], side, regime)
 
     def _open(self, s: dict, acct: Account, root: str, contract: str, side: str, sess: dict, dec=None) -> None:
         spec = self.gw.spec(contract)

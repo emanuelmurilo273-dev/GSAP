@@ -3,8 +3,8 @@ Nascidas da autópsia (DIAGNOSTICO.md): stop fixo dentro do ruído do mercado, c
 
   * não opera nos primeiros 15 min do pregão (abertura = leilão/gap/spread largo);
   * não opera 15 min antes/depois de notícia forte (calendário do painel + abertura de Nova York);
-  * para o dia depois de 2 perdas SEGUIDAS;
-  * stop TÉCNICO: além do último fundo/topo e ao menos 1×ATR (não um número fixo); alvo = stop × relação risco/retorno (mínimo 1:1,5);
+  * para o dia depois de 1 perda (perfil inicial de emergência);
+  * stop TÉCNICO: além do último fundo/topo e ao menos 1×ATR (não um número fixo); alvo = stop × relação risco/retorno (mínimo 1:2);
   * o stop técnico nunca pode passar do risco permitido pelo perfil: se passar, NÃO entra (operar menos);
   * bloqueios por horário/ativo/regime/lado só entram quando o diagnóstico prova prejuízo consistente (config da versão, campo `blocks`);
   * PROIBIDO: martingale, preço médio contra a posição, aumentar a mão para recuperar, tirar o stop (não existe código que faça isso).
@@ -16,8 +16,11 @@ from datetime import datetime, time
 from .intel.indicators import atr
 
 FIRST_ENTRY = time(9, 15)       # nada antes disso, mesmo que o painel diga 09:05
-MIN_RR = 1.5
-MAX_LOSSES_IN_ROW = 2
+MIN_RR = 2.0                    # EMERGÊNCIA: risco/retorno mínimo 1:2
+MAX_LOSSES_IN_ROW = 1           # EMERGÊNCIA (perfil inicial): para o dia após 1 perda
+MAX_TRADES_PER_DAY = 3          # no máximo 3 operações por dia, só sinais de qualidade
+FIXED_CONTRACTS = 1             # 1 contrato fixo
+DEFAULT_BLOCKED_REGIMES = ("lateral", "volatil")   # não opera em mercado lateral nem agitado demais
 ATR_MIN_MULT = 1.0              # stop nunca menor que 1×ATR
 ATR_MAX_MULT = 3.0              # nem maior que 3×ATR (stop gigante = tamanho de mão minúsculo e alvo irreal)
 SWING_BARS = 8                  # estrutura: último fundo/topo das últimas 8 barras fechadas
@@ -59,7 +62,7 @@ def blocked_by_config(blocks: dict | None, root: str, now: datetime, side: str, 
     if side in (b.get("sides") or []):
         return f"{'compra' if side == 'buy' else 'venda'} bloqueada: prejuízo consistente no diagnóstico"
     if regime and regime in (b.get("regimes") or []):
-        return f"regime {regime} bloqueado: prejuízo consistente no diagnóstico"
+        return f"mercado {'lateral' if regime == 'lateral' else 'agitado demais' if regime == 'volatil' else regime}: o robô não opera nesse regime"
     slot = f"{now.hour:02d}:{(now.minute // 30) * 30:02d}"
     if slot in (b.get("hours") or []):
         return f"faixa das {slot} bloqueada: prejuízo consistente no diagnóstico"

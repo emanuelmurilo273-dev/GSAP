@@ -29,6 +29,7 @@ def make(settings=None, hour=10, minute=0):
     gw.bars["WINZ26"] = bars()
     store = MemoryStore({**SET, **(settings or {})})
     eng = Engine(gw, store, Config(), SECRETS, now_fn=clock.now, mono_fn=clock.mono, signal_fn=sig, rules="v2")
+    eng.default_blocks = {}          # estes testes cobrem as outras regras; o filtro de regime tem teste próprio (RegimeAndCaps)
     return eng, gw, store, clock, sig
 
 
@@ -40,13 +41,13 @@ class Rules(unittest.TestCase):
         clock.set(9, 15); sig.fire(); run(eng, clock)
         self.assertEqual(len(gw.positions()), 1)
 
-    def test_stop_is_technical_atr_based_and_target_is_at_least_1_to_1_5(self):
-        eng, gw, store, clock, sig = make(dict(rr=1.0))          # painel pede 1:1 → o motor força 1:1,5
+    def test_stop_is_technical_atr_based_and_target_is_at_least_1_to_2(self):
+        eng, gw, store, clock, sig = make(dict(rr=1.0))          # painel pede 1:1 → o motor força 1:2
         run(eng, clock); sig.fire(); run(eng, clock)
         p = gw.positions()[0]
         self.assertEqual(p.price_open - p.sl, 120)               # 1×ATR (estrutura = 95 < 1×ATR)
-        self.assertEqual(p.tp - p.price_open, 180)               # 1,5 × stop
-        self.assertEqual(p.volume, 2)                            # risco 60 / (120 × 0,20)
+        self.assertEqual(p.tp - p.price_open, 240)               # 2 × stop
+        self.assertEqual(p.volume, 1)                            # 1 contrato FIXO, mesmo que o risco comportasse 2
         t = store.trades[0]
         self.assertEqual(t["atr_pts"], 120.0)
         self.assertTrue(t["why"].startswith("Comprei"))
@@ -66,25 +67,23 @@ class Rules(unittest.TestCase):
         self.assertEqual(gw.positions(), [])
         self.assertTrue(store.has_log("maior que o risco permitido"))
 
-    def test_two_losses_in_a_row_stop_the_day(self):
+    def test_one_loss_stops_the_day(self):
         eng, gw, store, clock, sig = make()
-        run(eng, clock)
-        for i in range(2):
-            sig.fire(); run(eng, clock)
-            p = gw.positions()[0]
-            gw.move("WINZ26", p.sl - 5); run(eng, clock)            # stop no servidor
-            self.assertEqual(gw.positions(), [])
-        self.assertTrue(store.has_log("2 PERDAS SEGUIDAS"))
+        run(eng, clock); sig.fire(); run(eng, clock)
+        gw.move("WINZ26", gw.positions()[0].sl - 5); run(eng, clock)               # stop no servidor
+        self.assertEqual(gw.positions(), [])
+        self.assertTrue(store.has_log("1 PERDAS SEGUIDAS"))
         sig.fire(); run(eng, clock)
-        self.assertEqual(gw.positions(), [], "depois de 2 perdas seguidas não entra mais hoje")
+        self.assertEqual(gw.positions(), [], "depois de 1 perda não entra mais hoje")
         self.assertEqual(eng.state, "halted")
+        clock.advance(86400); clock.set(10, 0); sig.fire(); run(eng, clock, 2)    # amanhã recomeça
+        self.assertEqual(len(gw.positions()), 1)
 
-    def test_a_win_resets_the_losing_streak(self):
+    def test_a_win_keeps_the_day_going_until_the_first_loss(self):
         eng, gw, store, clock, sig = make()
         run(eng, clock)
-        sig.fire(); run(eng, clock); gw.move("WINZ26", gw.positions()[0].sl - 5); run(eng, clock)      # perda
         sig.fire(); run(eng, clock); gw.move("WINZ26", gw.positions()[0].tp + 5); run(eng, clock)      # ganho
-        sig.fire(); run(eng, clock)
+        gw.move("WINZ26", 130_000); sig.fire(); run(eng, clock)
         self.assertEqual(len(gw.positions()), 1)                  # continua operando
         self.assertEqual(eng.day_losses, 0)
 
@@ -114,13 +113,11 @@ class Rules(unittest.TestCase):
         sig.fire(); run(eng, clock)
         self.assertEqual(len(gw.positions()), 1)
 
-    def test_size_never_grows_after_a_loss(self):
-        eng, gw, store, clock, sig = make()
+    def test_size_is_always_one_contract_and_never_grows(self):
+        eng, gw, store, clock, sig = make(dict(max_contracts=30, risk_per_trade_brl=900, profile="agressivo"))
         run(eng, clock)
-        sig.fire(); run(eng, clock); first = gw.positions()[0].volume
-        gw.move("WINZ26", gw.positions()[0].sl - 5); run(eng, clock)
         sig.fire(); run(eng, clock)
-        self.assertLessEqual(gw.positions()[0].volume, first)     # proibido aumentar a mão para recuperar
+        self.assertEqual(gw.positions()[0].volume, 1)             # painel pede 30: vale 1
 
     def test_costs_are_recorded_separately_gross_vs_net(self):
         eng, gw, store, clock, sig = make()
@@ -134,27 +131,53 @@ class Rules(unittest.TestCase):
         self.assertAlmostEqual(t["gross_pnl"] - t["fees"], t["pnl"], places=2)
 
     def test_new_trade_must_fit_in_what_is_left_of_the_daily_loss_limit(self):
-        eng, gw, store, clock, sig = make(dict(daily_loss_brl=40))      # cada operação arrisca ~R$ 24 por contrato
-        run(eng, clock)
-        sig.fire(); run(eng, clock); self.assertEqual(gw.positions()[0].volume, 1)      # cabem só 1 contrato (R$ 24) nos R$ 40
-        gw.move("WINZ26", gw.positions()[0].sl - 5); run(eng, clock)      # perde ~R$ 24; sobram R$ 16
-        sig.fire(); run(eng, clock)
-        self.assertEqual(gw.positions(), [], "sobram R$ 16 e a operação arrisca R$ 24: não entra (o limite nunca é estourado)")
+        eng, gw, store, clock, sig = make(dict(daily_loss_brl=20))          # 1 contrato arrisca ~R$ 24 (120 pts × R$ 0,20)
+        run(eng, clock); sig.fire(); run(eng, clock)
+        self.assertEqual(gw.positions(), [], "o limite do dia (R$ 20) não comporta nem 1 contrato (R$ 24): não entra")
         self.assertTrue(store.has_log("sobra só"))
-        eng2, gw2, store2, clock2, sig2 = make(dict(daily_loss_brl=30, risk_per_trade_brl=60))
-        run(eng2, clock2); sig2.fire(); run(eng2, clock2)
-        self.assertEqual(gw2.positions()[0].volume, 1, "com R$ 30 de limite só cabe 1 contrato (R$ 24), nunca 2 (R$ 48)")
-        sig2.fire(); run(eng2, clock2)
-        self.assertEqual(len(gw2.positions()), 1, "já há uma aberta arriscando R$ 24: não cabe outra no mesmo ativo/limite")
+
+    def test_max_three_trades_a_day_even_if_panel_says_ten(self):
+        eng, gw, store, clock, sig = make(dict(max_trades_per_day=10))
+        run(eng, clock)
+        for _ in range(5):
+            sig.fire(); run(eng, clock)
+            for p in gw.positions(): gw.move("WINZ26", p.tp + 5)
+            run(eng, clock); gw.move("WINZ26", 130_000)
+        self.assertEqual(len(store.trades), 3)
 
     def test_helpers(self):
-        self.assertEqual(safety.effective_rr(0.5), 1.5)
-        self.assertEqual(safety.effective_rr(2.0), 2.0)
+        self.assertEqual(safety.effective_rr(0.5), 2.0)
+        self.assertEqual(safety.effective_rr(3.0), 3.0)
         self.assertIsNone(safety.technical_stop(bars(10), "buy", 130_000, 5, 500)[0])
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RegimeAndCaps(unittest.TestCase):
+    def test_only_one_position_at_a_time_across_assets(self):
+        eng, gw, store, clock, sig = make(dict(symbols=["WIN", "WDO"]))
+        gw.bars["WDOZ26"] = [(t, o / 24.0, h / 24.0, l / 24.0, c / 24.0, v) for t, o, h, l, c, v in gw.bars["WINZ26"]]; gw.prices["WDOZ26"] = 5416.0
+        eng.signal_fn = lambda c: ("buy", float(len(c) + clock.m))                      # sinal nos dois ativos
+        run(eng, clock, 4)
+        self.assertLessEqual(len(gw.positions()), 1)
+
+
+    def test_sideways_market_is_never_traded(self):
+        eng, gw, store, clock, sig = make()
+        eng.default_blocks = {"regimes": ["lateral", "volatil"]}                       # o padrão de verdade
+        run(eng, clock); sig.fire(); run(eng, clock)                                   # candles de teste = mercado de vai-e-volta (ADX baixo)
+        self.assertEqual(gw.positions(), [])
+        self.assertTrue(any(d["decision"] == "nao_entrou" and "não opera nesse regime" in d["reason"] for d in store.decisions))
+
+    def test_trending_market_is_allowed(self):
+        eng, gw, store, clock, sig = make()
+        eng.default_blocks = {"regimes": ["lateral", "volatil"]}
+        b = [(1_000_000 + i * 300, 130_000 + i * 70.0, 130_000 + i * 70.0 + 80, 130_000 + i * 70.0 - 40, 130_000 + i * 70.0 + 60, 100) for i in range(80)]
+        gw.bars["WINZ26"] = b; gw.prices["WINZ26"] = b[-1][4]
+        run(eng, clock); sig.fire(); run(eng, clock)
+        self.assertTrue(any(d["decision"] == "entrou" for d in store.decisions) or gw.positions() or any("volátil" in d["reason"] for d in store.decisions))
 
 
 class Emergency(unittest.TestCase):

@@ -30,11 +30,12 @@ class EndToEnd(unittest.TestCase):
     def test_full_cycle_turn_on_trade_stop_target_flat_alerts(self):
         st = MemoryStore(dict(S))
         r = SimRunner(st, Config(), seed=8)
+        r.engine.default_blocks = {}                                        # (o filtro de lateral/agitado reduz muito as entradas: testado à parte)
         self.assertTrue(r.autostart())                                      # LIGAR (o simulador liga uma vez, o dono pausa quando quiser)
         self.assertTrue(st.settings["enabled"])
-        eod = run_days(r, 25)
+        eod = run_days(r, 60)
         closed = [t for t in st.trades if t["status"] == "closed"]
-        self.assertGreater(len(closed), 15)                                 # OPEROU
+        self.assertGreater(len(closed), 12)                                 # OPEROU
         self.assertTrue(any(t["pnl"] > 0 for t in closed) and any(t["pnl"] < 0 for t in closed))     # alvo E stop aconteceram
         self.assertTrue(all(t["sl"] and t["tp"] and t.get("why") and t.get("regime") for t in closed))   # stop/alvo no servidor e explicação gravada
         self.assertTrue(all(abs(t["gross_pnl"] - t["fees"] - t["pnl"]) < 0.01 for t in closed))          # custo separado do bruto
@@ -47,7 +48,7 @@ class EndToEnd(unittest.TestCase):
 
     def test_daily_loss_limit_halts_the_day_and_alerts(self):
         st = MemoryStore(dict(S, daily_loss_brl=60, enabled=True, max_trades_per_day=20))
-        r = SimRunner(st, Config(), seed=3)
+        r = SimRunner(st, Config(), seed=3); r.engine.default_blocks = {}
         eod = run_days(r, 30)
         halted = [v for v in st.sessions.values() if v.get("halted")]
         self.assertTrue(halted, "em 30 pregões com limite de R$ 60 pelo menos um dia deveria parar")
@@ -56,18 +57,19 @@ class EndToEnd(unittest.TestCase):
         for key, sess in st.sessions.items():          # NUNCA estourou o limite (a operação só entra se o risco cabe no que resta)
             self.assertGreater(sess["pnl"], -60 * 1.35, f"{key}: perdeu {sess['pnl']}")
 
-    def test_stop_after_two_losses_in_a_row(self):
+    def test_stop_after_one_loss_in_the_day(self):
         st = MemoryStore(dict(S, enabled=True, daily_loss_brl=5000, max_trades_per_day=30))
-        r = SimRunner(st, Config(), seed=5)
-        run_days(r, 30)
+        r = SimRunner(st, Config(), seed=5); r.engine.default_blocks = {}
+        run_days(r, 60)
         by_day = {}
         for t in sorted((t for t in st.trades if t["status"] == "closed"), key=lambda t: t["opened_at"]):
             by_day.setdefault(t["opened_at"][:10], []).append(t["pnl"])
-        for day, pnls in by_day.items():               # nunca há uma 3ª operação depois de 2 perdas seguidas no mesmo dia
-            streak = 0
-            for p in pnls:
-                self.assertLess(streak, 2, f"{day}: operou depois de 2 perdas seguidas")
-                streak = streak + 1 if p < 0 else 0
+        halted = [k for k, v in st.sessions.items() if v.get("halt_reason") == "1 perdas seguidas"]
+        self.assertGreaterEqual(len(halted), 3, "o teste só vale se a regra disparou em vários dias")
+        for day, pnls in by_day.items():               # nunca há uma operação DEPOIS de uma perda no mesmo dia
+            for i, p in enumerate(pnls[:-1]):
+                self.assertGreaterEqual(p, 0, f"{day}: operou de novo depois de uma perda")
+        self.assertLessEqual(max(len(v) for v in by_day.values()), 3)          # nunca mais que 3 operações no dia
 
 
 if __name__ == "__main__":

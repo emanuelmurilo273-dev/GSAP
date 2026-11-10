@@ -302,19 +302,17 @@ test('Trava de 10% do pico: pausa o robô, grava o motivo e só dispara a partir
   assert.equal(c.paused, false); assert.equal(sb.rows('bot_settings')[0].peak_equity, 13_000);
 });
 
-test('Risk: duas perdas seguidas no dia param o robô até amanhã (e uma vitória no meio zera a conta)', async () => {
+test('Risk: UMA perda no dia para o robô até amanhã (perfil inicial); se a última foi ganho, continua', async () => {
   const { sb, as } = setup();
-  const day = new Date().toISOString();
-  const add = (pnl: number, min: number) => sb.rows('trades').push({ id: `t${min}`, user_id: U, status: 'closed', pnl, exit_at: new Date(`${brtDay()}T01:${String(60 - min).padStart(2, '0')}:00-03:00`).toISOString(), symbol: 'BTC/USDT' });   // horários fixos dentro do dia de Brasília (sem depender da hora em que o teste roda)
-  add(-5, 30); add(+8, 20); add(-3, 10);
+  const add = (pnl: number, min: number) => sb.rows('trades').push({ id: `t${min}`, user_id: U, status: 'closed', pnl, exit_at: new Date(`${brtDay()}T01:${String(60 - min).padStart(2, '0')}:00-03:00`).toISOString(), symbol: 'BTC/USDT' });   // horários fixos dentro do dia de Brasília
+  add(-5, 30); add(+8, 20);
   const g1 = await dailyGuard(as, U, 10_000, P);
-  assert.equal(g1.halted, false);                                                             // perda, ganho, perda: sequência = 1
-  add(-4, 5);
+  assert.equal(g1.halted, false);                                                             // perda, depois ganho: sequência = 0
+  add(-3, 10);
   const g2 = await dailyGuard(as, U, 10_000, P);
-  assert.equal(g2.halted, true);                                                              // duas perdas seguidas
-  assert.match(String(sb.rows('daily_state')[0].halted_reason), /2 perdas seguidas/);
-  void day;
-});
+  assert.equal(g2.halted, true);                                                              // 1 perda no fim: para
+  assert.match(String(sb.rows('daily_state')[0].halted_reason), /1 perdas seguidas/);
+});   // horários fixos dentro do dia de Brasília (sem depender da hora em que o teste roda)
 
 // ----------------------------------------------------------------- EMERGÊNCIA
 import { encrypt, haltEverything, killSwitchOn, releaseKillSwitch } from '@desk/core';

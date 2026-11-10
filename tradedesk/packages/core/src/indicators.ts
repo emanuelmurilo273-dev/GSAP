@@ -82,3 +82,20 @@ export function atr(c: Candle[], p = 14): number[] {
   }
   return out;
 }
+
+/** ADX de Wilder (força da tendência, 0–100). Abaixo de ~20 o mercado está lateral. Os primeiros 2×p valores são pouco confiáveis. */
+export function adx(c: Candle[], p = 14): number[] {
+  const n = c.length; if (n < 2) return new Array(n).fill(0);
+  const tr: number[] = [0], pdm: number[] = [0], mdm: number[] = [0];
+  for (let i = 1; i < n; i++) {
+    const up = c[i].h - c[i - 1].h, dn = c[i - 1].l - c[i].l;
+    pdm.push(up > dn && up > 0 ? up : 0); mdm.push(dn > up && dn > 0 ? dn : 0);
+    tr.push(Math.max(c[i].h - c[i].l, Math.abs(c[i].h - c[i - 1].c), Math.abs(c[i].l - c[i - 1].c)));
+  }
+  const wilder = (v: number[]) => { const o: number[] = new Array(n).fill(0); let s = 0; for (let i = 1; i <= p && i < n; i++) s += v[i]; if (n > p) o[p] = s; for (let i = p + 1; i < n; i++) o[i] = o[i - 1] - o[i - 1] / p + v[i]; return o; };
+  const atr = wilder(tr), P = wilder(pdm), M = wilder(mdm), dx = new Array(n).fill(0);
+  for (let i = p; i < n; i++) { const pi = atr[i] ? (100 * P[i]) / atr[i] : 0, mi = atr[i] ? (100 * M[i]) / atr[i] : 0; dx[i] = pi + mi ? (100 * Math.abs(pi - mi)) / (pi + mi) : 0; }
+  const out = new Array(n).fill(0); let s = 0; for (let i = p; i < 2 * p && i < n; i++) s += dx[i]; if (n > 2 * p) out[2 * p - 1] = s / p;
+  for (let i = 2 * p; i < n; i++) out[i] = (out[i - 1] * (p - 1) + dx[i]) / p;
+  return out;
+}
