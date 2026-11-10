@@ -110,6 +110,13 @@ Para o robô rodar o dia todo sem o seu PC, use uma **VPS Windows em São Paulo*
 
 ---
 
+## Como usar no Mac (1 duplo clique)
+
+1. Instale o **Docker Desktop** (docker.com; escolha Apple Silicon ou Intel) e o **Node.js LTS** (nodejs.org).
+2. Na pasta do projeto, dê duplo clique em **`Instalar-Mac.command`** (se o macOS bloquear: botão direito → Abrir → Abrir; ou no Terminal: `bash Instalar-Mac.command`).
+3. Ele cria o banco e o login locais, pede seu e-mail e senha de dono e abre o site já logado. Para parar: `Parar-Mac.command`.
+4. **Limite do Mac:** o conector do MetaTrader 5 (B3) **só roda no Windows**. No Mac sobem o site, o robô de cripto (Foxbit) e o Laboratório; para a B3 use um PC ou uma VPS Windows (`docs/B3-GUIA.md`).
+
 ## Como usar no Windows (1 clique, sem criar conta em site nenhum)
 1. Instale o **Docker Desktop** e o **Node.js (versão LTS)**. Abra o Docker Desktop (espere ficar verde).
 2. Extraia a pasta e dê duplo clique em **`Instalar-Windows.bat`**.
