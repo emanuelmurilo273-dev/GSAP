@@ -1,3 +1,5 @@
+import { salesOpen } from '@desk/core';
+import { redirect } from 'next/navigation';
 import { Logo, Panel } from '@/components/ui';
 import { brl, getPlanPrice } from '@/lib/price';
 import CheckoutForm from './CheckoutForm';
@@ -5,6 +7,7 @@ import CheckoutForm from './CheckoutForm';
 export const dynamic = 'force-dynamic';
 
 export default async function Checkout() {
+  if (!salesOpen()) redirect('/#faq');   // venda fechada até a estratégia ser aprovada
   const price = await getPlanPrice();
   return (
     <main className="mx-auto max-w-lg px-4 py-6">

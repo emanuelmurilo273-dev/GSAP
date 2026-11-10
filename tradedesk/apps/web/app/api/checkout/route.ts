@@ -1,4 +1,4 @@
-import { asaas } from '@desk/core';
+import { asaas, salesOpen } from '@desk/core';
 import { NextResponse } from 'next/server';
 import { getPlanPrice } from '@/lib/price';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -15,6 +15,7 @@ function limited(ip: string) {
 }
 
 export async function POST(req: Request) {
+  if (!salesOpen()) return NextResponse.json({ error: 'A venda ainda não está aberta (a estratégia ainda não foi aprovada). Entre na lista de espera.' }, { status: 403 });
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0] ?? 'ip';
   if (limited(ip)) return NextResponse.json({ error: 'muitas tentativas, aguarde' }, { status: 429 });
   const b = await req.json().catch(() => ({}));

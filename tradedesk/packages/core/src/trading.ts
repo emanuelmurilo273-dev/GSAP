@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Ex } from './exchange';
 import { stopOrderParams } from './quirks';
-import type { TradeRow } from './types';
+import { takerFee, type TradeRow } from './types';
 
 export const DEFAULT_FEE = 0.001;
 
@@ -21,7 +21,7 @@ export async function setAgent(sb: SupabaseClient, userId: string, agent: string
 }
 
 /** Taxa real da ordem convertida p/ moeda de cotação; cai no padrão se a corretora não informar. */
-export function feeInQuote(order: any, price: number, base: string, quote: string, notional: number): number {
+export function feeInQuote(order: any, price: number, base: string, quote: string, notional: number, exchangeId = ''): number {
   const fees: { currency?: string; cost?: number }[] = order?.fees?.length ? order.fees : order?.fee ? [order.fee] : [];
   let total = 0;
   let known = false;
@@ -30,7 +30,7 @@ export function feeInQuote(order: any, price: number, base: string, quote: strin
     if (f.currency === quote) { total += f.cost; known = true; }
     else if (f.currency === base) { total += f.cost * price; known = true; }
   }
-  return known ? total : notional * DEFAULT_FEE;
+  return known ? total : notional * (exchangeId ? takerFee(exchangeId) : DEFAULT_FEE);
 }
 
 /**
@@ -41,6 +41,8 @@ export async function closeTrade(sb: SupabaseClient, ex: Ex, t: TradeRow, reason
   const [base, quote] = t.symbol.split('/');
   let exitPrice: number | null = null;
   let proceeds: number | null = null;
+  let exitOrderId: string | null = null;
+  let exitFee = 0;
   let exitReason = reason;
   let stopStillOpen = false; // stop sabidamente aberto na corretora (cancelamento falhou)
 
@@ -50,7 +52,9 @@ export async function closeTrade(sb: SupabaseClient, ex: Ex, t: TradeRow, reason
       if (o.status === 'closed' && (o.filled ?? 0) > 0) {
         exitPrice = o.average ?? o.price;
         const notional = (o.filled ?? t.qty) * (exitPrice as number);
-        proceeds = notional - feeInQuote(o, exitPrice as number, base, quote, notional);
+        exitFee = feeInQuote(o, exitPrice as number, base, quote, notional, ex.id);
+        proceeds = notional - exitFee;
+        exitOrderId = String(t.stop_order_id);
         exitReason = 'stop (executado na corretora)';
       } else {
         await ex.cancelOrder(t.stop_order_id, t.symbol, stopOrderParams(ex)).catch(() => { stopStillOpen = true; });
@@ -69,7 +73,7 @@ export async function closeTrade(sb: SupabaseClient, ex: Ex, t: TradeRow, reason
       if (t.stop_order_id) {
         exitPrice = t.stop_price;
         const notional = t.qty * t.stop_price;
-        proceeds = notional * (1 - DEFAULT_FEE);
+        proceeds = notional * (1 - takerFee(ex.id));
         exitReason = 'stop (executado na corretora; preço estimado)';
       } else throw new Error(`sem saldo de ${base} para fechar ${t.symbol}`);
     }
@@ -85,7 +89,9 @@ export async function closeTrade(sb: SupabaseClient, ex: Ex, t: TradeRow, reason
     if (!order.average && order.id) order = await ex.fetchOrder(order.id, t.symbol).catch(() => order);
     exitPrice = order.average ?? order.price ?? last;
     const notional = (order.filled ?? amount) * (exitPrice as number);
-    proceeds = notional - feeInQuote(order, exitPrice as number, base, quote, notional);
+    exitFee = feeInQuote(order, exitPrice as number, base, quote, notional, ex.id);
+    proceeds = notional - exitFee;
+    exitOrderId = order.id ? String(order.id) : null;
   }
 
   const pnl = (proceeds as number) - t.cost;
@@ -97,6 +103,8 @@ export async function closeTrade(sb: SupabaseClient, ex: Ex, t: TradeRow, reason
     pnl,
     pnl_pct: pnl / t.cost,
     exit_reason: exitReason,
+    exit_order_id: exitOrderId,
+    fees: Number(((t as any).fees ?? 0) + exitFee) || null,
   }).eq('id', t.id);
   await log(sb, t.user_id, 'executor', 'trade', `SAÍDA ${t.symbol} @ ${exitPrice} · ${exitReason} · P&L ${pnl.toFixed(2)} ${quote}`, { tradeId: t.id, pnl });
   return { exitPrice: exitPrice as number, pnl };

@@ -2,11 +2,12 @@
 import { useState } from 'react';
 import { btn, btnDanger } from '@/components/ui';
 
-const LABEL: Record<string, string> = { binance: 'Binance', bybit: 'Bybit', mercado: 'Mercado Bitcoin' };
+const LABEL: Record<string, string> = { binance: 'Binance', bybit: 'Bybit', mercado: 'Mercado Bitcoin', foxbit: 'Foxbit' };
 const GUIDE: Record<string, string> = {
   binance: 'Binance: Perfil → Gerenciamento de API → Criar API (HMAC). Marque só Leitura e "Spot & Margin Trading"; NÃO marque Saque.',
   bybit: 'Bybit: Perfil → API → Criar nova chave → "Chaves geradas pelo sistema" → Leitura e Escrita. Em Spot marque "Trade"; em Carteira NÃO marque Saque (Withdraw).',
   mercado: '',
+  foxbit: 'Foxbit: Perfil → API → Criar chave. Marque só Leitura e Negociação (Trade); NÃO marque Saque. Se puder, restrinja a chave ao IP do servidor.',
 };
 
 export default function ExchangeForm({ connected, onDone, exchanges = ['binance'], testnet = false }: { connected?: { exchange: string; hint: string; verified: boolean } | null; onDone?: () => void; exchanges?: string[]; testnet?: boolean }) {
@@ -46,12 +47,12 @@ export default function ExchangeForm({ connected, onDone, exchanges = ['binance'
       )}
       <form onSubmit={save} className="space-y-3">
         <div><label>Corretora</label>
-          <select value={exchange} onChange={(e) => setExchange(e.target.value)}>{exchanges.map((x) => <option key={x} value={x}>{LABEL[x] ?? x}{testnet && x !== 'mercado' ? ' (TESTNET)' : ''}</option>)}</select></div>
+          <select value={exchange} onChange={(e) => setExchange(e.target.value)}>{exchanges.map((x) => <option key={x} value={x}>{LABEL[x] ?? x}{testnet && x !== 'mercado' && x !== 'foxbit' ? ' (TESTNET)' : ''}</option>)}</select></div>
         <div><label>API Key</label><input value={apiKey} onChange={(e) => setKey(e.target.value)} autoComplete="off" required /></div>
         <div><label>API Secret</label><input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="off" required /></div>
-        {exchange === 'mercado' && (
+        {(exchange === 'mercado' || exchange === 'foxbit') && (
           <label className="flex items-start gap-2 normal-case tracking-normal text-ink"><input type="checkbox" className="mt-1 !w-auto" checked={attest} onChange={(e) => setAttest(e.target.checked)} />
-            Declaro que esta chave NÃO tem permissão de saque (a Mercado Bitcoin não permite verificarmos isso automaticamente).</label>)}
+            Declaro que esta chave NÃO tem permissão de saque (a corretora não permite verificarmos isso automaticamente).</label>)}
         <p className="text-[11px] leading-relaxed text-dim">{GUIDE[exchange]} Chaves com saque são <b>recusadas</b>. Guardamos criptografada (AES-256).</p>
         {msg && <p className={`text-sm ${msg.ok ? 'text-neon-green' : 'text-neon-pink'}`}>{msg.text}</p>}
         <button disabled={busy} className={btn}>{busy ? 'validando na corretora…' : connected ? 'trocar chave' : 'validar e conectar'}</button>

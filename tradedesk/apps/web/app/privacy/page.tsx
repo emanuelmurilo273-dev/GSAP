@@ -1,18 +1,27 @@
 import { APP_NAME, Logo } from '@/components/ui';
 
+export const metadata = { title: 'Privacidade (LGPD)' };
+
 export default function Privacy() {
+  const H = ({ children }: { children: React.ReactNode }) => <h2 className="pt-2 text-lg font-semibold text-executor">{children}</h2>;
   return (
-    <main className="mx-auto max-w-3xl space-y-4 px-4 py-6 text-sm leading-relaxed"><Logo />
-      <h1 className="text-xl text-neon-green">Política de Privacidade (LGPD)</h1>
-      <p className="text-dim">Modelo-base: revise com seu advogado/DPO e preencha o contato do encarregado.</p>
-      <h2 className="text-neon-blue">Dados que tratamos</h2>
-      <p>Nome, e-mail e CPF/CNPJ (cobrança e emissão fiscal — base legal: execução de contrato e obrigação legal); chaves de API da corretora, criptografadas (execução do contrato); registros de operações, logs e configurações do robô; endereço IP no aceite do termo de risco (prova do consentimento).</p>
-      <h2 className="text-neon-blue">Finalidade e compartilhamento</h2>
-      <p>Usamos os dados para operar o robô na sua conta, cobrar a assinatura e enviar e-mails do serviço. Compartilhamos o mínimo necessário com operadores: Supabase (banco/autenticação), Asaas (pagamentos), Resend (e-mail), a corretora que você conectou e o provedor de LLM (que recebe apenas indicadores técnicos do par, nunca suas chaves, saldo ou dados pessoais). Não vendemos dados.</p>
-      <h2 className="text-neon-blue">Seus direitos</h2>
-      <p>Você pode solicitar confirmação, acesso, correção, portabilidade, anonimização e exclusão dos dados, além de revogar consentimentos, pelo e-mail de contato do {APP_NAME}. Ao cancelar e pedir exclusão, removemos chaves e dados pessoais, ressalvada a retenção exigida por lei (ex.: registros fiscais e de pagamento).</p>
-      <h2 className="text-neon-blue">Segurança</h2>
-      <p>Chaves criptografadas com AES-256-GCM, acesso por link mágico, políticas RLS no banco, validação de assinatura nos webhooks e minimização de dados.</p>
+    <main className="mx-auto max-w-3xl space-y-3 px-4 py-8 text-sm leading-relaxed"><Logo />
+      <h1 className="text-3xl font-semibold tracking-tight">Política de privacidade (LGPD)</h1>
+      <p className="text-dim">Versão 2026-11. Modelo-base: revise com advogado e preencha o controlador e o contato do encarregado (DPO) antes da venda.</p>
+      <H>1. Que dados {APP_NAME} trata</H>
+      <p>E-mail e nome; CPF/CNPJ (apenas para a cobrança no Asaas); chave de API da corretora (guardada criptografada com AES-256, sem permissão de saque); registros das operações do robô na conta do cliente (ativo, horários, preços, resultado, ID da ordem); logs técnicos e de auditoria; e, na lista de espera, só o e-mail e o aceite.</p>
+      <H>2. Para quê</H>
+      <p>Executar o serviço contratado, calcular as estatísticas do cliente, cobrar a assinatura, enviar avisos de operação, limite e conexão, e cumprir obrigações legais. Base legal: execução de contrato, consentimento (lista de espera e avisos opcionais), cumprimento de obrigação legal e legítimo interesse (segurança e prevenção a fraudes).</p>
+      <H>3. O que NÃO fazemos</H>
+      <p>Não recebemos nem guardamos seu dinheiro, não pedimos permissão de saque, não enviamos o login do MetaTrader 5 para servidores do app e não vendemos dados. A página pública de resultados mostra apenas números agregados das contas do próprio robô, sem dados pessoais de clientes.</p>
+      <H>4. Compartilhamento</H>
+      <p>Somente com operadores necessários: hospedagem e banco de dados (Supabase e provedor do app), pagamento (Asaas), e-mail (Resend), corretoras onde o cliente conectou a conta. Alguns operadores podem processar dados fora do Brasil, com as garantias previstas na LGPD.</p>
+      <H>5. Seus direitos</H>
+      <p>Acesso, correção, portabilidade (extrato em CSV), anonimização, eliminação, informação sobre compartilhamento e revogação do consentimento, a qualquer momento, pelo contato abaixo. Dados fiscais e de auditoria podem ser mantidos pelo prazo legal.</p>
+      <H>6. Segurança e retenção</H>
+      <p>Chaves criptografadas, acesso do administrador com 2FA e log de auditoria. Os dados são mantidos enquanto a conta existir e pelos prazos legais depois do cancelamento.</p>
+      <H>7. Contato</H>
+      <p>Controlador e encarregado: <b>[preencher: razão social, CNPJ e e-mail do DPO]</b>.</p>
     </main>
   );
 }

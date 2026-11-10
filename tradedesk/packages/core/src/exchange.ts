@@ -85,10 +85,10 @@ export async function validateKeys(id: ExchangeId, creds: Creds, attestNoWithdra
       await ex.fetchBalance();
       return chk;
     }
-    // Mercado Bitcoin
+    // Mercado Bitcoin e Foxbit: a API não expõe as permissões da chave → saldo funciona + declaração expressa do cliente
     if (!attestNoWithdraw) return { ok: false, reason: 'Confirme que a chave NÃO possui permissão de saque.' };
     await ex.fetchBalance();
-    return { ok: true, verified: false, permissions: { trade: 'unverified', withdraw: 'attested-false' }, note: 'A Mercado Bitcoin não expõe as permissões da chave; baseamos na sua declaração.' };
+    return { ok: true, verified: false, permissions: { trade: 'unverified', withdraw: 'attested-false' }, note: `${id === 'foxbit' ? 'A Foxbit' : 'A Mercado Bitcoin'} não expõe as permissões da chave; baseamos na sua declaração. Crie a chave SEM a permissão de saque.` };
   } catch (e: any) {
     return { ok: false, reason: `Chave inválida ou corretora indisponível: ${String(e?.message ?? e).slice(0, 200)}` };
   }

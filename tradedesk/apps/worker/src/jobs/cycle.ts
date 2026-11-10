@@ -1,13 +1,14 @@
 import {
-  adminAlert, buildSeries, decrypt, hasAccess, isKeyError, log, makeExchange, realModeAllowed, sendEmail, emailLayout, setAgent, APP_NAME,
+  MAX_TRADES_PER_DAY_DEFAULT, adminAlert, buildSeries, decrypt, hasAccess, isKeyError, log, makeExchange, realModeAllowed, sendEmail, emailLayout, setAgent, APP_NAME,
   type Candle, type Ex, type ExchangeId, type Quote, type StrategyParams, type SubscriptionRow, type TradeRow,
 } from '@desk/core';
 import { analyze } from '../agents/analyst';
 import { enter } from '../agents/executor';
 import { filterPair } from '../agents/filter';
-import { dailyGuard, botEquity, monitorPositions } from '../agents/risk';
+import { dailyGuard, botEquity, monitorPositions, peakGuard } from '../agents/risk';
 import { scout } from '../agents/scout';
 import { sb } from '../lib/env';
+import { brtDay } from '../lib/util';
 
 const exCache = new Map<string, { ex: Ex; key: string; at: number }>();
 async function getEx(userId: string, id: ExchangeId, keyEnc: string, secEnc: string) {
@@ -62,6 +63,8 @@ export async function runUserCycle(userId: string) {
     const { data: still } = await sb.from('trades').select('*').eq('user_id', userId).eq('status', 'open');
     open = (still ?? []) as TradeRow[];
 
+    const pk = await peakGuard(sb, userId, eq.equity, s.peak_equity == null ? null : Number(s.peak_equity), prof?.email);
+    if (pk.paused) return;
     const guard = await dailyGuard(sb, userId, eq.equity, p);
     if (new Date().getUTCMinutes() % 5 === 0) await sb.from('equity_snapshots').insert({ user_id: userId, equity: eq.equity, quote });
     await setAgent(sb, userId, 'risk', guard.halted ? 'halted' : 'idle', `dia ${(guard.dayPnlPct * 100).toFixed(2)}% / limite -${(p.dailyLossPct * 100).toFixed(1)}%`);
@@ -148,6 +151,13 @@ async function processSymbol(
   }
   if (open.length >= p.maxPositions) {
     await log(sb, userId, 'risk', 'refuse', `RECUSA ${symbol}: limite de ${p.maxPositions} posições simultâneas.`);
+    return;
+  }
+  const maxDay = Number(process.env.CRYPTO_MAX_TRADES_PER_DAY ?? MAX_TRADES_PER_DAY_DEFAULT);   // máximo de operações por dia
+  const dayStart = new Date(`${brtDay()}T00:00:00-03:00`).toISOString();
+  const { count: today } = await sb.from('trades').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('entry_at', dayStart);
+  if ((today ?? 0) >= maxDay) {
+    await log(sb, userId, 'risk', 'refuse', `RECUSA ${symbol}: limite de ${maxDay} operações por dia.`);
     return;
   }
   const price = (await ex.fetchTicker(symbol)).last ?? last.c;

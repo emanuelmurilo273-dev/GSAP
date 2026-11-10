@@ -1,4 +1,4 @@
-import { EXCHANGES, enabledExchangeIds, fetchHistoryFallback, runBacktest, type ExchangeId } from '@desk/core';
+import { EXCHANGES, enabledExchangeIds, fetchHistoryFallback, runBacktest, takerFee, type ExchangeId } from '@desk/core';
 import { NextResponse } from 'next/server';
 import { apiSubscriber } from '@/lib/auth';
 import { cleanParams } from '@/lib/params';
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     // dados da própria corretora; se a API pública dela estiver bloqueada, usa a Binance como referência de preço (avisado na resposta)
     const { candles, source } = await fetchHistoryFallback(exchange, symbol, params.timeframe, days);
     if (candles.length < 200) return NextResponse.json({ error: `dados insuficientes (${candles.length} candles) para ${symbol}` }, { status: 422 });
-    const r = runBacktest(candles, { params });
+    const r = runBacktest(candles, { params, feePct: takerFee(exchange) });   // taxa REAL da corretora (Foxbit: 0,5% por lado)
     const row = {
       kind: 'user', user_id: userId, exchange, symbol, days, timeframe: params.timeframe, params,
       metrics: r.metrics, equity: r.equity,

@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile, isOwner } = await requireSubscriber(); // bloqueia no servidor
-  const links: [string, string][] = [['/app', 'Dashboard'], ['/app/onboarding', 'Início'], ['/app/backtest', 'Backtest'], ['/app/settings', 'Config'], ['/app/billing', 'Assinatura']];
+  const links: [string, string][] = [['/app', 'Início'], ['/app/ao-vivo', 'Ao vivo'], ['/app/estatisticas', 'Estatísticas'], ['/app/historico', 'Histórico'], ['/app/settings', 'Configurações']];
   if (isOwner || profile?.role === 'owner') links.push(['/admin', 'Admin']);
   return (
     <div className="mx-auto max-w-6xl px-3 pb-10">

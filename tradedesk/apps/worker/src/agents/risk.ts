@@ -1,4 +1,4 @@
-import { closeTrade, log, stopOrderParams, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
+import { APP_NAME, MAX_LOSSES_IN_ROW, emailLayout, sendEmail, closeTrade, log, lossStreak, peakCheck, stopOrderParams, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { brtDay } from '../lib/util';
 
@@ -59,5 +59,26 @@ export async function dailyGuard(sb: SupabaseClient, userId: string, equity: num
     await log(sb, userId, 'risk', 'warn', `LIMITE DIÁRIO ATINGIDO (${(dayPnlPct * 100).toFixed(2)}%). Robô não abre novas posições até amanhã.`);
     return { halted: true, dayPnlPct };
   }
+  if (!st.halted) {   // parada do dia após 2 perdas seguidas
+    const since = new Date(`${day}T00:00:00-03:00`).toISOString();
+    const { data: today } = await sb.from('trades').select('pnl,exit_at').eq('user_id', userId).eq('status', 'closed').gte('exit_at', since).order('exit_at', { ascending: true });
+    const streak = lossStreak((today ?? []).map((t: any) => Number(t.pnl ?? 0)));
+    if (streak >= MAX_LOSSES_IN_ROW) {
+      await sb.from('daily_state').update({ halted: true, halted_reason: `${streak} perdas seguidas` }).eq('user_id', userId).eq('day', day);
+      await log(sb, userId, 'risk', 'warn', `${streak} PERDAS SEGUIDAS: o robô para por hoje (sem novas entradas até amanhã).`);
+      return { halted: true, dayPnlPct };
+    }
+  }
   return { halted: !!st.halted, dayPnlPct };
+}
+
+/** Trava de 10% do pico: se o patrimônio cair 10% desde o maior valor visto, PAUSA o robô e avisa o cliente (as posições abertas mantêm o stop na corretora). */
+export async function peakGuard(sb: SupabaseClient, userId: string, equity: number, storedPeak: number | null, email?: string | null): Promise<{ paused: boolean }> {
+  const c = peakCheck(storedPeak, equity);
+  if (c.peak !== storedPeak) await sb.from('bot_settings').update({ peak_equity: c.peak }).eq('user_id', userId);
+  if (!c.breached) return { paused: false };
+  await sb.from('bot_settings').update({ bot_enabled: false, paused_reason: `Pausado: a conta caiu ${(c.dropPct * 100).toFixed(1)}% desde o pico (R$ ${c.peak.toFixed(2)} → R$ ${equity.toFixed(2)}).` }).eq('user_id', userId);
+  await log(sb, userId, 'risk', 'error', `TRAVA DOS 10%: patrimônio ${equity.toFixed(2)} está ${(c.dropPct * 100).toFixed(1)}% abaixo do pico ${c.peak.toFixed(2)}. Robô PAUSADO.`);
+  if (email) await sendEmail(email, `[${APP_NAME}] Robô pausado: conta caiu 10% do pico`, emailLayout('robô pausado', `<p>O patrimônio da sua conta caiu <b>${(c.dropPct * 100).toFixed(1)}%</b> desde o pico e o robô foi <b>pausado</b>. As posições abertas mantêm o stop na corretora. Para voltar, reative no app depois de conferir o que aconteceu.</p>`)).catch(() => {});
+  return { paused: true };
 }

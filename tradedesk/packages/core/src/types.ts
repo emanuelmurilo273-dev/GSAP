@@ -1,7 +1,7 @@
 export type Candle = { t: number; o: number; h: number; l: number; c: number; v: number };
 
 export type Timeframe = '15m' | '1h' | '4h';
-export type ExchangeId = 'binance' | 'bybit' | 'mercado';
+export type ExchangeId = 'binance' | 'bybit' | 'mercado' | 'foxbit';
 export type Quote = 'USDT' | 'BRL';
 
 /** Todos os percentuais são frações (0.03 = 3%). */
@@ -41,14 +41,24 @@ export const EXCHANGES: Record<ExchangeId, { label: string; ccxt: string }> = {
   binance: { label: 'Binance', ccxt: 'binance' },
   bybit: { label: 'Bybit', ccxt: 'bybit' },
   mercado: { label: 'Mercado Bitcoin', ccxt: 'mercado' },
+  foxbit: { label: 'Foxbit', ccxt: 'foxbit' },
 };
+
+/** Taxas por lado (fração). Foxbit: 0,25% maker / 0,50% taker nos mercados em R$ (tabela pública; pode cair com o volume do cliente). Usadas no backtest e quando a corretora não informa a taxa. */
+export const EXCHANGE_FEES: Record<ExchangeId, { maker: number; taker: number }> = {
+  binance: { maker: 0.001, taker: 0.001 }, bybit: { maker: 0.001, taker: 0.001 }, mercado: { maker: 0.003, taker: 0.007 }, foxbit: { maker: 0.0025, taker: 0.005 },
+};
+export const takerFee = (id: string): number => (EXCHANGE_FEES as Record<string, { taker: number }>)[id]?.taker ?? 0.001;
+/** Cotação padrão de cada corretora (Foxbit só negocia em R$). */
+export const EXCHANGE_QUOTE: Record<ExchangeId, Quote> = { binance: 'USDT', bybit: 'USDT', mercado: 'BRL', foxbit: 'BRL' };
+export const isExchangeId = (x: string): x is ExchangeId => x === 'binance' || x === 'bybit' || x === 'mercado' || x === 'foxbit';
 
 /** Mercado Bitcoin: desligado até haver como verificar a permissão de saque da chave. */
 export const mercadoEnabled = () => process.env.ENABLE_MERCADO_BITCOIN === 'true';
 /** Corretoras liberadas: EXCHANGES_ENABLED (ex.: "bybit" ou "bybit,binance"; a 1ª é a padrão na tela). Mercado Bitcoin só com ENABLE_MERCADO_BITCOIN=true. */
 export const enabledExchangeIds = (): ExchangeId[] => {
   const raw = (process.env.EXCHANGES_ENABLED ?? 'binance,bybit').split(',').map((x) => x.trim().toLowerCase());
-  const ids = raw.filter((x): x is ExchangeId => (x === 'binance' || x === 'bybit' || x === 'mercado') && (x !== 'mercado' || mercadoEnabled()));
+  const ids = raw.filter((x): x is ExchangeId => isExchangeId(x) && (x !== 'mercado' || mercadoEnabled()));
   if (mercadoEnabled() && !ids.includes('mercado') && process.env.EXCHANGES_ENABLED === undefined) ids.push('mercado');
   return ids.length ? ids : ['binance'];
 };
@@ -57,6 +67,9 @@ export const testnetMode = () => process.env.EXCHANGE_TESTNET === 'true' || proc
 /** Aprovação da estratégia pela pesquisa (research/RESEARCH.md). Sem aprovação, só testnet e conta do dono. */
 export const strategyApproved = () => process.env.STRATEGY_APPROVED === 'true';
 export const realModeAllowed = (isOwner: boolean) => testnetMode() || strategyApproved() || isOwner;
+
+/** A VENDA só abre quando a estratégia está aprovada no teste fora da amostra (STRATEGY_APPROVED=true) E o dono liberou (SALES_OPEN=true). Até lá: lista de espera. */
+export const salesOpen = () => strategyApproved() && process.env.SALES_OPEN === 'true';
 
 export const RISK_TERMS_VERSION = '2026-11-01';
 

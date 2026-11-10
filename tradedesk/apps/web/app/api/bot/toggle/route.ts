@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   ]);
   const missing = enableBlockers({ account: acc, settings: s, isOwner });
   if (missing.length) return NextResponse.json({ error: `Antes de ligar: ${missing.join('; ')}.` }, { status: 412 });
-  await admin.from('bot_settings').update({ bot_enabled: true }).eq('user_id', userId);
+  await admin.from('bot_settings').update({ bot_enabled: true, peak_equity: null, paused_reason: null }).eq('user_id', userId);   // religar recomeça a medir o pico
   await admin.from('bot_logs').insert({ user_id: userId, agent: 'logger', level: 'info', message: 'Robô LIGADO. Mesa de 6 agentes em operação.' });
   return NextResponse.json({ on: true });
 }

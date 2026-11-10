@@ -1,4 +1,4 @@
-import { closeTrade, createProtectiveStop, log, supportsExchangeStop, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
+import { cappedPositionSize, closeTrade, testnetMode, createProtectiveStop, log, supportsExchangeStop, type Ex, type StrategyParams, type TradeRow } from '@desk/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 function fees(order: any, base: string, quote: string) {
@@ -23,7 +23,8 @@ export async function enter(
 ) {
   const [base, quote] = symbol.split('/');
   const market = ex.market(symbol);
-  const size = Math.min(equity * p.positionPct, free * 0.99);
+  // no máximo 1% do patrimônio arriscado no stop, no máximo o % configurado, e nunca mais que o saldo livre (sem alavancagem)
+  const size = cappedPositionSize(equity, free, p.positionPct, p.stopPct);
   const minCost = market.limits?.cost?.min ?? 0;
   if (size <= 0 || size < minCost) {
     await log(sb, userId, 'executor', 'refuse', `RECUSA ${symbol}: tamanho ${size.toFixed(2)} ${quote} abaixo do mínimo da corretora (${minCost})`);
@@ -46,7 +47,7 @@ export async function enter(
   const { data: trade, error } = await sb.from('trades').insert({
     user_id: userId, symbol, qty, entry_price: avg, cost,
     stop_price: avg * (1 - p.stopPct), target_price: avg * (1 + p.targetPct), peak_price: avg,
-    score, analysis,
+    score, analysis, entry_order_id: order.id ?? null, fees: f.inQuote + f.inBase * avg, testnet: testnetMode(),
   }).select('*').single();
   if (error || !trade) {
     await log(sb, userId, 'executor', 'error', `Ordem executada mas NÃO registrada (${error?.message}). Verifique ${symbol} manualmente!`);

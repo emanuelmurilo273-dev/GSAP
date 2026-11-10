@@ -1,4 +1,4 @@
-import { EXCHANGES, enabledExchangeIds, encrypt, validateKeys, type ExchangeId } from '@desk/core';
+import { EXCHANGES, EXCHANGE_QUOTE, enabledExchangeIds, encrypt, validateKeys, type ExchangeId } from '@desk/core';
 import { NextResponse } from 'next/server';
 import { apiSubscriber } from '@/lib/auth';
 
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     attested_no_withdraw: !!b.attestNoWithdraw,
     last_error: null,
   });
-  await admin.from('bot_settings').update({ bot_enabled: false }).eq('user_id', userId);
+  await admin.from('bot_settings').update({ bot_enabled: false, quote: EXCHANGE_QUOTE[exchange] }).eq('user_id', userId);   // Foxbit só negocia em R$
   return NextResponse.json({ ok: true, permissions: check.permissions, verified: check.verified, note: check.note });
 }
 
