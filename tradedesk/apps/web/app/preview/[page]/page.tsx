@@ -9,6 +9,7 @@ import Avancado from '../../b3/avancado/page';
 import Comecar from '../../b3/comecar/Comecar';
 import Historico from '../../b3/historico/Historico';
 import ClientHome from '@/components/ClientHome';
+import Desk from '@/components/Desk';
 import CryptoLive from '@/components/CryptoLive';
 import StatsView from '@/components/StatsView';
 import HistoricoReal from '../../app/historico/Historico';
@@ -110,6 +111,28 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
         </div>
       </div>
     );
+  }
+  if (page === 'desk') {
+    const now = Date.now(); let seed = 5; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) - 0.5;
+    let p0 = 415000; const candles = Array.from({ length: 90 }, () => { const o = p0; p0 += rnd() * 900; return { o, h: Math.max(o, p0) + Math.abs(rnd()) * 300, l: Math.min(o, p0) - Math.abs(rnd()) * 300, c: p0 }; });
+    const ts = (m: number) => new Date(now - m * 60_000).toISOString();
+    const L = (i: number, agent: string, level: string, message: string, m: number) => ({ id: i, agent, level, message, ts: ts(m) });
+    let e = 10000; const curve = Array.from({ length: 80 }, (_, i) => ({ t: now - (80 - i) * 600_000, v: (e += rnd() * 14 + 1.2) }));
+    const demo = {
+      at: now, equity: curve[79].v, dayPnl: curve[79].v - curve[0].v, dayPct: (curve[79].v - curve[0].v) / curve[0].v, curve, halted: false, enabled: true, minScore: 0.7, symbols: ['BTC/BRL', 'ETH/BRL', 'SOL/BRL', 'WIN', 'WDO'], hasB3: true,
+      agents: [['scout', 'working', 'BTC/BRL, ETH/BRL, SOL/BRL, WIN, WDO'], ['filter', 'idle', ''], ['analyst', 'working', 'BTC/BRL'], ['executor', 'idle', ''], ['risk', 'idle', ''], ['logger', 'idle', '']].map(([agent, state, detail]) => ({ agent, state, detail, updated_at: ts(0.2) })),
+      counters: { scout: 1240, filter: 1180, analyst: 60, executor: 1, risk: 14, logger: 1180 },
+      discards: [['Spread alto', 412], ['Mercado lateral', 388], ['Notícia próxima', 96], ['Nota abaixo do mínimo', 284]].map(([reason, n]) => ({ reason, n })),
+      logs: [L(1, 'executor', 'trade', 'B3 · ENTRADA BUY 1x WINZ26 @ 128450 · stop 128330 · alvo 128690', 1), L(2, 'analyst', 'info', 'SINAL WINZ26: nota 0,74 · tendência confirmada', 2), L(3, 'filter', 'refuse', 'RECUSA BTC/BRL: liquidez baixa: volume 24h 410000 BRL < 1000000', 4), L(4, 'filter', 'refuse', 'RECUSA ETH/BRL: mercado lateral (ADX 14 < 20)', 5), L(5, 'analyst', 'refuse', 'RECUSA SOL/BRL: nota 0.61 (técnica 0.61) < 0.7', 7), L(6, 'risk', 'info', 'Dia: +0,4% / limite -1,0%', 9), L(7, 'scout', 'warn', '3/3 pares ok', 10)],
+      lastScore: 0.74, lastScoreText: 'SINAL WINZ26: nota 0,74 · tendência confirmada', scores: [],
+      open: [{ id: 'o', symbol: 'BTC/BRL', qty: 0.0012, entry_price: 415100, stop_price: 405000, target_price: 435300, peak_price: 418900, trailing_active: true, entry_order_id: 'fx-91823' }],
+      lastClosed: { symbol: 'ETH/BRL', pnl: 84.3, exit_reason: 'alvo atingido' },
+      health: { light: 'vermelho', n: 62, expectancy: -6.4 }, filterRefusals: [L(3, 'filter', 'refuse', 'RECUSA BTC/BRL: liquidez baixa: volume 24h 410000 BRL < 1000000', 4), L(4, 'filter', 'refuse', 'RECUSA WDOZ26: spread alto: 0,31% > 0,20%', 5), L(8, 'filter', 'refuse', 'RECUSA ETH/BRL: mercado lateral (ADX 14 < 20)', 6)],
+      __candles: candles, __price: 417200,
+    };
+    return (
+      <div className="mx-auto max-w-5xl px-3 pb-12 sm:px-6"><header className="flex items-center justify-between py-4"><Logo /><span className="text-xs text-dim">Desk · 6 agents</span></header>
+        <div className="mb-4 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div><Desk demo={demo} /></div>);
   }
   if (page === 'c-home' || page === 'c-stats' || page === 'c-live' || page === 'c-hist' || page === 'c-onb') {
     const now = Date.now(); let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) - 0.5;

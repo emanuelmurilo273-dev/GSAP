@@ -5,6 +5,18 @@
 > **Comece por [`docs/B3-GUIA.md`](docs/B3-GUIA.md)**: conta Clear, MT5, conta DEMO, conector no seu PC e VPS.
 
 
+
+# 🛑 EMERGÊNCIA (perdas reais): estado atual
+
+- **Tudo desligado por padrão**: a migration `010_emergencia.sql` liga a **chave geral** (`kill_switch`), desliga todos os robôs e trava o real. O worker de cripto, o conector da B3 e o site **recusam operar** enquanto ela estiver ligada.
+- **Desligar tudo e zerar posições agora**: botão em `/admin`, ou `Parar-Emergencia-Windows.bat` / `Parar-Emergencia-Mac.command`. Se algo falhar, feche na mão no app da corretora e **revogue as chaves de API**.
+- **Religar** só o dono, com **estratégia aprovada** e a frase `RELIGAR APÓS APROVAÇÃO`. Religar a chave geral **não liga robô nenhum**.
+- **Autópsia dos seus dados reais**: `Autopsia-Cripto-Windows.bat` / `Autopsia-Cripto-Mac.command` (cripto) e `connector\Autopsia.bat` (B3). Só leem.
+- **Regras duras (B3 e cripto)**: 1 perda para o dia, ≤ 3 operações/dia, risco/retorno ≥ 1:2, stop técnico por ATR, 1 contrato fixo (B3), uma posição por vez, nada em mercado lateral, nada nos 15 primeiros minutos nem perto de notícia.
+- **Aprovação para voltar ao real**: fator de lucro ≥ 1,3, perda máx. ≤ 10%, ≥ 300 operações no teste final, depois **30 pregões** positivos no simulador; no real, 1 contrato e **desliga sozinho se perder 5%** do pico.
+- **Resultado da nova pesquisa (Foxbit, teste final rodado 1 vez): nenhuma estratégia passou** → `research/RESEARCH_CRIPTO_FOXBIT.md`. **O robô não tem vantagem; não religue o real.**
+- **Visual novo "Desk · 6 agents"** em `/app/desk` (prints em `docs/screenshots/desk-*.png`).
+
 # 🚀 Produto final: o que é, o que está pronto e o que NÃO está
 
 **HEXADESK** é um robô de trading automático com app web: **cripto 24h na Foxbit** (BTC/BRL, ETH/BRL, SOL/BRL; Mercado Bitcoin como alternativa) e **B3 (WIN/WDO) pelo MT5 da Clear**, durante o pregão. O dinheiro fica na conta do cliente; o app nunca recebe depósitos.
@@ -39,7 +51,7 @@
 
 ## Passo a passo para publicar (quando houver estratégia aprovada)
 1. **Contas**: Supabase (banco), Asaas (cobrança), Resend (e-mail), Foxbit (a sua, para o robô do dono), hospedagem do site (Vercel ou o Docker deste repositório) e do worker (Fly.io região `gru` — ver `fly.toml`), VPS Windows em São Paulo para o conector da B3 (guia: `docs/B3-GUIA.md`, seção 5).
-2. **Banco**: rode as migrations `supabase/migrations/001` a `009` em ordem.
+2. **Banco**: rode as migrations `supabase/migrations/001` a `010` em ordem.
 3. **Variáveis** (`.env.example`): chaves do Supabase/Asaas/Resend, `ENCRYPTION_KEY`, `OWNER_EMAIL`, `OWNER_PIX_KEY`, `EXCHANGES_ENABLED=foxbit`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`.
 4. **Conta de dono**: entre com `OWNER_EMAIL`, ative o 2FA (você cai direto em `/admin`).
 5. **Teste com ordem mínima na SUA conta**: `FOXBIT_KEY=... FOXBIT_SECRET=... npx tsx scripts/ordem-minima.ts --confirmo`. Rode o conector B3 na conta demo da Clear por semanas.
