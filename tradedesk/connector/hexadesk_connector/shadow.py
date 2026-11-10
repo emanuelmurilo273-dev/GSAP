@@ -7,6 +7,7 @@ from datetime import datetime
 
 from .calendar_b3 import is_business_day
 from .intel.pipeline import IntelPipeline
+from .strategies import FAMILIES, signal_fn_for
 from .strategy import baseline_signal
 
 # PLACEHOLDER: custo por contrato (ida e volta) em R$ — emolumentos + corretagem. CONFIRME no extrato/tabela da sua corretora.
@@ -23,7 +24,8 @@ class ShadowTrader:
         self.id, self.name, self.config, self.source, self.store = version_id, name, config or {}, source, store
         self.pipe = IntelPipeline(self.config)
         self.fees = {**DEFAULT_FEE_RT, **(fees or {})}
-        self.signal_fn = signal_fn
+        fam = self.config.get("family")
+        self.signal_fn = signal_fn_for(fam, self.config.get("params")) if fam in FAMILIES else signal_fn      # cada versão pode ter a sua família de estratégia
         self.pos: dict[str, dict] = {}
         self.last_bar: dict[str, float] = {}
         self.trades: list[dict] = []

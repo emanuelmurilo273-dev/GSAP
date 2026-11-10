@@ -26,6 +26,7 @@ from . import safety
 from .intel.news import NewsFilter
 from .intel.regime import classify as classify_regime
 from .shadow import ShadowManager
+from .strategies import FAMILIES, signal_fn_for
 from .store import Store, StoreError
 from .strategy import baseline_signal
 
@@ -543,6 +544,9 @@ class Engine:
             self._champ_cfg, self.champion_id = cfg, champ.get("id")
             self.intel = IntelPipeline(cfg)
             self.blocks = cfg.get("blocks") or {}
+            if cfg.get("family") in FAMILIES:       # a versão campeã escolhe a família de estratégia (só entra pelo processo campeão × desafiante)
+                self.signal_fn = signal_fn_for(cfg["family"], cfg.get("params"))
+                self.log("info", "analyst", f"Estratégia da versão campeã: {cfg['family']}.")
             self.log("info", "analyst", f"Versão campeã carregada: {champ.get('name')} (camadas ligadas: {', '.join(k for k, v in self.intel.cfg.items() if v.get('enabled')) or 'nenhuma'}).")
         self.user_events = self._safe(self.store.get_events) or []
 

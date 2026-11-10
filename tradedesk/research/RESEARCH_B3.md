@@ -40,3 +40,22 @@ Fluxo de ordens: não avaliável: exige ticks e book gravados.
 - Uma camada pode passar na regra formal por **sorte** num único trecho (poucas operações). Por isso a regra de consistência: se ela foi pior no treino e na validação, o teste favorável não é confiável.
 - **Nada aqui prova que as camadas ajudam na B3.** Rode o mesmo protocolo nos SEUS dados: `python research_b3/evaluate.py csv PASTA select` e depois `test` (uma vez).
 - Por isso todas as camadas continuam **DESLIGADAS** na versão campeã inicial.
+
+---
+
+## Rodada 2 — famílias de estratégia (regras v2, custos, protocolo fixo)
+
+Protocolo (registrado antes de rodar; `research_b3/familias.py`): uma configuração por família, sem otimização; regras v2 em todas (stop técnico ATR, alvo 1,5×, parar o dia após 2 perdas); seleção por treino **e** validação (PF > 1 e ≥ 100 operações em cada); teste final **uma única vez**, em dados inéditos; aprovação só com PF ≥ 1,3, drawdown ≤ 15%, ≥ 300 trades e positiva nos dois ativos (ou o ruim é desligado). Só dados da B3 podem gravar a aprovação que destrava o real.
+
+Mercado-proxy (candles de 15 min de cripto, custo na mesma proporção custo/stop da B3). Seleção em BTC/ETH/SOL; o teste final seria nos ativos **nunca usados** BNB/XRP/ADA.
+
+| Família | Treino: ops / PF | Validação: ops / PF | Resultado |
+|---|---|---|---|
+| EMA9×EMA21 (base) | 1.031 / 1,05 | 349 / 0,95 | referência (perdia) |
+| Rompimento da 1ª hora (ORB) | 902 / 1,00 | 300 / 0,89 | **reprovada** (PF < 1 na validação) |
+| Tendência com filtro de regime (ADX ≥ 25) | 168 / 1,01 | 62 / 1,06 | **reprovada**: só 62 operações na validação (< 100): sem prova |
+| Reversão ao VWAP | 3.190 / 0,77 | 1.140 / 0,75 | **reprovada** (perde muito: custo come tudo) |
+| Pullback em tendência | 2.357 / 0,98 | 821 / 0,89 | **reprovada** |
+| Fluxo de ordens (agressão + book) | — | — | **não avaliável em candles**: exige ticks e book gravados da B3 |
+
+**Nenhuma família chegou a ser candidata; por isso o teste final NÃO foi consumido** (continua disponível para quando houver candidata). **Conclusão: o robô ainda não tem vantagem.** Isto vale para o proxy de cripto; a B3 só poderá ser avaliada com o histórico do MT5 (`connector/tools/exportar_historico.py`) e os ticks/book gravados ao vivo, rodando `python -m research_b3.familias csv PASTA select` e, se houver candidata, `... test --gravar-aprovacao` (uma única vez).

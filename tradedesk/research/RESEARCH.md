@@ -275,3 +275,6 @@ Referência — comprar e segurar (portfólio igual-peso, mesmo período): retor
 ## Camadas de inteligência da B3 (registro)
 
 O estudo acima é do cripto (legado). As camadas novas do robô da B3 (regime, fluxo, notícias, LightGBM, risco adaptativo) foram avaliadas em [`RESEARCH_B3.md`](RESEARCH_B3.md): **nenhuma foi adotada**. O regime passou no teste final, mas contrariou treino e validação (regra de consistência) → desligado; notícias, risco adaptativo e ML foram reprovados; o fluxo não pôde ser avaliado por falta de ticks/livro gravados da B3. Todas permanecem desligadas até passarem no protocolo com dados reais da B3.
+
+## Rodada 2 da B3 (famílias de estratégia)
+Ver [`RESEARCH_B3.md`](RESEARCH_B3.md): rompimento da 1ª hora, tendência com filtro de regime, reversão ao VWAP e pullback foram testados com custos e regras v2 no mercado-proxy; **nenhuma passou na seleção**. O robô ainda não tem vantagem; o modo real continua travado.

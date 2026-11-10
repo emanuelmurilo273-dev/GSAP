@@ -46,11 +46,11 @@ def _min(t: float) -> int:
     return int(t % 86400) // 60
 
 
-def simulate(c: list[tuple], inst: Inst, cfg: dict | None = None, lo: int = 60, hi: int | None = None, prob_gate=None) -> list[dict]:
+def simulate(c: list[tuple], inst: Inst, cfg: dict | None = None, lo: int = 60, hi: int | None = None, prob_gate=None, signals: list | None = None) -> list[dict]:
     """Percorre c[lo:hi]. `prob_gate(i, side)->bool` aplica o filtro de ML (probabilidade fora da amostra) quando fornecido.
     Retorna trades: {t_open, t_close, day, pnl, size, ret}. `pnl`/`ret` já incluem custos e o tamanho (size/base)."""
     hi = hi or len(c)
-    sig = cross_signals(c)
+    sig = signals if signals is not None else cross_signals(c)      # `signals`: lista por candle de uma família de strategies.py
     pipe = IntelPipeline(cfg)
     ar = pipe.cfg["adaptive_risk"]
     trades, pos, streak, last = [], None, 0, None
