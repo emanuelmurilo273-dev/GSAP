@@ -7,7 +7,16 @@ $envPath = Join-Path (Get-Location) '.env'
 $marker = Join-Path (Get-Location) '.hexadesk-local'
 
 function Fail($msg) { Write-Host ""; Write-Host "ERRO: $msg" -ForegroundColor Red; exit 1 }
-function Test-Docker { docker info 2>&1 | Out-Null; return ($LASTEXITCODE -eq 0) }
+function Test-Docker {
+  # 'docker info' pode ficar PENDURADO se o Docker Desktop abriu mas nao terminou de iniciar: limita a 20 segundos
+  $o = [IO.Path]::GetTempFileName()
+  try {
+    $p = Start-Process -FilePath 'docker' -ArgumentList 'info' -NoNewWindow -PassThru -RedirectStandardOutput $o -RedirectStandardError "$o.err"
+    if (-not $p.WaitForExit(20000)) { try { $p.Kill() } catch { } ; return $false }
+    return ($p.ExitCode -eq 0)
+  } catch { return $false }
+  finally { Remove-Item $o, "$o.err" -ErrorAction SilentlyContinue }
+}
 function Test-PortFree($p) { try { $l = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Any, $p); $l.Start(); $l.Stop(); return $true } catch { return $false } }
 function Get-DockerPorts {
   $used = @()
@@ -29,6 +38,7 @@ function Plain($secure) { return [Runtime.InteropServices.Marshal]::PtrToStringA
 Write-Host "=== HEXADESK - instalador ===" -ForegroundColor Green
 
 # ---------- Docker ----------
+Write-Host "Verificando o Docker (ate 20 segundos)..."
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   Start-Process "https://www.docker.com/products/docker-desktop/"
   Fail "Docker Desktop nao encontrado. Instale-o (pagina aberta no navegador), reinicie o PC e rode este instalador de novo."
@@ -38,14 +48,15 @@ if (-not (Test-Docker)) {
   $exe = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
   if (Test-Path $exe) { Start-Process $exe } else { Fail "Nao achei o Docker Desktop. Abra-o pelo menu Iniciar, espere ficar verde e rode de novo." }
   $ok = $false
-  for ($i = 1; $i -le 90; $i++) {
-    Start-Sleep -Seconds 2
+  for ($i = 1; $i -le 40; $i++) {
+    Start-Sleep -Seconds 3
     if (Test-Docker) { $ok = $true; break }
-    if ($i % 5 -eq 0) { Write-Host "  aguardando o Docker Desktop iniciar... ($($i*2)s)" }
+    Write-Host "  aguardando o Docker Desktop iniciar... (tentativa $i de 40)"
   }
   if (-not $ok) { Fail "O Docker Desktop nao iniciou a tempo. Abra-o, espere 'Engine running' e rode de novo. Se pedir, aceite o WSL 2 e reinicie o PC." }
 }
 Write-Host "Docker OK." -ForegroundColor Green
+Write-Host "Parando versoes anteriores (se houver)..."
 docker compose down 2>&1 | Out-Null
 
 # ---------- .env automatico ----------
