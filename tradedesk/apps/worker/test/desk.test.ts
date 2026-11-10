@@ -315,3 +315,57 @@ test('Risk: duas perdas seguidas no dia param o robô até amanhã (e uma vitór
   assert.match(String(sb.rows('daily_state')[0].halted_reason), /2 perdas seguidas/);
   void day;
 });
+
+// ----------------------------------------------------------------- EMERGÊNCIA
+import { encrypt, haltEverything, killSwitchOn, releaseKillSwitch } from '@desk/core';
+
+test('Emergência: liga a chave geral, desliga todos os robôs, trava a B3 e zera as posições de cada cliente', async () => {
+  process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+  const sb = new FakeSb();
+  for (const u of ['u1', 'u2']) {
+    sb.rows('bot_settings').push({ user_id: u, bot_enabled: true });
+    sb.rows('exchange_accounts').push({ user_id: u, exchange: 'binance', api_key_enc: encrypt('k'), api_secret_enc: encrypt('s') });
+  }
+  sb.rows('b3_settings').push({ id: 1, mode: 'real', enabled: true, real_unlocked: true, real_locked: false });
+  const exs: Record<string, MockExchange> = {};
+  for (const u of ['u1', 'u2']) {
+    const ex = new MockExchange('USDT', 5_000); ex.setPrice('BTC/USDT', 100);
+    await ex.createOrder('BTC/USDT', 'market', 'buy', 5, 100);                                  // posição real aberta na "corretora"
+    exs[u] = ex;
+    sb.rows('trades').push({ id: `t-${u}`, user_id: u, symbol: 'BTC/USDT', status: 'open', qty: 5, entry_price: 100, cost: 500, stop_price: 97, target_price: 106, peak_price: 100 });
+  }
+  let n = 0;
+  const r = await haltEverything(sb as any, 'perdas reais', { makeEx: () => (exs[n++ === 0 ? 'u1' : 'u2'] as any) });
+  assert.equal(r.users, 2); assert.equal(r.closed, 2); assert.equal(r.failed, 0);
+  assert.ok(sb.rows('trades').every((t) => t.status === 'closed'), 'todas as posições fechadas');
+  assert.ok(sb.rows('bot_settings').every((b) => b.bot_enabled === false && /EMERGÊNCIA/.test(b.paused_reason)));
+  const b3 = sb.rows('b3_settings')[0];
+  assert.equal(b3.mode, 'sim'); assert.equal(b3.enabled, false); assert.equal(b3.real_locked, true);
+  assert.ok(sb.rows('b3_commands').some((c) => c.command === 'panic'), 'conector da B3 recebe PARAR TUDO');
+  assert.equal((await killSwitchOn(sb as any)).on, true);
+});
+
+test('Emergência: uma falha numa conta não impede de zerar as outras e é reportada', async () => {
+  process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+  const sb = new FakeSb();
+  for (const u of ['ok', 'ruim']) {
+    sb.rows('exchange_accounts').push({ user_id: u, exchange: 'binance', api_key_enc: encrypt('k'), api_secret_enc: encrypt('s') });
+    sb.rows('trades').push({ id: `t-${u}`, user_id: u, symbol: 'BTC/USDT', status: 'open', qty: 1, entry_price: 100, cost: 100, stop_price: 97, target_price: 106, peak_price: 100 });
+  }
+  const good = new MockExchange('USDT', 1000); good.setPrice('BTC/USDT', 100); await good.createOrder('BTC/USDT', 'market', 'buy', 1, 100);
+  const r = await haltEverything(sb as any, 'teste', { makeEx: (_id: any, c: any) => { if (sb.rows('exchange_accounts')[0] && calls++ === 0) return good as any; throw new Error('corretora fora do ar'); } });
+  assert.equal(r.closed, 1); assert.equal(r.failed, 1); assert.match(r.errors.join(' '), /fora do ar/);
+});
+let calls = 0;
+
+test('Religar: só com estratégia aprovada e a frase exata; e religar NÃO liga robô nenhum', async () => {
+  const sb = new FakeSb();
+  sb.rows('app_settings').push({ key: 'kill_switch', value: { on: true } });
+  assert.equal((await releaseKillSwitch(sb as any, { approved: false, phrase: 'RELIGAR APÓS APROVAÇÃO' })).ok, false);
+  assert.equal((await releaseKillSwitch(sb as any, { approved: true, phrase: 'religar' })).ok, false);
+  assert.equal((await killSwitchOn(sb as any)).on, true);
+  assert.equal((await releaseKillSwitch(sb as any, { approved: true, phrase: 'RELIGAR APÓS APROVAÇÃO' })).ok, true);
+  assert.equal((await killSwitchOn(sb as any)).on, false);
+  sb.rows('bot_settings').push({ user_id: 'x', bot_enabled: false });
+  assert.equal(sb.rows('bot_settings')[0].bot_enabled, false);
+});

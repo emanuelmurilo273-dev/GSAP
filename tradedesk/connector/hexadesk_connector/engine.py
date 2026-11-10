@@ -73,6 +73,8 @@ class Engine:
         self.real_cache: dict = {"sessions": 0, "pnl": 0.0}
         self.real_cache_at = -1e9
         self.adopted: str | None = None
+        self.kill_at = -1e9
+        self.kill_known: bool | None = None
         self.last_orphan_check = -1e9
         self.peak: float | None = None
         self.blocks: dict = {}
@@ -236,6 +238,15 @@ class Engine:
             return True
         return self.mono() - last[1] <= STALE_SECONDS
 
+    def _kill_on(self) -> bool:
+        """Lê a chave geral a cada 10 s. Se o painel estiver fora do ar, mantém o último valor conhecido (nunca 'liga' sozinho)."""
+        if self.mono() - self.kill_at >= 10:
+            self.kill_at = self.mono()
+            v = self._safe(self.store.kv_get, "kill_switch")
+            if v is not None or self.kill_known is None:
+                self.kill_known = bool((v or {}).get("on")) if isinstance(v, dict) else False
+        return bool(self.kill_known)
+
     # ------------------------------------------------------------------ alertas, real e posições órfãs
     def _alert(self, kind: str, title: str, body: str = "") -> None:
         self._safe(self.store.alert, kind, title, body)
@@ -383,6 +394,15 @@ class Engine:
             self._heartbeat(now, s, acct)
             return
         self.error = None
+        if self._kill_on():          # CHAVE GERAL de emergência: zera tudo, desliga e não opera mais
+            n = self._flatten("EMERGÊNCIA") if self.gw.positions() else 0
+            self._safe(self.store.update_settings, {"enabled": False, "mode": "sim", "real_unlocked": False, "real_locked": True})
+            self.state = "halted"
+            self.error = "EMERGÊNCIA ativa: operação desligada pelo dono."
+            if n:
+                self.log("error", "risk", f"EMERGÊNCIA: {n} posição(ões) zerada(s).")
+            self._heartbeat(now, s, acct)
+            return
 
         self._adopt(s["mode"])
         self._adopt_orphans(s["mode"])

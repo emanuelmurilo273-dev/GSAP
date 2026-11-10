@@ -3,6 +3,7 @@ import { Logo, Panel, Stat, dateOnly, dt, num } from '@/components/ui';
 import { requireOwner } from '@/lib/auth';
 import { brl, getPlanPrice } from '@/lib/price';
 import AdminActions, { AccessButton } from './AdminActions';
+import Emergencia from './Emergencia';
 import ValidationPanel from './ValidationPanel';
 
 export const dynamic = 'force-dynamic';
@@ -60,6 +61,8 @@ export default async function Admin() {
         <Stat label="Erros de API (24h)" count={{ value: errCount.count ?? 0, decimals: 0 }} tone={errCount.count ? 'neg' : 'neutral'} />
         <Stat label="Worker" value={hbAge == null ? 'sem sinal' : workerOk ? 'online' : `parado ${Math.round(hbAge / 60)} min`} tone={workerOk ? 'pos' : 'neg'} sub={hb.data ? `região ${(hb.data.info as any)?.region ?? 'n/a'}` : undefined} />
       </div>
+
+      <Panel title="emergência" accent="#ff5c6c"><Emergencia /></Panel>
 
       <div className={`rounded-lg border p-3 text-sm ${salesOpen() ? 'border-executor/40 bg-executor/10 text-executor' : 'border-filter/40 bg-filter/10 text-filter'}`}>Venda: <b>{salesOpen() ? 'ABERTA' : 'FECHADA (lista de espera)'}</b> — {salesOpen() ? 'estratégia aprovada e SALES_OPEN=true.' : 'abre só com STRATEGY_APPROVED=true (teste fora da amostra aprovado) e SALES_OPEN=true.'}</div>
 

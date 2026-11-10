@@ -1,4 +1,4 @@
-import { enableBlockers } from '@desk/core';
+import { enableBlockers, killSwitchOn } from '@desk/core';
 import { NextResponse } from 'next/server';
 import { apiSubscriber } from '@/lib/auth';
 
@@ -12,6 +12,8 @@ export async function POST(req: Request) {
     await admin.from('bot_logs').insert({ user_id: userId, agent: 'logger', level: 'info', message: 'Robô PAUSADO pelo cliente (posições abertas mantêm o stop).' });
     return NextResponse.json({ on: false });
   }
+  const ks = await killSwitchOn(admin);
+  if (ks.on) return NextResponse.json({ error: 'EMERGÊNCIA ativa: o robô está travado até o dono liberar (a estratégia ainda não foi aprovada).' }, { status: 423 });
   const [{ data: s }, { data: acc }] = await Promise.all([
     admin.from('bot_settings').select('*').eq('user_id', userId).maybeSingle(),
     admin.from('exchange_accounts').select('verified,attested_no_withdraw').eq('user_id', userId).maybeSingle(),

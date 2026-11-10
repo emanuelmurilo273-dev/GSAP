@@ -1,5 +1,5 @@
 import {
-  MAX_TRADES_PER_DAY_DEFAULT, adminAlert, buildSeries, decrypt, hasAccess, isKeyError, log, makeExchange, realModeAllowed, sendEmail, emailLayout, setAgent, APP_NAME,
+  MAX_TRADES_PER_DAY_DEFAULT, adminAlert, buildSeries, killSwitchOn, decrypt, hasAccess, isKeyError, log, makeExchange, realModeAllowed, sendEmail, emailLayout, setAgent, APP_NAME,
   type Candle, type Ex, type ExchangeId, type Quote, type StrategyParams, type SubscriptionRow, type TradeRow,
 } from '@desk/core';
 import { analyze } from '../agents/analyst';
@@ -29,6 +29,12 @@ export async function runUserCycle(userId: string) {
     sb.from('profiles').select('role,email').eq('id', userId).maybeSingle(),
   ]);
   if (!s?.bot_enabled || !acc) return;
+  const ks = await killSwitchOn(sb);   // CHAVE GERAL de emergência: nada opera enquanto estiver ligada
+  if (ks.on) {
+    await sb.from('bot_settings').update({ bot_enabled: false, paused_reason: `EMERGÊNCIA: ${ks.reason ?? 'desligado pelo dono'}` }).eq('user_id', userId);
+    await log(sb, userId, 'risk', 'error', 'EMERGÊNCIA ativa: robô desligado. Só o dono pode religar.');
+    return;
+  }
   const isOwner = prof?.role === 'owner';
 
   // o dono nunca é bloqueado por inadimplência; clientes dependem de assinatura ativa

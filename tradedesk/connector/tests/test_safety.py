@@ -155,3 +155,28 @@ class Rules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Emergency(unittest.TestCase):
+    def test_kill_switch_flattens_disables_and_blocks_everything(self):
+        eng, gw, store, clock, sig = make()
+        run(eng, clock); sig.fire(); run(eng, clock)
+        self.assertEqual(len(gw.positions()), 1)
+        store.kv["kill_switch"] = {"on": True, "reason": "perdas reais"}
+        clock.advance(15); run(eng, clock)
+        self.assertEqual(gw.positions(), [])                                  # zerou
+        self.assertFalse(store.settings["enabled"]); self.assertEqual(store.settings["mode"], "sim"); self.assertTrue(store.settings["real_locked"])
+        self.assertEqual(eng.state, "halted")
+        store.settings["enabled"] = True                                      # mesmo religado na mão, não opera
+        sig.fire(); run(eng, clock, 3, dt=20)
+        self.assertEqual(gw.positions(), [])
+        self.assertEqual(len(store.trades), 1)
+
+    def test_switch_off_releases_only_the_lock_not_the_robot(self):
+        eng, gw, store, clock, sig = make()
+        store.kv["kill_switch"] = {"on": True}
+        run(eng, clock, 2, dt=15)
+        store.kv["kill_switch"] = {"on": False}
+        store.settings["enabled"] = False
+        clock.advance(15); run(eng, clock); sig.fire(); run(eng, clock)
+        self.assertEqual(gw.positions(), [])                                  # desligado continua desligado

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { apiOwner } from '@/lib/auth';
-import { unlockDecision } from '@desk/core';
+import { killSwitchOn, unlockDecision } from '@desk/core';
 import { realChecklist } from '@/lib/b3';
 import { auditOwner } from '@/lib/owner';
 
@@ -21,6 +21,7 @@ export async function POST(req: Request) {
   }
 
   if (b.action === 'unlock_real') {
+    if ((await killSwitchOn(admin)).on) return NextResponse.json({ error: 'EMERGÊNCIA ativa: o real só volta depois da aprovação.' }, { status: 423 });
     const { data: lk } = await admin.from('b3_settings').select('real_locked').eq('id', 1).maybeSingle();
     if (lk?.real_locked !== false) {          // coluna ausente/true = TRAVADO (diagnóstico de perdas ainda não aprovado)
       await auditOwner(admin, who, 'b3.unlock_real.denied', { reason: 'real_locked' }, req);

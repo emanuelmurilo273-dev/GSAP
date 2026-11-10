@@ -18,3 +18,4 @@ export * from './champion';
 export * from './health';
 export * from './protections';
 export * from './stats';
+export * from './emergency';
