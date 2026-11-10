@@ -1,0 +1,13 @@
+{
+  "temVantagem": false,
+  "veredito": "O robô ainda não tem vantagem comprovada. O modo real continua travado.",
+  "familias": [
+    { "nome": "Cruzamento de médias (base)", "treino": "1,05", "validacao": "0,95", "resultado": "referência: perdia" },
+    { "nome": "Rompimento da 1ª hora", "treino": "1,00", "validacao": "0,89", "resultado": "reprovada" },
+    { "nome": "Tendência com filtro de regime", "treino": "1,01", "validacao": "1,06", "resultado": "reprovada: só 62 operações na validação" },
+    { "nome": "Reversão ao VWAP", "treino": "0,77", "validacao": "0,75", "resultado": "reprovada" },
+    { "nome": "Pullback em tendência", "treino": "0,98", "validacao": "0,89", "resultado": "reprovada" },
+    { "nome": "Fluxo de ordens (book + agressão)", "treino": "—", "validacao": "—", "resultado": "não avaliável sem ticks gravados da B3" }
+  ],
+  "nota": "Resultados em mercado-proxy (cripto) com custos na proporção da B3. PF = fator de lucro (acima de 1 lucra). Só dados reais da B3 podem aprovar o robô. Detalhes: research/RESEARCH_B3.md."
+}

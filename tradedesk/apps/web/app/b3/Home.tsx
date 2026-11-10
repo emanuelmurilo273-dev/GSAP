@@ -54,10 +54,26 @@ function TradeCard({ t }: { t: Any }) {
   );
 }
 
+const LAMP: Record<string, { c: string; t: string }> = { verde: { c: '#3ddc84', t: 'Com vantagem e lucrando' }, amarelo: { c: '#ffcf4d', t: 'Atenção' }, vermelho: { c: '#ff5c6c', t: 'Perdendo — recomendo parar' }, cinza: { c: '#8392a1', t: 'Ainda poucos dados' } };
+
+function SaudeCard({ sa }: { sa: Any }) {
+  const g = sa.groups?.find((x: Any) => x.id === sa.current) ?? sa.groups?.[0];
+  if (!g) return null;
+  const h = g.health, L = LAMP[h.light];
+  return (
+    <Link href="/b3/saude" className="flex items-center gap-4 rounded-2xl border border-white/[.07] bg-white/[.03] p-4 transition hover:border-white/20" aria-label={`Saúde do robô: ${h.headline}`}>
+      <span className="h-5 w-5 shrink-0 rounded-full" style={{ background: L.c, boxShadow: `0 0 22px ${L.c}` }} aria-hidden />
+      <span className="min-w-0 flex-1"><b className="block text-sm">Saúde do robô · {L.t}</b><span className="block truncate text-xs text-dim">{h.n ? `${brl(h.expectancy, true)} por operação · ${h.n} operações` : 'Sem operações ainda'}</span></span>
+      <span className="text-dim" aria-hidden>→</span>
+    </Link>
+  );
+}
+
 export default function Home({ demo }: { demo?: Any }) {
   const [d, setD] = useState<Any | null>(demo ?? null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sa, setSa] = useState<Any | null>(demo?.__saude ?? null);
   const load = useCallback(async () => {
     if (demo) return;
     const r = await fetch('/api/b3/state').then(async (x) => ({ ok: x.ok, j: await x.json() })).catch(() => null);
@@ -66,6 +82,7 @@ export default function Home({ demo }: { demo?: Any }) {
     setErr(''); setD(r.j);
   }, [demo]);
   useEffect(() => { load(); if (demo) return; const id = setInterval(load, 3000); return () => clearInterval(id); }, [load, demo]);
+  useEffect(() => { if (demo) return; const f = () => fetch('/api/b3/saude').then((x) => x.json()).then((j) => !j.error && setSa(j)).catch(() => {}); f(); const id = setInterval(f, 15000); return () => clearInterval(id); }, [demo]);
 
   if (err) return <p role="alert" className="rounded-2xl border border-risk/40 bg-risk/10 p-4 text-sm text-risk">{err}</p>;
   if (!d) return <div className="space-y-4"><div className="skeleton h-40 w-full rounded-3xl" /><div className="skeleton h-28 w-full rounded-3xl" /></div>;
@@ -97,6 +114,9 @@ export default function Home({ demo }: { demo?: Any }) {
       </button>
 
       <motion.p key={robotSentence(d)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mx-auto max-w-xl text-center text-lg leading-relaxed text-ink/90 sm:text-xl">“{robotSentence(d)}”</motion.p>
+
+      {sa && <SaudeCard sa={sa} />}
+      {d.onboarded === false && <Link href="/b3/comecar" className="block rounded-2xl border border-executor/40 bg-executor/10 p-4 text-center text-sm font-medium text-executor hover:bg-executor/15">Primeira vez aqui? Faça o passo a passo de 3 minutos →</Link>}
 
       <section aria-label="Gráfico ao vivo"><LiveChart clean demo={demo?.__live} /></section>
 

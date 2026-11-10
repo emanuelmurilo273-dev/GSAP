@@ -5,9 +5,9 @@ import { RiskBanner } from '@/components/ui';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
-  title: { default: `${APP_NAME} · mesa de 6 agentes para cripto`, template: `%s · ${APP_NAME}` },
-  description: 'Robô de criptomoedas com mesa de 6 agentes operando 24h na SUA conta da corretora. Não custodial, chave sem saque, stop em toda ordem.',
-  openGraph: { title: `${APP_NAME} · mesa de 6 agentes para cripto`, description: 'Opera na sua corretora, 24h, com stop em toda ordem. Nunca guardamos seu dinheiro.', type: 'website', locale: 'pt_BR' },
+  title: { default: `${APP_NAME} · robô de day trade na B3`, template: `%s · ${APP_NAME}` },
+  description: 'Robô de day trade de mini índice e mini dólar na B3, via MetaTrader 5. Começa no simulador, stop em toda ordem, dinheiro real só depois de provar vantagem.',
+  openGraph: { title: `${APP_NAME} · robô de day trade na B3`, description: 'Simulador primeiro, real travado, stop em toda ordem. Sem promessa de lucro.', type: 'website', locale: 'pt_BR' },
   twitter: { card: 'summary_large_image' },
 };
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#05070a' };

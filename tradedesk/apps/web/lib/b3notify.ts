@@ -1,10 +1,8 @@
 import 'server-only';
-import { APP_NAME, emailLayout, healthOf, sendEmail } from '@desk/core';
+import { APP_NAME, buildSummary, emailLayout, sendEmail } from '@desk/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-const brl = (v: number) => `${v < 0 ? '−' : v > 0 ? '+' : ''}R$ ${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));
-const LIGHT: Record<string, string> = { verde: '🟢 verde', amarelo: '🟡 amarelo', vermelho: '🔴 vermelho', cinza: '⚪ sem dados suficientes' };
 
 /** Envia ao dono (e-mail) os alertas enfileirados pelo conector: cada operação, limites, volta ao simulador. Chamado pelo cron a cada 5 min. */
 export async function flushAlerts(admin: SupabaseClient): Promise<{ sent: number }> {
@@ -18,6 +16,7 @@ export async function flushAlerts(admin: SupabaseClient): Promise<{ sent: number
   const rest = rows.filter((r) => !urgent.includes(r));
   let sent = 0;
   for (const r of urgent) {
+    await pushPhone(r.title, r.body || r.title);
     if (await sendEmail(to, `[${APP_NAME}] ${r.title}`, emailLayout(r.kind === 'real_revert' ? 'ATENÇÃO' : 'aviso', `<p>${esc(r.title)}</p><p style="color:#8392a1">${esc(r.body)}</p>`))) { await admin.from('b3_alerts').update({ sent_at: new Date().toISOString() }).eq('id', r.id); sent++; }
   }
   if (rest.length) {   // operações do período num e-mail só (sem spam)
@@ -40,20 +39,28 @@ export async function dailySummary(admin: SupabaseClient, now = new Date()): Pro
   const { data: done } = await admin.from('alerts_sent').select('ts').eq('key', key).maybeSingle();
   if (done) return false;
   await admin.from('alerts_sent').upsert({ key, ts: now.toISOString() });
-  const [{ data: st }, { data: set }, { data: tr }] = await Promise.all([
+  const [{ data: st }, { data: set }, { data: tr }, { data: sess }] = await Promise.all([
     admin.from('b3_status').select('day_pnl,equity,trades_today,source').eq('id', 1).maybeSingle(),
     admin.from('b3_settings').select('mode').eq('id', 1).maybeSingle(),
     admin.from('b3_trades').select('pnl,source,mode').eq('status', 'closed').not('pnl', 'is', null).limit(20000),
+    admin.from('b3_sessions').select('halt_reason,halted').eq('day', day).limit(5),
   ]);
   const real = set?.mode === 'real';
   const mine = (tr ?? []).filter((t) => (real ? t.mode === 'real' && t.source !== 'internal' : t.source === (st?.source ?? 'internal')));
-  const h = healthOf(mine.map((t) => Number(t.pnl)));
-  const day_pnl = Number(st?.day_pnl ?? 0);
-  const body = `<p>Resultado de hoje: <b style="color:${day_pnl >= 0 ? '#3ddc84' : '#ff5c6c'}">${brl(day_pnl)}</b> · ${st?.trades_today ?? 0} operação(ões) · modo <b>${real ? 'DINHEIRO REAL' : 'SIMULADOR'}</b></p>
-<p>Saúde do robô: <b>${LIGHT[h.light]}</b> — ${esc(h.headline)}</p>
-<p>Média por operação: <b>${h.n ? brl(h.expectancy) : '—'}</b> · acerto ${h.n ? (h.winRate * 100).toFixed(0) + '%' : '—'} · ${h.n} operações no total.</p>
-<p style="color:#8392a1">${h.reasons.map(esc).join(' ')}</p>`;
-  await admin.from('b3_alerts').insert({ kind: 'summary', title: `Resumo do dia: ${brl(day_pnl)}`, body: `${h.headline}`, sent_at: now.toISOString() });
+  const sum = buildSummary({ dayPnl: Number(st?.day_pnl ?? 0), tradesToday: Number(st?.trades_today ?? 0), real, pnls: mine.map((t) => Number(t.pnl)), stopReason: (sess ?? []).find((x) => x.halted)?.halt_reason ?? null });
+  await admin.from('b3_alerts').insert({ kind: 'summary', title: sum.title, body: sum.health.headline, sent_at: now.toISOString() });
   const to = process.env.OWNER_EMAIL;
-  return to ? sendEmail(to, `[${APP_NAME}] Resumo do dia: ${brl(day_pnl)} · ${LIGHT[h.light]}`, emailLayout('resumo do dia', body)) : false;
+  const html = sum.lines.map((l, i) => `<p${i >= sum.lines.length - sum.health.reasons.length ? ' style="color:#8392a1"' : ''}>${esc(l)}</p>`).join('');
+  await pushPhone(sum.title, sum.health.headline);
+  return to ? sendEmail(to, `[${APP_NAME}] ${sum.title}`, emailLayout('resumo do dia', html)) : false;
+}
+
+/** Push no celular (opcional e gratuito): instale o app ntfy, assine o tópico e defina NTFY_TOPIC no .env. */
+export async function pushPhone(title: string, body: string): Promise<boolean> {
+  const topic = process.env.NTFY_TOPIC;
+  if (!topic) return false;
+  try {
+    const r = await fetch(`${process.env.NTFY_SERVER ?? 'https://ntfy.sh'}/${encodeURIComponent(topic)}`, { method: 'POST', body, headers: { Title: encodeURIComponent(title), 'Content-Type': 'text/plain; charset=utf-8' } });
+    return r.ok;
+  } catch { return false; }
 }

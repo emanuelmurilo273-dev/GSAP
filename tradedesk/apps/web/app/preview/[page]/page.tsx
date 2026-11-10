@@ -5,6 +5,9 @@ import LandingView from '@/components/LandingView';
 import { Logo, Panel } from '@/components/ui';
 import Dashboard from '../../app/Dashboard';
 import B3Dashboard from '../../b3/B3Dashboard';
+import Avancado from '../../b3/avancado/page';
+import Comecar from '../../b3/comecar/Comecar';
+import Historico from '../../b3/historico/Historico';
 import Home from '../../b3/Home';
 import Saude from '../../b3/saude/Saude';
 import Inteligencia from '../../b3/inteligencia/Inteligencia';
@@ -102,6 +105,18 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
       </div>
     );
   }
+  if (page === 'b3-historico' || page === 'b3-comecar' || page === 'b3-avancado') {
+    const now = Date.now();
+    const trades = Array.from({ length: 14 }, (_, i) => ({ id: i, side: i % 3 ? 'buy' : 'sell', contract: i % 4 ? 'WINZ26' : 'WDOZ26', volume: 1, opened_at: new Date(now - (i * 70 + 30) * 60_000).toISOString(), closed_at: new Date(now - (i * 70 + 10) * 60_000).toISOString(), pnl: [54, -38.5, 104.9, -57, 22, -31, 61.5][i % 7], close_reason: i % 5 === 0 ? 'zeragem de fim de dia' : 'stop/alvo na corretora' }));
+    const days = Array.from({ length: 22 }, (_, i) => ({ day: `2026-10-${String(i + 1).padStart(2, '0')}`, pnl: Math.sin(i / 2.3) * 90 - 8, n: 3 }));
+    return (
+      <div><ModeBanner initial="sim" demo demoInternal />
+        <div className="mx-auto max-w-3xl px-4 pb-12 sm:px-6"><header className="flex items-center justify-between py-4"><Logo /><span className="text-xs text-dim">{page.replace('b3-', '')}</span></header>
+          <div className="mb-4 rounded-lg border border-analyst/40 bg-analyst/10 px-3 py-2 text-xs text-analyst">PRÉVIA — DADOS DE EXEMPLO (não são resultados reais)</div>
+          {page === 'b3-historico' && <><h1 className="mb-4 text-2xl font-semibold tracking-tight">Histórico</h1><Historico demo={{ origem: 'internal', trades, days }} /></>}
+          {page === 'b3-comecar' && <><h1 className="mb-4 text-2xl font-semibold tracking-tight">Começar</h1><Comecar demo={{ connectorAgeSec: 3, status: { balance: 10000 } }} /></>}
+          {page === 'b3-avancado' && <Avancado />}</div></div>);
+  }
   if (page === 'b3-home' || page === 'b3-saude' || page === 'b3-saude-verde') {
     const now = Date.now(); const ts = (m: number) => new Date(now - m * 60_000).toISOString();
     const demoHome = {
@@ -109,7 +124,7 @@ export default async function Preview({ params }: { params: Promise<{ page: stri
       status: { state: 'trading', equity: 10248.6, balance: 10130, day_pnl: 120.4, halted: false, source: 'internal' },
       open: [{ id: 1, side: 'buy', volume: 1, contract: 'WINZ26', status: 'open', opened_at: ts(14), pnl: null, why: 'Comprei porque a média rápida cruzou para cima da lenta e o mercado estava em tendência. Stop 120 pontos (técnico, pelo ATR e pela última região de preço) e alvo 1,5× maior.' }],
       trades: [{ id: 2, side: 'sell', volume: 1, contract: 'WINZ26', status: 'closed', opened_at: ts(95), pnl: 54, why: null, close_reason: 'stop/alvo na corretora' }, { id: 3, side: 'buy', volume: 1, contract: 'WDOZ26', status: 'closed', opened_at: ts(190), pnl: -38.5, close_reason: 'stop/alvo na corretora' }, { id: 4, side: 'buy', volume: 1, contract: 'WINZ26', status: 'closed', opened_at: ts(260), pnl: 104.9, close_reason: 'zeragem de fim de dia' }],
-      decisions: [], logs: [], __live: undefined as any,
+      decisions: [], logs: [], onboarded: false, __saude: { current: 'internal', groups: [{ id: 'internal', health: { light: 'vermelho', headline: 'Perdendo dinheiro — recomendo parar', expectancy: -7.4, n: 148 } }] }, __live: undefined as any,
     };
     if (page === 'b3-home') {
       const lv: any = liveDemo();

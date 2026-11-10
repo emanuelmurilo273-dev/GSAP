@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { healthOf } from '../src/health';
+import { buildSummary, healthOf } from '../src/health';
 
 const rep = (xs: number[], k: number) => Array.from({ length: k }, () => xs).flat();
 
@@ -28,4 +28,12 @@ test('fase recente ruim rebaixa o verde para amarelo', () => {
 test('prejuízo comprovado com ≥30 operações', () => {
   const h = healthOf(rep([-30, -25, 10, -35], 15));
   assert.equal(h.light, 'vermelho'); assert.match(h.reasons[0], /comprovado/);
+});
+
+test('resumo diário: resultado, modo, saúde e motivo da parada — sem maquiar prejuízo', () => {
+  const r = buildSummary({ dayPnl: -120, tradesToday: 3, real: false, pnls: rep([-30, 20, -25, -10], 20), stopReason: '2 perdas seguidas' });
+  assert.match(r.title, /−R\$ 120,00/); assert.match(r.title, /vermelho/);
+  assert.ok(r.lines.some((l) => /SIMULADOR/.test(l)) && r.lines.some((l) => /2 perdas seguidas/.test(l)) && r.lines.some((l) => /Perdendo dinheiro/.test(l)));
+  const v = buildSummary({ dayPnl: 90, tradesToday: 2, real: true, pnls: [], stopReason: null });
+  assert.ok(v.lines.some((l) => /DINHEIRO REAL/.test(l)) && v.lines.some((l) => /Ainda não há operações/.test(l)));
 });

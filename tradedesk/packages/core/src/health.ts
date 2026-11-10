@@ -38,3 +38,19 @@ export function healthOf(pnls: number[]): Health {
   if (reasons.length) return { ...base, light: 'amarelo', headline: 'Atenção — a fase recente piorou', reasons };
   return { ...base, light: 'verde', headline: 'Com vantagem e lucrando', reasons: ['Lucro médio positivo e acima da margem de erro, com amostra suficiente.'] };
 }
+
+const money = (v: number) => `${v < 0 ? '−' : v > 0 ? '+' : ''}R$ ${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const LAMP: Record<Light, string> = { verde: '🟢 verde', amarelo: '🟡 amarelo', vermelho: '🔴 vermelho', cinza: '⚪ sem dados suficientes' };
+
+/** Texto do resumo diário (18:00): resultado do dia + saúde do robô. Honesto: diz "perdendo" quando perde. */
+export function buildSummary(i: { dayPnl: number; tradesToday: number; real: boolean; pnls: number[]; stopReason?: string | null }) {
+  const h = healthOf(i.pnls);
+  const lines = [
+    `Resultado de hoje: ${money(i.dayPnl)} · ${i.tradesToday} operação(ões) · modo ${i.real ? 'DINHEIRO REAL' : 'SIMULADOR'}`,
+    ...(i.stopReason ? [`Parei hoje: ${i.stopReason}.`] : []),
+    `Saúde do robô: ${LAMP[h.light]} — ${h.headline}`,
+    h.n ? `Média por operação: ${money(h.expectancy)} · acerto ${(h.winRate * 100).toFixed(0)}% · ${h.n} operações no total.` : 'Ainda não há operações para medir.',
+    ...h.reasons,
+  ];
+  return { title: `Resumo do dia: ${money(i.dayPnl)} · ${LAMP[h.light]}`, lines, health: h };
+}

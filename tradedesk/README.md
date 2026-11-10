@@ -15,6 +15,17 @@ O robô estava perdendo dinheiro. Foi feita uma autópsia completa: **[`DIAGNOST
 - **Saúde do robô** (`/b3/saude`): semáforo + expectativa por operação em R$. **Verde só com ≥100 operações e margem de erro acima de zero.**
 - **Novo visual**: tela inicial com saldo, resultado do dia, botão LIGAR/DESLIGAR, uma frase do robô e cartões de operações com "por quê?". O painel técnico antigo está em `/b3/detalhes`. Capturas em `docs/screenshots/v2-*.png`.
 
+## Começar em 6 passos (para quem nunca fez isso)
+
+1. **Abra conta na Clear** (clear.com.br) e peça acesso ao **MetaTrader 5**. *(Detalhes: `docs/B3-GUIA.md`, seção 1–2.)*
+2. **No MT5, crie a conta DEMO** (servidor `ClearInvestimentos-DEMO`): dinheiro de mentira, preços reais.
+3. **Instale o app no seu Windows**: dê dois cliques em `Instalar-Windows.bat`. Ele pede o seu e-mail e senha de dono, liga tudo e abre o site.
+4. **Instale o conector** (o programa que fala com o MT5): `connector\Instalar-Conector-Windows.bat`. Ele pede o login/senha da conta **demo**.
+5. **Abra o site → Começar**: o app guia 3 passos (conectar o MT5 → escolher o perfil, mostrando o pior dia em R$ → ligar).
+6. **Deixe rodar na demo por semanas** e acompanhe a aba **Saúde do robô**. Só pense em dinheiro real quando ela estiver verde *e* o app liberar (seção 6b do guia).
+
+Para o robô rodar o dia todo sem o seu PC, use uma **VPS Windows em São Paulo** (guia, seção 5: preços vistos em sites de terceiros — a partir de ~R$ 100/mês, e planos feitos para MT5/B3 por volta de R$ 200/mês; confirme no site do provedor antes de pagar). **Publicar o app na internet** (opcional): seção "Publicar na internet" abaixo.
+
 ## Duas melhorias novas (ao vivo + inteligência)
 
 - **Ao vivo** (`/b3/live`): candles M1/M5/M15 em tempo real, VWAP, médias, volume, marcadores de compra/venda do robô, linhas de stop e alvo, livro de ofertas e *times & trades*. O conector envia só as diferenças (Supabase Realtime) e, se o canal cair, o painel volta sozinho para sondagem de 1 s. **Passou de 5 s sem tick → alerta vermelho "DADOS ATRASADOS".**
@@ -32,7 +43,7 @@ O robô estava perdendo dinheiro. Foi feita uma autópsia completa: **[`DIAGNOST
 ```
 - **Conector** (`connector/`): lê preços, calcula, envia ordens **com stop gravado no servidor da corretora**, zera às 17:30, respeita limite de perda diário em R$, 1 posição por ativo, rolagem automática de WINxxx/WDOxxx. Roda no Windows ao lado do MT5 (seu PC ou VPS).
 - **Painel** (`/b3`): faixa fixa **azul SIMULADOR** / **vermelha DINHEIRO REAL**, saldo, resultado do dia, posições, log ao vivo, **PARAR TUDO**, configurações, liberação do modo real.
-- **Simulador é o padrão** (conta DEMO). **REAL** exige: (a) com estratégia aprovada: 20 pregões na demo do MT5 + 2 confirmações + `OPERAR REAL`; (b) **sem** estratégia aprovada (hoje): só o **modo REAL LIMITADO** (1 contrato, R$ 100/dia, 3 operações/dia, 1 posição por vez), com ≥ 5 pregões na demo do MT5, 3 confirmações e as frases `OPERAR REAL` + `EU ASSUMO O RISCO`; em ambos, trava local no conector. O conector **recusa** operar se o tipo da conta (demo/real) não bater com o modo.
+- **Simulador é o padrão** (conta DEMO). **REAL só libera com TODAS as condições**: (1) estratégia **aprovada no teste fora da amostra** (PF ≥ 1,3, drawdown ≤ 15%, ≥ 300 trades, positiva nos dois ativos); (2) expectativa por operação **positiva em R$** na conta demo do MT5; (3) **≥ 20 pregões** na demo com resultado positivo; (4) resultado da demo **próximo do esperado no teste**; (5) as duas confirmações + `OPERAR REAL`; (6) a trava do diagnóstico aberta; (7) trava local no conector. No real: **1 contrato** até 30 pregões reais positivos (depois +1 a cada 15), e se o saldo cair **10% abaixo do pico** o robô volta sozinho ao simulador e avisa. Hoje **nenhuma estratégia foi aprovada**, então o real está bloqueado. O conector **recusa** operar se o tipo da conta (demo/real) não bater com o modo.
 
 ### Estado desta versão (honesto)
 | Item | Situação |
@@ -42,10 +53,10 @@ O robô estava perdendo dinheiro. Foi feita uma autópsia completa: **[`DIAGNOST
 | **Conector falando com um MT5 de verdade** | ⚠️ **NUNCA executado**: precisa de Windows + MT5 + conta demo (só você tem). Pode haver ajustes (modo de preenchimento da ordem, símbolos, stops na B3) |
 | Nome do servidor `ClearInvestimentos-DEMO`, política de robôs e horário de zeragem da Clear | ⚠️ **não confirmados** (ver o guia) |
 | **Estratégia** | ⚠️ só uma estratégia de teste (cruzamento de EMAs), **NÃO validada**. A pesquisa para WIN/WDO ainda não foi feita (aguardando o restante do pedido) |
-| Modo REAL LIMITADO (liberação do dono): regras e tetos | ✅ 4 testes de regras + 5 do motor (tetos valem acima das configurações, nos dois lados); ⚠️ **nunca usado com dinheiro/MT5 real** |
+| Regras do modo REAL (todas as condições, 1 contrato, trava de 10% do pico, posições órfãs após reiniciar) | ✅ testes de regras (core) + do motor (conector); ⚠️ **nunca usado com dinheiro/MT5 real** |
 | **Simulador interno** (mercado ARTIFICIAL, dinheiro fictício, sem MT5; sobe sozinho no Docker) | ✅ 7 testes (contabilidade, zeragem, horários, origem separada, PARAR TUDO, liga sozinho 1×); ⚠️ preços **inventados** — não provam nada |
 | Painel B3 no navegador (telas com dados de exemplo em `docs/screenshots/b3-*.jpg`) | ✅ build e telas; ❌ não testado com o conector real |
-| Alerta por e-mail se o conector cair no pregão | ✅ código (`/api/cron/watchdog`); exige Resend + agendador; **push no celular não implementado** |
+| Alertas ao dono: e-mail (cada operação, limites, volta ao simulador, conector caiu) e resumo às 18:00; push no celular opcional via ntfy (`NTFY_TOPIC`) | ✅ código e testes do resumo; exige Resend + agendador (monitor chamando `/api/cron/watchdog` a cada 5 min); ⚠️ nunca enviado com chaves reais |
 
 > ## ⚠️ (cripto, legado) Leia antes de vender
 > 1. **Nenhuma estratégia passou na pesquisa de validação** (`research/RESEARCH.md`: 5 famílias × 3 pares × 3 timeframes, 3 anos, walk-forward, teste final uma única vez). Por isso, `STRATEGY_APPROVED=false` e **clientes não conseguem ligar o robô em conta real**. Só funciona em *testnet* (dinheiro de mentira) e na **conta do dono**.
