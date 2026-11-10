@@ -1,4 +1,4 @@
-import { realModeAllowed, strategyApproved, testnetMode } from '@desk/core';
+import { healthOf, realModeAllowed, salesOpen, strategyApproved, testnetMode } from '@desk/core';
 import { Logo, Panel, Stat, dateOnly, dt, num } from '@/components/ui';
 import { requireOwner } from '@/lib/auth';
 import { brl, getPlanPrice } from '@/lib/price';
@@ -24,6 +24,14 @@ export default async function Admin() {
     admin.from('audit_log').select('*').order('ts', { ascending: false }).limit(25),
     admin.from('bot_logs').select('id', { count: 'exact', head: true }).eq('level', 'error').gte('ts', since24),
   ]);
+  const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const [accs, sets, tr30] = await Promise.all([
+    admin.from('exchange_accounts').select('user_id,exchange,last_error,last_error_at'),
+    admin.from('bot_settings').select('user_id,bot_enabled,paused_reason'),
+    admin.from('trades').select('user_id,pnl').eq('status', 'closed').eq('testnet', false).not('entry_order_id', 'is', null).gte('exit_at', since30),
+  ]);
+  const accBy = new Map((accs.data ?? []).map((a) => [a.user_id, a])); const setBy = new Map((sets.data ?? []).map((a) => [a.user_id, a]));
+  const pnlBy = new Map<string, number[]>(); for (const t of tr30.data ?? []) (pnlBy.get(t.user_id) ?? pnlBy.set(t.user_id, []).get(t.user_id)!).push(Number(t.pnl));
   const prof = new Map((profiles.data ?? []).map((p) => [p.id, p]));
   // o dono nunca aparece na lista de assinantes
   const list = (subs.data ?? []).filter((s) => prof.get(s.user_id)?.role !== 'owner');
@@ -37,7 +45,7 @@ export default async function Admin() {
   return (
     <main className="mx-auto max-w-6xl space-y-4 px-3 pb-10 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-3 py-4"><Logo />
-        <nav className="flex gap-4 text-xs font-medium uppercase tracking-widest" aria-label="Admin"><a href="/app">Dashboard do robô</a><a href="/app/backtest">Backtest</a><a href="/app/settings">Config</a><a href="/auth/signout" className="text-dim">sair</a></nav></header>
+        <nav className="flex gap-4 text-xs font-medium uppercase tracking-widest" aria-label="Admin"><a href="/app">Dashboard do robô</a><a href="/b3">Laboratório B3</a><a href="/b3/inteligencia">Aprovar versões</a><a href="/app/backtest">Backtest</a><a href="/app/settings">Config</a><a href="/auth/signout" className="text-dim">sair</a></nav></header>
       <h1 className="text-xl font-bold tracking-tight">Admin <span className="font-mono text-sm font-normal text-risk">owner</span></h1>
 
       {pending.length > 0 && <div role="alert" className="rounded-lg border border-filter/50 bg-filter/10 p-3 text-sm text-filter"><b>Repasse Pix aguardando autorização no Asaas</b> ({pending.map((p) => brl(Number(p.value))).join(', ')}). Aprove no app/painel do Asaas. Novos repasses ficam em pausa até resolver.</div>}
@@ -52,6 +60,16 @@ export default async function Admin() {
         <Stat label="Erros de API (24h)" count={{ value: errCount.count ?? 0, decimals: 0 }} tone={errCount.count ? 'neg' : 'neutral'} />
         <Stat label="Worker" value={hbAge == null ? 'sem sinal' : workerOk ? 'online' : `parado ${Math.round(hbAge / 60)} min`} tone={workerOk ? 'pos' : 'neg'} sub={hb.data ? `região ${(hb.data.info as any)?.region ?? 'n/a'}` : undefined} />
       </div>
+
+      <div className={`rounded-lg border p-3 text-sm ${salesOpen() ? 'border-executor/40 bg-executor/10 text-executor' : 'border-filter/40 bg-filter/10 text-filter'}`}>Venda: <b>{salesOpen() ? 'ABERTA' : 'FECHADA (lista de espera)'}</b> — {salesOpen() ? 'estratégia aprovada e SALES_OPEN=true.' : 'abre só com STRATEGY_APPROVED=true (teste fora da amostra aprovado) e SALES_OPEN=true.'}</div>
+
+      <Panel title="clientes · saúde do robô de cada um (30 dias reais)" accent="#58a6ff">
+        <div className="overflow-x-auto"><table className="w-full min-w-[40rem] text-sm"><thead><tr className="text-left text-xs text-dim"><th className="py-1">Cliente</th><th>Corretora</th><th>Robô</th><th>Saúde</th><th>Por operação</th><th>Conexão</th></tr></thead>
+          <tbody>{list.map((x) => { const h = healthOf(pnlBy.get(x.user_id) ?? []); const a = accBy.get(x.user_id), st = setBy.get(x.user_id); const c = { verde: '#3ddc84', amarelo: '#ffcf4d', vermelho: '#ff5c6c', cinza: '#8392a1' }[h.light]; return (
+            <tr key={x.user_id} className="border-t border-white/5"><td className="py-1.5">{prof.get(x.user_id)?.email ?? x.user_id.slice(0, 8)}</td><td>{a?.exchange ?? '—'}</td><td>{st?.bot_enabled ? 'ligado' : st?.paused_reason ? 'pausado (trava)' : 'desligado'}</td>
+              <td><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: c }} />{h.light}</td><td className="font-mono">{h.n ? num(h.expectancy, 2) : '—'} ({h.n})</td><td className={a?.last_error ? 'text-risk' : 'text-dim'}>{a?.last_error ? String(a.last_error).slice(0, 50) : a ? 'ok' : 'sem conta'}</td></tr>); })}
+            {!list.length && <tr><td colSpan={6} className="py-3 text-center text-dim">Nenhum cliente ainda.</td></tr>}</tbody></table></div>
+      </Panel>
 
       <Panel title="validação · conta do dono (30 dias, valor pequeno)" accent="#2dd4bf"><ValidationPanel /></Panel>
 

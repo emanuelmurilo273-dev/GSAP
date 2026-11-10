@@ -52,7 +52,7 @@ export default function BacktestRunner({ symbols, exchange, initial }: { symbols
             <div><label>Período</label><select value={days} onChange={(e) => setDays(+e.target.value)}><option value={30}>30 dias</option><option value={90}>90 dias</option><option value={365}>365 dias</option></select></div>
           </div>
           <ParamFields v={form} set={setForm} />
-          <button className={btn} disabled={busy}>{busy ? 'baixando candles e simulando… (até 1 min)' : 'rodar backtest'}</button>
+          <button className={btn} disabled={busy}>{busy ? 'baixando candles e calculando… (até 1 min)' : 'rodar backtest'}</button>
           {err && <p className="text-sm text-neon-pink">{err}</p>}
         </form>
       </Panel>

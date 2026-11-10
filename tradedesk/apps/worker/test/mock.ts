@@ -29,7 +29,7 @@ export class MockExchange {
     this.calls.push(`${type}:${side}:${amount}`);
     const [base, quote] = sym.split('/');
     const last = this.prices[sym];
-    if (type === 'market' && params.triggerPrice !== undefined && side === 'sell') {
+    if ((type === 'market' || type === 'STOP_MARKET') && params.triggerPrice !== undefined && side === 'sell') {
       // Bybit spot: ordem condicional a mercado; NÃO reserva saldo até disparar
       if (this.failStop) throw new Error('stop rejeitado pela corretora');
       const o = { id: `o${++this.seq}`, symbol: sym, status: 'open', stopPrice: params.triggerPrice, amount, filled: 0, conditional: true };
@@ -101,12 +101,16 @@ class Q {
   update(v: any) { this.op = 'update'; this.payload = v; return this; }
   upsert(v: any, o: any = {}) { this.op = 'upsert'; this.payload = v; this.opts = o; return this; }
   eq(k: string, v: any) { this.filters.push([k, v]); return this; }
+  preds: ((r: any) => boolean)[] = [];
+  gte(k: string, v: any) { this.preds.push((r) => r[k] != null && r[k] >= v); return this; }
+  in(k: string, vs: any[]) { this.preds.push((r) => vs.includes(r[k])); return this; }
+  neq(k: string, v: any) { this.preds.push((r) => r[k] !== v); return this; }
   limit(n: number) { this.lim = n; return this; }
   order(k: string, o: any = {}) { this.ord = [k, o.ascending !== false]; return this; }
   maybeSingle() { return this.run().then((r) => ({ data: r.data?.[0] ?? null, error: r.error })); }
   single() { return this.run().then((r) => (r.data?.[0] ? { data: r.data[0], error: null } : { data: null, error: r.error ?? { message: 'sem linhas' } })); }
   then(res: any, rej?: any) { return this.run().then(res, rej); }
-  private match(r: any) { return this.filters.every(([k, v]) => r[k] === v); }
+  private match(r: any) { return this.filters.every(([k, v]) => r[k] === v) && this.preds.every((f) => f(r)); }
   async run(): Promise<{ data: any[] | null; error: any }> {
     const rows = this.db.rows(this.table);
     if (this.op === 'insert') {

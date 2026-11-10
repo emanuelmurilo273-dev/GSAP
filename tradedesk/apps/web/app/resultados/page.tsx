@@ -15,7 +15,7 @@ export default async function Page() {
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <Logo />
       <h1 className="text-3xl font-semibold tracking-tight">Resultados reais</h1>
-      <p className="max-w-2xl text-sm text-dim">São as operações reais do próprio robô, executadas na corretora, cada uma com o ID da ordem. <b className="text-ink">Nada é omitido</b>: todos os dias aparecem, os negativos também; nada de teste, simulação ou laboratório entra aqui.</p>
+      <p className="max-w-2xl text-sm text-dim">São as operações reais do próprio robô, executadas na corretora, cada uma com o ID da ordem. <b className="text-ink">Nada é omitido</b>: todos os dias aparecem, os negativos também. Só entram operações reais com ID de ordem na corretora.</p>
       <StatsView stats={s as any} excluded={excluded} since={since} />
       <p className="text-center text-xs text-dim">Operações em renda variável podem gerar perdas. Resultados passados não garantem resultados futuros.</p>
     </main>

@@ -1,7 +1,7 @@
-# Worker no Fly.io, FORA dos EUA (Binance bloqueia IPs americanos). Regiões boas: fra (Frankfurt), ams (Amsterdã), sin (Singapura).
+# Worker no Fly.io. Para Foxbit/Mercado Bitcoin use gru (São Paulo). Binance bloqueia IPs dos EUA: use fra/ams/sin se for Binance/Bybit.
 #   fly launch --no-deploy --copy-config   (aceite o nome)   →   fly secrets set ...   →   fly deploy
 app = "hexadesk-worker"
-primary_region = "fra"
+primary_region = "gru"
 
 [build]
   dockerfile = "Dockerfile.worker"

@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = 'HEXADESK — robô de day trade na B3 (mini índice e mini dólar)';
+export const alt = 'HEXADESK — robô de trading para B3 e cripto';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -15,9 +15,9 @@ export default function Image() {
           <div style={{ marginLeft: 12, fontSize: 30, letterSpacing: 8, color: '#8392a1' }}>HEXADESK</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05 }}>Day trade na B3,</div>
-          <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05, color: '#3ddc84' }}>simples e seguro.</div>
-          <div style={{ fontSize: 28, color: '#8392a1', marginTop: 24 }}>Simulador primeiro · real travado · stop em toda ordem · sem promessa de lucro</div>
+          <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05 }}>Robô para B3</div>
+          <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05, color: '#3ddc84' }}>e cripto, 24h.</div>
+          <div style={{ fontSize: 28, color: '#8392a1', marginTop: 24 }}>Seu dinheiro na sua conta · stop em toda ordem · sem promessa de lucro</div>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           {C.map(([n, c]) => <div key={n} style={{ border: `2px solid ${c}`, color: c, padding: '8px 16px', borderRadius: 10, fontSize: 22 }}>{n}</div>)}

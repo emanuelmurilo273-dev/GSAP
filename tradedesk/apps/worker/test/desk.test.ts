@@ -252,3 +252,66 @@ test('Bybit: permissões da chave — recusa saque, só leitura, sem spot; falha
   assert.equal(checkBybitPermissions(undefined).ok, false, 'resposta inesperada → recusa');
   assert.equal(checkBybitPermissions({ readOnly: 0 }).ok, false, 'sem permissions → recusa');
 });
+
+// ----------------------------------------------------------------- FOXBIT + PROTEÇÕES (cripto em R$)
+import { cappedPositionSize, createProtectiveStop, takerFee } from '@desk/core';
+import { peakGuard } from '../src/agents/risk';
+import { brtDay } from '../src/lib/util';
+
+const fx = (balance = 10_000) => {
+  const sb = new FakeSb();
+  const ex = new MockExchange('BRL', balance, 'foxbit');
+  ex.fee = 0.005;                                   // taker da Foxbit
+  ex.setPrice('BTC/BRL', 400_000);
+  return { sb, ex, as: sb as unknown as any, ax: ex as unknown as any };
+};
+
+test('Foxbit: ordem real registra ID da ordem, taxa de 0,5% e cria STOP_MARKET na corretora', async () => {
+  const { sb, ex, as, ax } = fx();
+  const t = await enter(as, ax, U, 'BTC/BRL', 400_000, 10_000, 9_000, P, 0.8, 'ok');
+  assert.ok(t);
+  const row = sb.rows('trades')[0];
+  assert.ok(row.entry_order_id, 'ID da ordem de entrada gravado');
+  assert.equal(row.testnet, false);
+  assert.ok(Math.abs(row.fees - 500 * 0.005) < 0.01, `taxa ${row.fees}`);                   // 5% de 10.000 = R$ 500 × 0,5%
+  const stop = ex.orders.find((o) => o.status === 'open');
+  assert.ok(stop && stop.conditional, 'stop STOP_MARKET na corretora');
+  assert.ok(ex.calls.some((c) => c.startsWith('STOP_MARKET:sell')));
+  assert.equal(takerFee('foxbit'), 0.005);
+});
+
+test('Cripto: nunca arrisca mais de 1% da conta por operação, mesmo com posição de 25% e stop de 10%', async () => {
+  const { sb, ex, as, ax } = fx();
+  const p = { ...P, positionPct: 0.25, stopPct: 0.10 };
+  const t = await enter(as, ax, U, 'BTC/BRL', 400_000, 10_000, 10_000, p, 0.8, '');
+  assert.ok(t);
+  const perdaNoStop = t!.cost * p.stopPct;
+  assert.ok(perdaNoStop <= 10_000 * 0.01 + 1, `perda no stop ${perdaNoStop}`);              // ≤ R$ 100
+  assert.equal(cappedPositionSize(10_000, 10_000, 0.25, 0.10), 1000);
+});
+
+test('Trava de 10% do pico: pausa o robô, grava o motivo e só dispara a partir de 10%', async () => {
+  const { sb } = fx();
+  sb.rows('bot_settings').push({ user_id: U, bot_enabled: true, peak_equity: 12_000 });
+  const a = await peakGuard(sb as any, U, 10_900, 12_000, null);                              // −9,2%
+  assert.equal(a.paused, false); assert.equal(sb.rows('bot_settings')[0].bot_enabled, true);
+  const b = await peakGuard(sb as any, U, 10_800, 12_000, null);                              // −10%
+  assert.equal(b.paused, true); assert.equal(sb.rows('bot_settings')[0].bot_enabled, false);
+  assert.match(String(sb.rows('bot_settings')[0].paused_reason), /10,0%|10\.0%/);
+  const c = await peakGuard(sb as any, U, 13_000, 12_000, null);                              // pico sobe
+  assert.equal(c.paused, false); assert.equal(sb.rows('bot_settings')[0].peak_equity, 13_000);
+});
+
+test('Risk: duas perdas seguidas no dia param o robô até amanhã (e uma vitória no meio zera a conta)', async () => {
+  const { sb, as } = setup();
+  const day = new Date().toISOString();
+  const add = (pnl: number, min: number) => sb.rows('trades').push({ id: `t${min}`, user_id: U, status: 'closed', pnl, exit_at: new Date(`${brtDay()}T01:${String(60 - min).padStart(2, '0')}:00-03:00`).toISOString(), symbol: 'BTC/USDT' });   // horários fixos dentro do dia de Brasília (sem depender da hora em que o teste roda)
+  add(-5, 30); add(+8, 20); add(-3, 10);
+  const g1 = await dailyGuard(as, U, 10_000, P);
+  assert.equal(g1.halted, false);                                                             // perda, ganho, perda: sequência = 1
+  add(-4, 5);
+  const g2 = await dailyGuard(as, U, 10_000, P);
+  assert.equal(g2.halted, true);                                                              // duas perdas seguidas
+  assert.match(String(sb.rows('daily_state')[0].halted_reason), /2 perdas seguidas/);
+  void day;
+});

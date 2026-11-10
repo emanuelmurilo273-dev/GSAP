@@ -21,8 +21,10 @@ services:
     ports: ["${WEB_PORT:-3000}:3000"]
     restart: unless-stopped
 
-  # Simulador interno do day trade B3: mercado ARTIFICIAL, dinheiro fictício, sem login. Liga sozinho com o resto.
+  # LABORATÓRIO (só dono): simulador interno do day trade B3 (mercado ARTIFICIAL, dinheiro fictício). Não faz parte do produto público:
+  # sobe só com `docker compose --profile lab up`. Nada dele entra nas estatísticas.
   simulador:
+    profiles: ["lab"]
     build:
       context: .
       dockerfile: Dockerfile.sim
@@ -30,8 +32,8 @@ services:
     extra_hosts: ["host.docker.internal:host-gateway"]
     restart: unless-stopped
 
+  # Robô de cripto 24/7 (Foxbit etc.): reinicia sozinho (restart + healthcheck) e o watchdog avisa o admin se parar.
   worker:
-    profiles: ["cripto"]   # legado (robô de cripto): só sobe com `docker compose --profile cripto up`
     build:
       context: .
       target: worker

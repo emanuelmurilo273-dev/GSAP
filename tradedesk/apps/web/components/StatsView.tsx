@@ -97,7 +97,7 @@ export default function StatsView({ stats: s, excluded = 0, since }: { stats: An
       <div className="grid gap-3 lg:grid-cols-3"><Table title="Por mercado" rows={s.byMarket} /><Table title="Por ativo" rows={s.bySymbol} /><Table title="Por horário (Brasília)" rows={s.byHour} /></div>
 
       <p className="rounded-2xl bg-white/[.03] p-4 text-xs leading-relaxed text-dim">
-        Calculado só de operações <b className="text-ink">reais</b> executadas na corretora, cada uma com o ID da ordem{since ? <>; histórico completo desde <b className="text-ink">{new Date(since).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</b></> : null}. Testes, simulações e operações sem ID de ordem ficam de fora{excluded ? ` (${excluded} sem ID, não contadas)` : ''}. Nenhum período ou dia é filtrado para melhorar os números. Operações em renda variável podem gerar perdas. Resultados passados não garantem resultados futuros.
+        Calculado só de operações <b className="text-ink">reais</b> executadas na corretora, cada uma com o ID da ordem{since ? <>; histórico completo desde <b className="text-ink">{new Date(since).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</b></> : null}. Operações sem ID de ordem na corretora não são contadas{excluded ? ` (${excluded} sem ID)` : ''}. Nenhum período ou dia é filtrado para melhorar os números. Operações em renda variável podem gerar perdas. Resultados passados não garantem resultados futuros.
       </p>
     </div>
   );
