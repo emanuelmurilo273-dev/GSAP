@@ -71,7 +71,7 @@ export default function Comecar({ demo }: { demo?: Any }) {
             <ul className="space-y-2 text-sm">
               <li>✔ Modo: <b>SIMULADOR</b> (dinheiro real está travado).</li>
               <li>✔ Perfil <b>{P.nome}</b>: no pior dia perde no máximo <b className="text-risk">{brl(bal * P.day)}</b>.</li>
-              <li>✔ Para depois de 2 perdas seguidas, zera tudo às 17:30, stop em toda ordem.</li>
+              <li>✔ Para depois de 1 perda no dia, zera tudo às 17:30, stop em toda ordem.</li>
               <li>✔ Você pode desligar ou apertar PARAR TUDO a qualquer momento.</li>
             </ul>
             <p className="rounded-xl bg-white/5 p-3 text-xs text-dim">Honestidade: este robô ainda <b className="text-ink">não provou ter vantagem</b>. No simulador ele serve para testar. A aba "Saúde do robô" mostra, em números, se vale a pena continuar.</p>

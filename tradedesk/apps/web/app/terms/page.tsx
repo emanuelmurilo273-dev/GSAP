@@ -15,7 +15,7 @@ export default function Terms() {
       <H>3. Chaves e acessos</H>
       <p>O cliente deve criar chaves de API apenas com permissão de leitura e negociação, sem saque. O login do MetaTrader 5 fica criptografado no computador/VPS do cliente e não é enviado ao app. O cliente é responsável por manter seus acessos seguros e pode revogá-los a qualquer momento.</p>
       <H>4. Proteções do robô</H>
-      <p>O robô aplica limite de perda diário, parada após duas perdas seguidas, stop em cada ordem, risco máximo por operação, zeragem da B3 às 17:30 e pausa automática se a conta cair 5% do pico. Essas proteções reduzem, mas não eliminam, o risco.</p>
+      <p>O robô aplica limite de perda diário, parada do dia após 1 perda, stop em cada ordem, risco máximo por operação, zeragem da B3 às 17:30 e pausa automática se a conta cair 5% do pico. Essas proteções reduzem, mas não eliminam, o risco.</p>
       <H>5. Resultados publicados</H>
       <p>A página de resultados mostra o histórico completo das operações reais do próprio robô, sem filtro de períodos. Os números do cliente são calculados somente a partir de operações reais com ID de ordem na corretora.</p>
       <H>6. Pagamento, cancelamento e inadimplência</H>

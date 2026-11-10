@@ -13,7 +13,7 @@ const LAMP: Record<string, { c: string; t: string }> = { verde: { c: '#3ddc84', 
 export function sentence(d: Any): string {
   if (!d.connected) return 'Falta conectar a sua corretora para eu começar. Toque em "Começar".';
   if (d.pausedReason && !d.enabled) return d.pausedReason;
-  if (d.halted) return /SEGUIDAS|seguidas/.test(d.haltedReason ?? '') ? 'Parei por hoje: tive duas perdas seguidas e prefiro não insistir.' : 'Parei por hoje: bati o limite de perda que você definiu.';
+  if (d.halted) return /SEGUIDAS|seguidas/.test(d.haltedReason ?? '') ? 'Parei por hoje: tive uma perda e, por segurança, não insisto no mesmo dia.' : 'Parei por hoje: bati o limite de perda que você definiu.';
   if (!d.enabled) return 'Estou desligado. Ligue o botão quando quiser que eu volte a procurar oportunidades.';
   if (d.open?.length) { const t = d.open[0]; return `Estou comprado em ${String(t.symbol).split('/')[0]}. A proteção (stop) já está na corretora. Toque em "Histórico" para ver o porquê.`; }
   const r = (d.logs ?? []).find((l: Any) => l.agent !== 'risk' && /RECUSA|SINAL/.test(l.message));

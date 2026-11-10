@@ -18,7 +18,7 @@ export function robotSentence(d: Any): string {
   if (open.length) { const t = open[0]; return `${t.side === 'buy' ? 'Comprei' : 'Vendi'} ${t.volume} ${asset(t.contract)} porque ${t.side === 'buy' ? 'o preço mostrou força de alta' : 'o preço mostrou força de queda'}. A proteção (stop) já está na corretora; toque em “por quê?” na operação para ver o detalhe.`; }
   if (st.halted) {
     const m = (d.logs ?? []).find((l: Any) => /PERDAS SEGUIDAS|limite de perda|META DI/i.test(l.message));
-    return /SEGUIDAS/i.test(m?.message ?? '') ? 'Parei por hoje: tive duas perdas seguidas e prefiro não insistir.' : /META/i.test(m?.message ?? '') ? 'Parei por hoje: a meta do dia foi atingida.' : 'Parei por hoje: atingi o limite de perda que você definiu.';
+    return /SEGUIDAS/i.test(m?.message ?? '') ? 'Parei por hoje: tive uma perda e, por segurança, não insisto no mesmo dia.' : /META/i.test(m?.message ?? '') ? 'Parei por hoje: a meta do dia foi atingida.' : 'Parei por hoje: atingi o limite de perda que você definiu.';
   }
   if (st.state === 'closed_holiday') return 'O mercado está fechado hoje (fim de semana ou feriado).';
   if (st.state === 'outside_hours') return 'Estou fora do horário de operar. Volto no próximo pregão.';

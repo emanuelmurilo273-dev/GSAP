@@ -18,8 +18,8 @@
 | Área | Estado |
 |---|---|
 | Foxbit: ordens, **stop STOP_MARKET na corretora**, taxas reais, chave sem saque (por declaração: a Foxbit não expõe permissões), WebSocket oficial no gráfico | ✅ código + testes com corretora simulada; ⚠️ **nunca rodou com chave real** (use `scripts/ordem-minima.ts --confirmo`) |
-| Proteções de cripto: risco ≤ 1% por operação, sem alavancagem, limite diário, **para após 2 perdas**, máx. operações/dia, **pausa se a conta cair 5% do pico** (e avisa) | ✅ testadas |
-| Proteções da B3: stop no servidor, limite em R$, 2 perdas, zeragem 17:30, 1 contrato até provar, volta ao simulador se cair 5% | ✅ testadas (simulador); ⚠️ nunca no MT5 real |
+| Proteções de cripto: risco ≤ 1% por operação, sem alavancagem, limite diário, **para o dia após 1 perda**, máx. operações/dia, **pausa se a conta cair 5% do pico** (e avisa) | ✅ testadas |
+| Proteções da B3: stop no servidor, limite em R$, 1 perda para o dia, zeragem 17:30, 1 contrato até provar, volta ao simulador se cair 5% | ✅ testadas (simulador); ⚠️ nunca no MT5 real |
 | Estatísticas **só reais** (com ID da ordem): hoje/semana/mês/ano/total, acerto, expectativa em R$, fator de lucro, sequências, drawdown, custos separados, calendário, por mercado/ativo/horário, **extrato CSV e PDF** | ✅ |
 | Página pública `/resultados` com o histórico completo (dias negativos incluídos) | ✅ |
 | Landing, FAQ, termos, privacidade (LGPD), aviso de risco, lista de espera, checkout Asaas (Pix/cartão) **atrás da aprovação** | ✅ (textos jurídicos são modelo: **precisam de advogado**) |
@@ -53,7 +53,7 @@
 O robô estava perdendo dinheiro. Foi feita uma autópsia completa: **[`DIAGNOSTICO.md`](DIAGNOSTICO.md)**.
 
 - **Proteção imediata** (migration `007_b3_protecao_diagnostico.sql`, aplicada pelo instalador): volta ao **SIMULADOR**, **trava o modo real** (`real_locked`), limite de perda do perfil Conservador (R$ 100/dia, R$ 50/operação, 1 contrato, 3 operações/dia). A trava só abre na aba **Saúde do robô**, digitando `LIBERAR APÓS DIAGNÓSTICO`; mesmo aberta, o modo real ainda exige as demais liberações. O conector também respeita a trava.
-- **Regras v2** (sempre ligadas, `connector/hexadesk_connector/safety.py`): nada nos primeiros 15 min; nada 15 min antes/depois de notícia forte; para o dia após 2 perdas seguidas; stop **técnico** (≥1×ATR e além da última região de preço) com alvo ≥1,5× o stop; a operação só entra se o risco dela **cabe no que resta do limite de perda do dia**; nunca aumenta a mão depois de perda (sem martingale, sem preço médio, sem tirar stop).
+- **Regras v2** (sempre ligadas, `connector/hexadesk_connector/safety.py`): nada nos primeiros 15 min; nada 15 min antes/depois de notícia forte; para o dia após 1 perda; stop **técnico** (≥1×ATR e além da última região de preço) com alvo ≥2× o stop (1:2), 1 contrato fixo, no máximo 3 operações por dia, sem mercado lateral, uma posição por vez; a operação só entra se o risco dela **cabe no que resta do limite de perda do dia**; nunca aumenta a mão depois de perda (sem martingale, sem preço médio, sem tirar stop).
 - **Correções de execução**: desvio máximo de preço das ordens agora é de 2–3 ticks (era 20/30 fixos: no mini dólar isso era mais de 4× o stop), e o robô só enxerga/zera as **suas** posições (magic number), nunca as manuais.
 - **Autópsia dos SEUS trades**: `connector\Autopsia.bat` (gera `DIAGNOSTICO-SEUS-DADOS.md`). Ela lê o banco e **não altera nada**. Cortes (horário/ativo/regime/lado) só são sugeridos com prova estatística.
 - **Saúde do robô** (`/b3/saude`): semáforo + expectativa por operação em R$. **Verde só com ≥100 operações e margem de erro acima de zero.**
