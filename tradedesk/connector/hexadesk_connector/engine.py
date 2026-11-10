@@ -261,7 +261,7 @@ class Engine:
             self.real_cache = st
 
     def _real_guard(self, acct: Account, s: dict) -> bool:
-        """Real: se o saldo cair 10% abaixo do pico, zera tudo, volta ao SIMULADOR, trava o real e avisa. Devolve True se disparou."""
+        """Real: se o saldo cair 5% abaixo do pico, zera tudo, volta ao SIMULADOR, trava o real e avisa. Devolve True se disparou."""
         if s["mode"] != "real":
             self.peak = None
             return False
@@ -272,12 +272,12 @@ class Engine:
             self.peak = acct.equity
             self._safe(self.store.kv_set, "b3_real_peak", self.peak)
         if self.peak > 0 and acct.equity <= self.peak * (1 - REAL_DD_STOP):
-            n = self._flatten("trava de 10% do pico")
+            n = self._flatten("trava de 5% do pico")
             self._safe(self.store.update_settings, {"mode": "sim", "real_unlocked": False, "real_limited": False, "enabled": False, "real_locked": True,
-                                                    "real_locked_reason": f"Voltou ao simulador: o saldo real caiu 10% abaixo do pico (pico R$ {self.peak:,.2f}, agora R$ {acct.equity:,.2f})."})
-            msg = f"TRAVA DOS 10%: saldo real R$ {acct.equity:,.2f} está 10% abaixo do pico R$ {self.peak:,.2f}. {n} posição(ões) zerada(s); o robô voltou ao SIMULADOR e o real foi travado."
+                                                    "real_locked_reason": f"Voltou ao simulador: o saldo real caiu 5% abaixo do pico (pico R$ {self.peak:,.2f}, agora R$ {acct.equity:,.2f})."})
+            msg = f"TRAVA DOS 5%: saldo real R$ {acct.equity:,.2f} está 5% abaixo do pico R$ {self.peak:,.2f}. {n} posição(ões) zerada(s); o robô voltou ao SIMULADOR e o real foi travado."
             self.log("error", "risk", msg)
-            self._alert("real_revert", "Robô voltou ao SIMULADOR: queda de 10% no real", msg)
+            self._alert("real_revert", "Robô voltou ao SIMULADOR: queda de 5% no real", msg)
             self.peak = None
             return True
         return False

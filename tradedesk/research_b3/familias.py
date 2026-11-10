@@ -5,7 +5,7 @@
   3. SELEÇÃO (`select`): em treino E validação, fator de lucro > 1 com ≥ 100 operações em cada → "candidata". Só candidatas vão ao teste.
   4. TESTE FINAL (`test`): roda UMA vez (trava em disco) em dados que a seleção nunca viu:
         proxy → ativos inéditos (BNB, XRP, ADA); selecionar em BTC/ETH/SOL.   B3 → o trecho final (20%) de WIN e WDO.
-  5. APROVAÇÃO: fator de lucro ≥ 1,3 · drawdown ≤ 15% · ≥ 300 trades · positiva nos dois ativos (ou o ativo ruim é desligado).
+  5. APROVAÇÃO: fator de lucro ≥ 1,3 · drawdown ≤ 10% · ≥ 300 trades · positiva nos dois ativos (ou o ativo ruim é desligado).
   6. SÓ os dados da B3 (`csv`) podem gravar a aprovação que destrava o real (--gravar-aprovacao). O proxy NUNCA aprova nada para a B3.
 
 Uso:  python -m research_b3.familias proxy select | proxy test
@@ -30,7 +30,7 @@ from research_b3.metrics import summarize  # noqa: E402
 SEL_PROXY, TEST_PROXY = ("BTCUSDT", "ETHUSDT", "SOLUSDT"), ("BNBUSDT", "XRPUSDT", "ADAUSDT")
 MIN_SEL_TRADES = 100
 EQUITY_B3 = 10_000.0
-APPROVE = {"pf": 1.3, "dd": 0.15, "trades": 300}
+APPROVE = {"pf": 1.3, "dd": 0.10, "trades": 300}
 
 
 def load_proxy_series(names):

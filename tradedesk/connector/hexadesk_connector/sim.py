@@ -5,7 +5,7 @@
     (com `trending=True` há tendências embutidas, que inflam o resultado — só para testar o motor).
   * O relógio é acelerado (padrão: 30x → um candle de 5 min a cada 10 s; um pregão inteiro em ~17 min).
   * Passa pelo MESMO motor (engine.py) do conector real: mesmos stops, limites, zeragem às 17:30 e PARAR TUDO.
-  * Os dias do simulador interno NÃO contam para os "20 pregões" exigidos antes do modo REAL (source='internal').
+  * Os dias do simulador interno NÃO contam para os "30 pregões" exigidos antes do modo REAL (source='internal').
 """
 from __future__ import annotations
 

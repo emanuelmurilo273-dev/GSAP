@@ -12,14 +12,14 @@
 > ## ⛔ Estado honesto: ainda NÃO tem vantagem comprovada
 > - **Cripto na Foxbit** (2 anos de dados e taxas reais, 0,5% por lado): fator de lucro **0,37 a 0,63**, média de **−0,7% a −1,45% por operação** → [`research/RESEARCH_CRIPTO_FOXBIT.md`](research/RESEARCH_CRIPTO_FOXBIT.md).
 > - **B3**: nenhuma das 5 famílias de estratégia passou na seleção → [`research/RESEARCH_B3.md`](research/RESEARCH_B3.md) e [`DIAGNOSTICO.md`](DIAGNOSTICO.md).
-> - Por isso `STRATEGY_APPROVED=false` e `SALES_OPEN=false`: **a venda não abre, a landing mostra lista de espera e clientes não ligam o robô**. A venda só abre quando uma estratégia passar no teste fora da amostra (PF ≥ 1,3 · perda máx. ≤ 15% · ≥ 300 operações) **e** você mudar as duas variáveis.
+> - Por isso `STRATEGY_APPROVED=false` e `SALES_OPEN=false`: **a venda não abre, a landing mostra lista de espera e clientes não ligam o robô**. A venda só abre quando uma estratégia passar no teste fora da amostra (PF ≥ 1,3 · perda máx. ≤ 10% · ≥ 300 operações) **e** você mudar as duas variáveis.
 
 ## O que está implementado
 | Área | Estado |
 |---|---|
 | Foxbit: ordens, **stop STOP_MARKET na corretora**, taxas reais, chave sem saque (por declaração: a Foxbit não expõe permissões), WebSocket oficial no gráfico | ✅ código + testes com corretora simulada; ⚠️ **nunca rodou com chave real** (use `scripts/ordem-minima.ts --confirmo`) |
-| Proteções de cripto: risco ≤ 1% por operação, sem alavancagem, limite diário, **para após 2 perdas**, máx. operações/dia, **pausa se a conta cair 10% do pico** (e avisa) | ✅ testadas |
-| Proteções da B3: stop no servidor, limite em R$, 2 perdas, zeragem 17:30, 1 contrato até provar, volta ao simulador se cair 10% | ✅ testadas (simulador); ⚠️ nunca no MT5 real |
+| Proteções de cripto: risco ≤ 1% por operação, sem alavancagem, limite diário, **para após 2 perdas**, máx. operações/dia, **pausa se a conta cair 5% do pico** (e avisa) | ✅ testadas |
+| Proteções da B3: stop no servidor, limite em R$, 2 perdas, zeragem 17:30, 1 contrato até provar, volta ao simulador se cair 5% | ✅ testadas (simulador); ⚠️ nunca no MT5 real |
 | Estatísticas **só reais** (com ID da ordem): hoje/semana/mês/ano/total, acerto, expectativa em R$, fator de lucro, sequências, drawdown, custos separados, calendário, por mercado/ativo/horário, **extrato CSV e PDF** | ✅ |
 | Página pública `/resultados` com o histórico completo (dias negativos incluídos) | ✅ |
 | Landing, FAQ, termos, privacidade (LGPD), aviso de risco, lista de espera, checkout Asaas (Pix/cartão) **atrás da aprovação** | ✅ (textos jurídicos são modelo: **precisam de advogado**) |
@@ -87,7 +87,7 @@ Para o robô rodar o dia todo sem o seu PC, use uma **VPS Windows em São Paulo*
 ```
 - **Conector** (`connector/`): lê preços, calcula, envia ordens **com stop gravado no servidor da corretora**, zera às 17:30, respeita limite de perda diário em R$, 1 posição por ativo, rolagem automática de WINxxx/WDOxxx. Roda no Windows ao lado do MT5 (seu PC ou VPS).
 - **Painel** (`/b3`): faixa fixa **azul SIMULADOR** / **vermelha DINHEIRO REAL**, saldo, resultado do dia, posições, log ao vivo, **PARAR TUDO**, configurações, liberação do modo real.
-- **Simulador é o padrão** (conta DEMO). **REAL só libera com TODAS as condições**: (1) estratégia **aprovada no teste fora da amostra** (PF ≥ 1,3, drawdown ≤ 15%, ≥ 300 trades, positiva nos dois ativos); (2) expectativa por operação **positiva em R$** na conta demo do MT5; (3) **≥ 20 pregões** na demo com resultado positivo; (4) resultado da demo **próximo do esperado no teste**; (5) as duas confirmações + `OPERAR REAL`; (6) a trava do diagnóstico aberta; (7) trava local no conector. No real: **1 contrato** até 30 pregões reais positivos (depois +1 a cada 15), e se o saldo cair **10% abaixo do pico** o robô volta sozinho ao simulador e avisa. Hoje **nenhuma estratégia foi aprovada**, então o real está bloqueado. O conector **recusa** operar se o tipo da conta (demo/real) não bater com o modo.
+- **Simulador é o padrão** (conta DEMO). **REAL só libera com TODAS as condições**: (1) estratégia **aprovada no teste fora da amostra** (PF ≥ 1,3, drawdown ≤ 10%, ≥ 300 trades, positiva nos dois ativos); (2) expectativa por operação **positiva em R$** na conta demo do MT5; (3) **≥ 30 pregões** na demo com resultado positivo; (4) resultado da demo **próximo do esperado no teste**; (5) as duas confirmações + `OPERAR REAL`; (6) a trava do diagnóstico aberta; (7) trava local no conector. No real: **1 contrato** até 30 pregões reais positivos (depois +1 a cada 15), e se o saldo cair **5% abaixo do pico** o robô volta sozinho ao simulador e avisa. Hoje **nenhuma estratégia foi aprovada**, então o real está bloqueado. O conector **recusa** operar se o tipo da conta (demo/real) não bater com o modo.
 
 ### Estado desta versão (honesto)
 | Item | Situação |
@@ -97,7 +97,7 @@ Para o robô rodar o dia todo sem o seu PC, use uma **VPS Windows em São Paulo*
 | **Conector falando com um MT5 de verdade** | ⚠️ **NUNCA executado**: precisa de Windows + MT5 + conta demo (só você tem). Pode haver ajustes (modo de preenchimento da ordem, símbolos, stops na B3) |
 | Nome do servidor `ClearInvestimentos-DEMO`, política de robôs e horário de zeragem da Clear | ⚠️ **não confirmados** (ver o guia) |
 | **Estratégia** | ⚠️ só uma estratégia de teste (cruzamento de EMAs), **NÃO validada**. A pesquisa para WIN/WDO ainda não foi feita (aguardando o restante do pedido) |
-| Regras do modo REAL (todas as condições, 1 contrato, trava de 10% do pico, posições órfãs após reiniciar) | ✅ testes de regras (core) + do motor (conector); ⚠️ **nunca usado com dinheiro/MT5 real** |
+| Regras do modo REAL (todas as condições, 1 contrato, trava de 5% do pico, posições órfãs após reiniciar) | ✅ testes de regras (core) + do motor (conector); ⚠️ **nunca usado com dinheiro/MT5 real** |
 | **Simulador interno** (mercado ARTIFICIAL, dinheiro fictício, sem MT5; sobe sozinho no Docker) | ✅ 7 testes (contabilidade, zeragem, horários, origem separada, PARAR TUDO, liga sozinho 1×); ⚠️ preços **inventados** — não provam nada |
 | Painel B3 no navegador (telas com dados de exemplo em `docs/screenshots/b3-*.jpg`) | ✅ build e telas; ❌ não testado com o conector real |
 | Alertas ao dono: e-mail (cada operação, limites, volta ao simulador, conector caiu) e resumo às 18:00; push no celular opcional via ntfy (`NTFY_TOPIC`) | ✅ código e testes do resumo; exige Resend + agendador (monitor chamando `/api/cron/watchdog` a cada 5 min); ⚠️ nunca enviado com chaves reais |

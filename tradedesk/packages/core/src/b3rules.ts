@@ -1,22 +1,22 @@
 /**
  * Regras de segurança do dinheiro no day trade B3 (puras e testadas). O painel (servidor) as aplica; o conector Python repete as que valem na máquina
- * (engine.py: `real_contract_cap`, queda de 10% do pico) — mantenha os dois em sincronia.
+ * (engine.py: `real_contract_cap`, queda de 5% do pico) — mantenha os dois em sincronia.
  */
 export const REAL_PHRASE = 'OPERAR REAL';
-export const MIN_SIM_SESSIONS = 20;          // pregões na conta DEMO do MT5 (preços reais) com resultado positivo
+export const MIN_SIM_SESSIONS = 30;          // pregões na conta DEMO do MT5 (preços reais) com resultado positivo
 export const MIN_SESSION_MINUTES = 240;      // robô ligado ≥ 4 h dentro do pregão para o dia contar
 export const MIN_DEMO_TRADES = 30;           // operações mínimas na demo para a expectativa valer
 export const NEAR_BACKTEST = 0.5;            // expectativa da demo precisa ser ≥ 50% da esperada no teste fora da amostra
 
 /** Critérios de APROVAÇÃO da estratégia (teste final, uma única vez). */
-export const APPROVAL_RULES = { minPF: 1.3, maxDD: 0.15, minTrades: 300 } as const;
+export const APPROVAL_RULES = { minPF: 1.3, maxDD: 0.10, minTrades: 300 } as const;
 
 /** Real: começa com 1 contrato. Só sobe depois de 30 pregões reais com resultado positivo, e 1 contrato a cada 15 pregões positivos a mais. */
 export const REAL_START_CONTRACTS = 1;
 export const REAL_SCALE_AFTER = 30;
 export const REAL_SCALE_STEP = 15;
-/** Se o dinheiro real cair 10% abaixo do pico, o robô volta sozinho ao simulador. */
-export const REAL_DD_STOP = 0.10;
+/** Se o dinheiro real cair 5% abaixo do pico, o robô volta sozinho ao simulador. */
+export const REAL_DD_STOP = 0.05;
 
 export interface Approval { approved: boolean; pf?: number; dd?: number; trades?: number; expectancy?: number; at?: string }
 export interface DemoStats { sessions: number; trades: number; pnl: number; expectancy: number }

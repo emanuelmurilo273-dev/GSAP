@@ -143,7 +143,7 @@ function ModeSwitch({ d, post, busy }: { d: Any; post: (u: string, b: Any) => Pr
   const Row = ({ ok, children }: { ok: boolean; children: React.ReactNode }) => <p className={ok ? 'text-executor' : 'text-risk'}>{ok ? '✔' : '✖'} {children}</p>;
   if (real) return (
     <div className="space-y-2">
-      <p className="rounded-lg border border-filter/40 bg-filter/10 p-2 text-[11px] text-filter">Modo REAL: começa com <b>1 contrato</b> (só sobe após 30 pregões reais positivos). Se o saldo cair <b>10% abaixo do pico</b>, o robô volta sozinho ao simulador e avisa você.</p>
+      <p className="rounded-lg border border-filter/40 bg-filter/10 p-2 text-[11px] text-filter">Modo REAL: começa com <b>1 contrato</b> (só sobe após 30 pregões reais positivos). Se o saldo cair <b>5% abaixo do pico</b>, o robô volta sozinho ao simulador e avisa você.</p>
       <button disabled={busy} className={`${btnDanger} w-full`} onClick={() => confirm('Voltar ao SIMULADOR? O robô desliga e as posições são zeradas.') && post('/api/b3/mode', { action: 'back_to_sim' })}>← voltar ao SIMULADOR</button>
     </div>
   );

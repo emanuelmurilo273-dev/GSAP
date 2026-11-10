@@ -77,7 +77,7 @@ export default function Onboarding({ acc, risk, enabled, exchanges, testnet, equ
           </>)}
           {step === 2 && (<>
             <h2 className="text-2xl font-semibold">3. Ligar o robô</h2>
-            <ul className="space-y-2 text-sm"><li>✔ Perfil <b>{P.nome}</b>: no pior dia perde no máximo <b className="text-risk">{bal ? brl(bal * P.day) : `${P.day * 100}% da conta`}</b>.</li><li>✔ Stop em toda ordem, para depois de 2 perdas seguidas, e <b>pausa sozinho</b> se a conta cair 10% do pico.</li><li>✔ Botão PARAR TUDO sempre visível.</li></ul>
+            <ul className="space-y-2 text-sm"><li>✔ Perfil <b>{P.nome}</b>: no pior dia perde no máximo <b className="text-risk">{bal ? brl(bal * P.day) : `${P.day * 100}% da conta`}</b>.</li><li>✔ Stop em toda ordem, para depois de 1 perda no dia, e <b>pausa sozinho</b> se a conta cair 5% do pico.</li><li>✔ Botão PARAR TUDO sempre visível.</li></ul>
             {!risk && <label className="flex items-start gap-3 rounded-xl bg-white/5 p-3 text-sm"><input type="checkbox" className="mt-1 !w-auto" checked={agree} onChange={(e) => setAgree(e.target.checked)} />Entendo que o robô opera com <b>dinheiro real</b> na minha conta, que <b>pode ter prejuízo</b>, que resultados passados não garantem resultados futuros e que isto não é recomendação de investimento.</label>}
             {enabled && <p className="text-sm text-executor">✔ Robô já está ligado.</p>}
           </>)}

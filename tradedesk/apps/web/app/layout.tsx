@@ -6,8 +6,8 @@ import { RiskBanner } from '@/components/ui';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
   title: { default: `${APP_NAME} · robô de trading para B3 e cripto`, template: `%s · ${APP_NAME}` },
-  description: 'Robô de trading automático na B3 (mini índice e mini dólar) e em cripto (BTC, ETH e SOL em reais). Stop em toda ordem, limite de perda e trava de 10%. Seu dinheiro fica na sua conta. Sem promessa de lucro.',
-  openGraph: { title: `${APP_NAME} · robô de trading para B3 e cripto`, description: 'Stop em toda ordem, limite de perda e trava de 10%. Seu dinheiro fica na sua conta. Sem promessa de lucro.', type: 'website', locale: 'pt_BR' },
+  description: 'Robô de trading automático na B3 (mini índice e mini dólar) e em cripto (BTC, ETH e SOL em reais). Stop em toda ordem, limite de perda e trava de 5%. Seu dinheiro fica na sua conta. Sem promessa de lucro.',
+  openGraph: { title: `${APP_NAME} · robô de trading para B3 e cripto`, description: 'Stop em toda ordem, limite de perda e trava de 5%. Seu dinheiro fica na sua conta. Sem promessa de lucro.', type: 'website', locale: 'pt_BR' },
   twitter: { card: 'summary_large_image' },
 };
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#05070a' };

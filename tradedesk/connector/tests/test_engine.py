@@ -285,7 +285,7 @@ class Heartbeat(unittest.TestCase):
 
 
 class RealMode(unittest.TestCase):
-    """Dinheiro REAL: 1 contrato até provar; trava de 10% do pico; posições órfãs; alertas."""
+    """Dinheiro REAL: 1 contrato até provar; trava de 5% do pico; posições órfãs; alertas."""
     def real(self, **over):
         return make(dict(mode="real", real_locked=False, real_unlocked=True, max_contracts=30, daily_loss_brl=5000, max_trades_per_day=40,
                          risk_per_trade_brl=900, profile="agressivo", **over), cfg=Config(allow_real=True))
@@ -310,7 +310,7 @@ class RealMode(unittest.TestCase):
         run(eng, clock)
         gw.balance = 12_000; run(eng, clock)                    # novo pico
         self.assertEqual(eng.peak, 12_000)
-        gw.balance = 12_000 * 0.90 - 1                          # caiu 10% abaixo do pico
+        gw.balance = 12_000 * 0.95 - 1                          # caiu 5% abaixo do pico
         run(eng, clock)
         self.assertEqual(store.settings["mode"], "sim")
         self.assertFalse(store.settings["enabled"]); self.assertFalse(store.settings["real_unlocked"]); self.assertTrue(store.settings["real_locked"])
@@ -327,7 +327,7 @@ class RealMode(unittest.TestCase):
 
     def test_9_percent_drop_does_not_trigger(self):
         eng, gw, store, clock, sig = self.real(symbols=["WIN"])
-        run(eng, clock); gw.balance = 10_000; run(eng, clock); gw.balance = 9_100; run(eng, clock)
+        run(eng, clock); gw.balance = 10_000; run(eng, clock); gw.balance = 9_600; run(eng, clock)
         self.assertEqual(store.settings["mode"], "real")
 
     def test_daily_loss_limit_stops_the_day_in_real_too(self):

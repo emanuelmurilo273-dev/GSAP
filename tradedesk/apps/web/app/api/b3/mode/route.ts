@@ -33,10 +33,10 @@ export async function POST(req: Request) {
       await auditOwner(admin, who, 'b3.unlock_real.denied', { missing: d.missing }, req);
       return NextResponse.json({ error: `Modo REAL bloqueado. Falta: ${d.missing.join('; ')}.`, missing: d.missing }, { status: 412 });
     }
-    // no real o robô começa com 1 contrato (o conector impõe: realContractCap) e a trava de 10% do pico fica armada
+    // no real o robô começa com 1 contrato (o conector impõe: realContractCap) e a trava de 5% do pico fica armada
     await admin.from('b3_settings').update({ mode: 'real', real_unlocked: true, real_limited: false, real_unlocked_at: new Date().toISOString(), enabled: false, updated_at: new Date().toISOString() }).eq('id', 1);
     await admin.from('app_settings').upsert({ key: 'b3_real_peak', value: null });
-    await admin.from('b3_logs').insert({ level: 'warn', agent: 'risk', message: 'MODO REAL liberado pelo dono: começa com 1 contrato; se o saldo cair 10% abaixo do pico, volta sozinho ao simulador. Robô DESLIGADO: ligue manualmente.' });
+    await admin.from('b3_logs').insert({ level: 'warn', agent: 'risk', message: 'MODO REAL liberado pelo dono: começa com 1 contrato; se o saldo cair 5% abaixo do pico, volta sozinho ao simulador. Robô DESLIGADO: ligue manualmente.' });
     await auditOwner(admin, who, 'b3.unlock_real', { demo: c.demo }, req);
     return NextResponse.json({ ok: true, mode: 'real' });
   }

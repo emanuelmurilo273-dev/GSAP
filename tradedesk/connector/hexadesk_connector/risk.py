@@ -69,7 +69,7 @@ def adaptive_size(base_n: int, loss_streak: int, last_size: int | None, high_vol
 REAL_START_CONTRACTS = 1
 REAL_SCALE_AFTER = 30      # pregões reais com resultado acumulado positivo
 REAL_SCALE_STEP = 15       # +1 contrato a cada 15 pregões positivos a mais
-REAL_DD_STOP = 0.10        # 10% abaixo do pico → volta ao simulador
+REAL_DD_STOP = 0.05        # 5% abaixo do pico → volta ao simulador
 
 
 def real_contract_cap(sessions: int, pnl: float, requested: int) -> int:

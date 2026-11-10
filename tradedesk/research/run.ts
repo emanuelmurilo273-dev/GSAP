@@ -6,7 +6,8 @@ import type { Candle } from '../packages/core/src/types';
 import { buyHold, combine, dailyReturns, metrics, maxDrawdown, profitFactor, sharpe, simulate, type Signals, type Trade } from './engine';
 import { FAMILIES, PAIRS, TIMEFRAMES, type Params } from './strategies';
 
-mkdirSync('research/results', { recursive: true });
+const OUT = process.env.RESEARCH_OUT ?? 'research/results';   // pasta de resultados (e da trava do teste final)
+mkdirSync(OUT, { recursive: true });
 const phase = process.argv[2];
 const SPLIT = { train: 0.6, val: 0.8 }; // fim do treino / fim da validação (fração do TEMPO total)
 const MONTH = 30.44 * 86_400_000;
@@ -93,7 +94,7 @@ function select() {
     const best = rows.sort((a: any, b: any) => b.chosen.val.obj - a.chosen.val.obj)[0];
     return { family: f.id, name: f.name, tf: best.tf, params: best.chosen.params, valObj: best.chosen.val.obj };
   });
-  writeFileSync('research/results/select.json', JSON.stringify(out, null, 1));
+  writeFileSync(`${OUT}/select.json`, JSON.stringify(out, null, 1));
   console.log('\nfinalistas:', JSON.stringify(out.finalists.map((x: any) => `${x.family}@${x.tf}`)));
 }
 const strip = (t: any) => { const { params, i, ...rest } = t; return rest; };
@@ -101,9 +102,9 @@ const fmt = (x: number | null) => (x == null ? '—' : Number.isFinite(x) ? x.to
 
 // ===================================================================== TEST
 function test() {
-  const lock = 'research/results/test.lock.json';
-  if (existsSync(lock)) { console.error('TESTE FINAL JÁ EXECUTADO (research/results/test.lock.json). Rodar de novo invalidaria a validação. Abortando.'); process.exit(1); }
-  const sel = JSON.parse(readFileSync('research/results/select.json', 'utf8'));
+  const lock = `${OUT}/test.lock.json`;
+  if (existsSync(lock)) { console.error(`TESTE FINAL JÁ EXECUTADO (${OUT}/test.lock.json). Rodar de novo invalidaria a validação. Abortando.`); process.exit(1); }
+  const sel = JSON.parse(readFileSync(`${OUT}/select.json`, 'utf8'));
   const res: any[] = [];
   for (const f of sel.finalists) {
     const fam = FAMILIES.find((x) => x.id === f.family)!;
@@ -122,8 +123,8 @@ function test() {
     const profitablePairs = perPair.filter((p) => p.ret > 0).length;
     const checks = {
       pf: { value: sm.pf, need: '>= 1.3', ok: (sm.pf ?? 0) >= 1.3 },
-      maxDD: { value: sm.maxDD, need: '<= 20%', ok: sm.maxDD <= 0.2 },
-      trades: { value: sm.trades, need: '>= 100', ok: sm.trades >= 100 },
+      maxDD: { value: sm.maxDD, need: '<= 10%', ok: sm.maxDD <= 0.10 },
+      trades: { value: sm.trades, need: '>= 300', ok: sm.trades >= 300 },
       pairs: { value: profitablePairs, need: '>= 2 de 3', ok: profitablePairs >= 2 },
       sharpe: { value: sm.sharpe, need: `> buy&hold (${bhSharpe.toFixed(2)})`, ok: sm.sharpe > bhSharpe },
     };
@@ -132,7 +133,7 @@ function test() {
       from: new Date(tVal).toISOString().slice(0, 10), to: new Date(full.t1).toISOString().slice(0, 10) });
     console.log(`${f.family.padEnd(9)} @${f.tf}  PF=${fmt(sm.pf)} DD=${(sm.maxDD * 100).toFixed(1)}% n=${sm.trades} pares+=${profitablePairs} Sharpe=${sm.sharpe.toFixed(2)} (B&H ${bhSharpe.toFixed(2)})  => ${approved ? 'APROVADA' : 'reprovada'}`);
   }
-  writeFileSync('research/results/test.json', JSON.stringify({ ranAt: new Date().toISOString(), results: res }, null, 1));
+  writeFileSync(`${OUT}/test.json`, JSON.stringify({ ranAt: new Date().toISOString(), results: res }, null, 1));
   writeFileSync(lock, JSON.stringify({ ranAt: new Date().toISOString(), note: 'O teste final foi executado uma única vez por estratégia.' }));
 }
 

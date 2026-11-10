@@ -72,13 +72,13 @@ export async function dailyGuard(sb: SupabaseClient, userId: string, equity: num
   return { halted: !!st.halted, dayPnlPct };
 }
 
-/** Trava de 10% do pico: se o patrimônio cair 10% desde o maior valor visto, PAUSA o robô e avisa o cliente (as posições abertas mantêm o stop na corretora). */
+/** Trava de 5% do pico: se o patrimônio cair 5% desde o maior valor visto, PAUSA o robô e avisa o cliente (as posições abertas mantêm o stop na corretora). */
 export async function peakGuard(sb: SupabaseClient, userId: string, equity: number, storedPeak: number | null, email?: string | null): Promise<{ paused: boolean }> {
   const c = peakCheck(storedPeak, equity);
   if (c.peak !== storedPeak) await sb.from('bot_settings').update({ peak_equity: c.peak }).eq('user_id', userId);
   if (!c.breached) return { paused: false };
   await sb.from('bot_settings').update({ bot_enabled: false, paused_reason: `Pausado: a conta caiu ${(c.dropPct * 100).toFixed(1)}% desde o pico (R$ ${c.peak.toFixed(2)} → R$ ${equity.toFixed(2)}).` }).eq('user_id', userId);
-  await log(sb, userId, 'risk', 'error', `TRAVA DOS 10%: patrimônio ${equity.toFixed(2)} está ${(c.dropPct * 100).toFixed(1)}% abaixo do pico ${c.peak.toFixed(2)}. Robô PAUSADO.`);
-  if (email) await sendEmail(email, `[${APP_NAME}] Robô pausado: conta caiu 10% do pico`, emailLayout('robô pausado', `<p>O patrimônio da sua conta caiu <b>${(c.dropPct * 100).toFixed(1)}%</b> desde o pico e o robô foi <b>pausado</b>. As posições abertas mantêm o stop na corretora. Para voltar, reative no app depois de conferir o que aconteceu.</p>`)).catch(() => {});
+  await log(sb, userId, 'risk', 'error', `TRAVA DOS 5%: patrimônio ${equity.toFixed(2)} está ${(c.dropPct * 100).toFixed(1)}% abaixo do pico ${c.peak.toFixed(2)}. Robô PAUSADO.`);
+  if (email) await sendEmail(email, `[${APP_NAME}] Robô pausado: conta caiu 5% do pico`, emailLayout('robô pausado', `<p>O patrimônio da sua conta caiu <b>${(c.dropPct * 100).toFixed(1)}%</b> desde o pico e o robô foi <b>pausado</b>. As posições abertas mantêm o stop na corretora. Para voltar, reative no app depois de conferir o que aconteceu.</p>`)).catch(() => {});
   return { paused: true };
 }

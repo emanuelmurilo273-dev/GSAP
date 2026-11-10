@@ -290,14 +290,14 @@ test('Cripto: nunca arrisca mais de 1% da conta por operação, mesmo com posiç
   assert.equal(cappedPositionSize(10_000, 10_000, 0.25, 0.10), 1000);
 });
 
-test('Trava de 10% do pico: pausa o robô, grava o motivo e só dispara a partir de 10%', async () => {
+test('Trava de 5% do pico: pausa o robô, grava o motivo e só dispara a partir de 5%', async () => {
   const { sb } = fx();
   sb.rows('bot_settings').push({ user_id: U, bot_enabled: true, peak_equity: 12_000 });
-  const a = await peakGuard(sb as any, U, 10_900, 12_000, null);                              // −9,2%
+  const a = await peakGuard(sb as any, U, 11_500, 12_000, null);                              // −4,2%
   assert.equal(a.paused, false); assert.equal(sb.rows('bot_settings')[0].bot_enabled, true);
-  const b = await peakGuard(sb as any, U, 10_800, 12_000, null);                              // −10%
+  const b = await peakGuard(sb as any, U, 11_400, 12_000, null);                              // −5%
   assert.equal(b.paused, true); assert.equal(sb.rows('bot_settings')[0].bot_enabled, false);
-  assert.match(String(sb.rows('bot_settings')[0].paused_reason), /10,0%|10\.0%/);
+  assert.match(String(sb.rows('bot_settings')[0].paused_reason), /5,0%|5\.0%/);
   const c = await peakGuard(sb as any, U, 13_000, 12_000, null);                              // pico sobe
   assert.equal(c.paused, false); assert.equal(sb.rows('bot_settings')[0].peak_equity, 13_000);
 });

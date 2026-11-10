@@ -19,12 +19,12 @@ test('perdas seguidas contam do fim para trás', () => {
   assert.equal(lossStreak([]), 0); assert.equal(lossStreak([5, -1, -2]), 2); assert.equal(lossStreak([-1, -2, 3]), 0); assert.equal(lossStreak([0, -1]), 1);
 });
 
-test('pausa quando a conta cai 10% do pico (9,9% não pausa)', () => {
+test('pausa quando a conta cai 5% do pico (4,9% não pausa)', () => {
   assert.equal(peakCheck(null, 1000).breached, false);
-  assert.equal(peakCheck(1200, 1080).breached, true);                    // exatamente 10%
-  assert.equal(peakCheck(1200, 1081).breached, false);
+  assert.equal(peakCheck(1200, 1140).breached, true);                    // exatamente 5%
+  assert.equal(peakCheck(1200, 1141).breached, false);
   assert.equal(peakCheck(1000, 1500).peak, 1500);                        // pico sobe
-  assert.equal(peakCheck(1500, 1349).breached, true);
+  assert.equal(peakCheck(1500, 1424).breached, true);
 });
 
 import { ADX_MIN, MIN_RR, atrRules } from '../src/protections';

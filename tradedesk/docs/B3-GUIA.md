@@ -1,7 +1,7 @@
 # Guia — Day trade na B3 (WIN/WDO) com a Clear + MetaTrader 5
 
 > **Leia primeiro.** Este guia leva você de "não tenho nada" até o robô rodando na conta **DEMO** (dinheiro fictício).
-> Nada aqui coloca dinheiro real em risco. O modo real só libera depois de: estratégia aprovada nos testes + 20 pregões no simulador + confirmação dupla.
+> Nada aqui coloca dinheiro real em risco. O modo real só libera depois de: estratégia aprovada nos testes + 30 pregões no simulador + confirmação dupla.
 >
 > **O que eu NÃO consegui confirmar (pergunte à Clear antes de depender disso):**
 > 1. o nome exato do servidor demo (`ClearInvestimentos-DEMO` foi o que você me informou; não achei documentação oficial);
@@ -112,15 +112,15 @@ Você precisa de: o **site rodando** (`Instalar-Windows.bat`, que já sobe o Sup
 
 **Hoje está bloqueado e deve ficar assim**: nenhuma estratégia foi aprovada (ver `research/RESEARCH_B3.md`). O modo REAL só libera quando **todas** estas condições forem verdadeiras (o servidor confere; não dá para "pular"):
 
-1. Estratégia **aprovada no teste fora da amostra**: fator de lucro ≥ 1,3, drawdown ≤ 15%, ≥ 300 trades, positiva nos dois ativos (o ativo ruim é desligado).
+1. Estratégia **aprovada no teste fora da amostra**: fator de lucro ≥ 1,3, drawdown ≤ 10%, ≥ 300 trades, positiva nos dois ativos (o ativo ruim é desligado).
 2. **Expectativa por operação positiva em R$** na conta demo do MT5 (mínimo 30 operações).
-3. **≥ 20 pregões** na conta demo do MT5 com resultado total positivo (o simulador interno não conta).
+3. **≥ 30 pregões** na conta demo do MT5 com resultado total positivo (o simulador interno não conta).
 4. O resultado da demo **perto do esperado no teste** (pelo menos metade da expectativa).
 5. A trava do diagnóstico aberta (aba **Saúde do robô**, frase `LIBERAR APÓS DIAGNÓSTICO`).
 6. No painel (Avançado → Detalhes → *Ativar modo REAL*): as **2 confirmações** e a frase **OPERAR REAL**.
 7. A trava na máquina do conector (`configurar --permitir-real`).
 
-**Depois de liberado:** a faixa fica **vermelha**; o robô começa **desligado** e com **1 contrato**, mesmo que você configure mais. Só passa de 1 contrato depois de **30 pregões reais com resultado positivo** (e sobe 1 contrato a cada 15 pregões positivos). Se o saldo real cair **10% abaixo do pico**, o robô **volta sozinho ao simulador**, trava o real e avisa por e-mail/push.
+**Depois de liberado:** a faixa fica **vermelha**; o robô começa **desligado** e com **1 contrato**, mesmo que você configure mais. Só passa de 1 contrato depois de **30 pregões reais com resultado positivo** (e sobe 1 contrato a cada 15 pregões positivos). Se o saldo real cair **5% abaixo do pico**, o robô **volta sozinho ao simulador**, trava o real e avisa por e-mail/push.
 
 ## 6c) Ao vivo, Inteligência e reaprendizado (novo)
 

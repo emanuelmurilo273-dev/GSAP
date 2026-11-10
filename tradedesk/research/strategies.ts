@@ -118,4 +118,4 @@ const atrCombo: Family = {
 
 export const FAMILIES: Family[] = [trend, breakout, meanrev, momentum, atrCombo];
 export const TIMEFRAMES = ['15m', '1h', '4h'] as const;
-export const PAIRS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'] as const;
+export const PAIRS = ((process.env.RESEARCH_PAIRS ?? 'BTCUSDT,ETHUSDT,SOLUSDT').split(',')) as unknown as readonly string[];   // Foxbit: RESEARCH_PAIRS=BTCBRL,ETHBRL,SOLBRL

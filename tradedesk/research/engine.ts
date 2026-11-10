@@ -1,6 +1,6 @@
 import type { Candle } from '../packages/core/src/types';
 
-export const FEE = 0.001;   // 0,1% por execução
+export const FEE = Number(process.env.RESEARCH_FEE ?? 0.001);   // por execução (Foxbit taker: RESEARCH_FEE=0.005)
 export const SLIP = 0.0005; // 0,05% por execução
 
 /** Saída de uma estratégia: sinais calculados no FECHAMENTO de cada barra (execução na abertura da seguinte). */

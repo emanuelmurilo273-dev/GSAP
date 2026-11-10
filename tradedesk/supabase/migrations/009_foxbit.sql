@@ -2,7 +2,7 @@
 alter table public.exchange_accounts drop constraint if exists exchange_accounts_exchange_check;
 alter table public.exchange_accounts add constraint exchange_accounts_exchange_check check (exchange in ('binance','bybit','mercado','foxbit'));
 
--- Trava de 10% do pico (cripto): maior patrimônio visto e motivo da pausa automática.
+-- Trava de 5% do pico (cripto): maior patrimônio visto e motivo da pausa automática.
 alter table public.bot_settings add column if not exists peak_equity numeric;
 alter table public.bot_settings add column if not exists paused_reason text;
 

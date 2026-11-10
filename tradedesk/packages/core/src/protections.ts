@@ -1,7 +1,7 @@
 /** Proteções do robô de cripto (puras e testadas). Valem acima de qualquer configuração do cliente. */
 export const CRYPTO_MAX_RISK_PCT = 0.01;       // no máximo 1% do patrimônio arriscado por operação (distância até o stop × tamanho)
 export const MAX_LOSSES_IN_ROW = 1;            // EMERGÊNCIA: perfil inicial para o dia após 1 perda
-export const PEAK_DROP_LIMIT = 0.10;           // conta 10% abaixo do pico → robô pausa
+export const PEAK_DROP_LIMIT = 0.05;           // conta 5% abaixo do pico → robô pausa
 export const MAX_TRADES_PER_DAY_DEFAULT = 3;   // EMERGÊNCIA: no máximo 3 operações por dia
 export const MIN_RR = 2;                       // risco/retorno mínimo 1:2
 export const ADX_MIN = 20;                     // abaixo disso o mercado está lateral: não opera

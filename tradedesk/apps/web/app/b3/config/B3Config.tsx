@@ -26,7 +26,7 @@ export default function B3Config({ initial }: { initial: Any | null }) {
   return (
     <form onSubmit={save} className="space-y-4">
       <h1 className="text-lg font-semibold">Configurações do day trade</h1>
-      {v.mode === 'real' && <p className="rounded-lg border border-filter/40 bg-filter/10 p-3 text-sm text-filter">Modo REAL: o robô opera com <b>1 contrato</b> até completar 30 pregões reais positivos (mesmo que você configure mais). Se o saldo cair <b>10% abaixo do pico</b>, ele volta sozinho ao simulador.</p>}
+      {v.mode === 'real' && <p className="rounded-lg border border-filter/40 bg-filter/10 p-3 text-sm text-filter">Modo REAL: o robô opera com <b>1 contrato</b> até completar 30 pregões reais positivos (mesmo que você configure mais). Se o saldo cair <b>5% abaixo do pico</b>, ele volta sozinho ao simulador.</p>}
       <Panel title="ativos e risco" accent="#ff5c9a">
         <div className="grid gap-4 sm:grid-cols-2">
           <F label="Ativos">

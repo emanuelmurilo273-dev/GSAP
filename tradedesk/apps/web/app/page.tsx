@@ -30,8 +30,8 @@ export default async function Landing() {
       <section className="mx-auto max-w-3xl space-y-4 px-5 pb-12">
         <h2 className="text-2xl font-semibold">Como ele se protege</h2>
         <ul className="grid gap-3 sm:grid-cols-2">{[
-          ['Stop em toda ordem', 'Enviado ao servidor da corretora sempre que ela permite.'], ['Limite de perda por dia', 'Bateu o limite, para até amanhã. Duas perdas seguidas também param o dia.'],
-          ['Risco máximo de 1% por operação', 'Sem alavancagem. Sem martingale, sem preço médio, sem aumentar a mão para recuperar.'], ['Trava de 10% do pico', 'Se a conta cair 10% do maior valor, o robô pausa e avisa você.'],
+          ['Stop em toda ordem', 'Enviado ao servidor da corretora sempre que ela permite.'], ['Limite de perda por dia', 'Bateu o limite, para até amanhã. Uma perda no dia também para o robô.'],
+          ['Risco máximo de 1% por operação', 'Sem alavancagem. Sem martingale, sem preço médio, sem aumentar a mão para recuperar.'], ['Trava de 5% do pico', 'Se a conta cair 5% do maior valor, o robô pausa e avisa você.'],
         ].map(([t, d]) => <li key={t} className="rounded-2xl border border-white/[.07] bg-white/[.03] p-4"><b>{t}</b><p className="mt-1 text-sm text-dim">{d}</p></li>)}</ul>
       </section>
 
@@ -46,7 +46,7 @@ export default async function Landing() {
         {[
           ['Eu vou ganhar dinheiro?', 'Ninguém pode prometer isso e nós não prometemos. O robô pode ter prejuízo, inclusive perda de todo o valor alocado. Por isso mostramos todos os resultados, dias negativos incluídos.'],
           ['O app mexe no meu dinheiro?', 'Não. Seu dinheiro fica na sua corretora. O app usa uma chave de API sem permissão de saque (na B3, o login do MT5 fica só no conector do seu computador/VPS). Pode desconectar a qualquer momento.'],
-          ['Por que a venda não está aberta?', 'Porque definimos critérios antes de vender: fator de lucro ≥ 1,3, perda máxima ≤ 15% e pelo menos 300 operações no teste fora da amostra. Até passar, só lista de espera.'],
+          ['Por que a venda não está aberta?', 'Porque definimos critérios antes de vender: fator de lucro ≥ 1,3, perda máxima ≤ 10% e pelo menos 300 operações no teste fora da amostra. Até passar, só lista de espera.'],
           ['Quanto custa?', open ? `${brl(price)} por mês, no Pix ou cartão, sem fidelidade.` : 'O preço será divulgado quando a venda abrir. Fora a assinatura, existem os custos da corretora (taxas e emolumentos), que aparecem separados nas estatísticas.'],
           ['E se o robô parar ou a internet cair?', 'Os stops ficam na corretora e continuam valendo. Você recebe aviso por e-mail e há o botão PARAR TUDO.'],
           ['Isto é recomendação de investimento?', 'Não. É um software que executa regras automáticas na sua conta, por sua conta e risco. Consulte um profissional se tiver dúvidas.'],
